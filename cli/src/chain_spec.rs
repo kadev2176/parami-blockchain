@@ -47,7 +47,11 @@ pub use parami_runtime::GenesisConfig;
 type AccountPublic = <Signature as Verify>::Signer;
 
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
-
+const TOKEN_PROPERTIES: &str = r#"
+        {
+            "tokenDecimals": 15,
+            "tokenSymbol": "AD3"
+        }"#;
 /// Node `ChainSpec` extensions.
 ///
 /// Additional parameters for some Substrate core modules,
@@ -186,6 +190,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 /// Staging testnet config.
 pub fn staging_testnet_config() -> ChainSpec {
     let boot_nodes = vec![];
+    let properties = serde_json::from_str(TOKEN_PROPERTIES).unwrap();
     ChainSpec::from_genesis(
         "Staging Testnet",
         "staging_testnet",
@@ -197,7 +202,7 @@ pub fn staging_testnet_config() -> ChainSpec {
                 .expect("Staging telemetry url is valid; qed"),
         ),
         None,
-        None,
+        properties,
         Default::default(),
     )
 }
@@ -374,6 +379,7 @@ fn development_config_genesis() -> GenesisConfig {
 
 /// Development config (single validator Alice)
 pub fn development_config() -> ChainSpec {
+    let properties = serde_json::from_str(TOKEN_PROPERTIES).unwrap();
     ChainSpec::from_genesis(
         "Development",
         "dev",
@@ -382,7 +388,7 @@ pub fn development_config() -> ChainSpec {
         vec![],
         None,
         None,
-        None,
+        properties,
         Default::default(),
     )
 }
@@ -401,6 +407,7 @@ fn local_testnet_genesis() -> GenesisConfig {
 
 /// Local testnet config (multivalidator Alice + Bob)
 pub fn local_testnet_config() -> ChainSpec {
+    let properties = serde_json::from_str(TOKEN_PROPERTIES).unwrap();
     ChainSpec::from_genesis(
         "Local Testnet",
         "local_testnet",
@@ -409,7 +416,7 @@ pub fn local_testnet_config() -> ChainSpec {
         vec![],
         None,
         None,
-        None,
+        properties,
         Default::default(),
     )
 }
@@ -432,6 +439,7 @@ pub(crate) mod tests {
 
     /// Local testnet config (single validator - Alice)
     pub fn integration_test_config_with_single_authority() -> ChainSpec {
+        let properties = serde_json::from_str(TOKEN_PROPERTIES).unwrap();
         ChainSpec::from_genesis(
             "Integration Test",
             "test",
@@ -440,13 +448,14 @@ pub(crate) mod tests {
             vec![],
             None,
             None,
-            None,
+            properties,
             Default::default(),
         )
     }
 
     /// Local testnet config (multivalidator Alice + Bob)
     pub fn integration_test_config_with_two_authorities() -> ChainSpec {
+        let properties = serde_json::from_str(TOKEN_PROPERTIES).unwrap();
         ChainSpec::from_genesis(
             "Integration Test",
             "test",
@@ -455,7 +464,7 @@ pub(crate) mod tests {
             vec![],
             None,
             None,
-            None,
+            properties,
             Default::default(),
         )
     }

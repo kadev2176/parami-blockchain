@@ -1,7 +1,7 @@
 [package]
 name = "parami-primitives"
 version = "2.0.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors = ["Parami Devs <info@parami.io>"]
 edition = "2018"
 license = "Apache-2.0"
 homepage = "https://substrate.dev"
@@ -24,9 +24,9 @@ pretty_assertions = "0.6.1"
 [features]
 default = ["std"]
 std = [
-	"codec/std",
-	"frame-system/std",
-	"sp-application-crypto/std",
-	"sp-core/std",
-	"sp-runtime/std",
+    "codec/std",
+    "frame-system/std",
+    "sp-application-crypto/std",
+    "sp-core/std",
+    "sp-runtime/std",
 ]

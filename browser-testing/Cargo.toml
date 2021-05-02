@@ -1,7 +1,7 @@
 [package]
 name = "parami-browser-testing"
 version = "2.0.0"
-authors = ["Parity Technologies <admin@parity.io>"]
+authors = ["Parami Devs <info@parami.io>"]
 description = "Tests for the in-browser light client."
 edition = "2018"
 license = "Apache-2.0"

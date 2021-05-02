@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// 	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -57,11 +57,11 @@ mod multiplier_tests {
     // update based on runtime impl.
     fn runtime_multiplier_update(fm: Multiplier) -> Multiplier {
         TargetedFeeAdjustment::<
-			Runtime,
-			TargetBlockFullness,
-			AdjustmentVariable,
-			MinimumMultiplier,
-		>::convert(fm)
+            Runtime,
+            TargetBlockFullness,
+            AdjustmentVariable,
+            MinimumMultiplier,
+        >::convert(fm)
     }
 
     // update based on reference impl.
@@ -225,7 +225,7 @@ mod multiplier_tests {
                 let adjusted_fee = fm.saturating_mul_acc_int(fee);
                 println!(
                     "iteration {}, new fm = {:?}. Fee at this point is: {} units / {} millicents, \
-					{} cents, {} dollars",
+                    {} cents, {} dollars",
                     iterations,
                     fm,
                     adjusted_fee,

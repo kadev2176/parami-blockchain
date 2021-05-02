@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// 	http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -46,7 +46,7 @@ use self::common::{sign, *};
 pub fn bloaty_code_unwrap() -> &'static [u8] {
     parami_runtime::WASM_BINARY_BLOATY.expect(
         "Development wasm binary is not available. \
-											 Testing is only supported with the flag disabled.",
+                                             Testing is only supported with the flag disabled.",
     )
 }
 
@@ -550,76 +550,76 @@ const CODE_TRANSFER: &str = r#"
 (func (export "deploy")
 )
 (func (export "call")
-	(block $fail
-		;; Load input data to contract memory
-		(call $seal_input
-			(i32.const 0)
-			(i32.const 52)
-		)
+    (block $fail
+        ;; Load input data to contract memory
+        (call $seal_input
+            (i32.const 0)
+            (i32.const 52)
+        )
 
-		;; fail if the input size is not != 4
-		(br_if $fail
-			(i32.ne
-				(i32.const 4)
-				(i32.load (i32.const 52))
-			)
-		)
+        ;; fail if the input size is not != 4
+        (br_if $fail
+            (i32.ne
+                (i32.const 4)
+                (i32.load (i32.const 52))
+            )
+        )
 
-		(br_if $fail
-			(i32.ne
-				(i32.load8_u (i32.const 0))
-				(i32.const 0)
-			)
-		)
-		(br_if $fail
-			(i32.ne
-				(i32.load8_u (i32.const 1))
-				(i32.const 1)
-			)
-		)
-		(br_if $fail
-			(i32.ne
-				(i32.load8_u (i32.const 2))
-				(i32.const 2)
-			)
-		)
-		(br_if $fail
-			(i32.ne
-				(i32.load8_u (i32.const 3))
-				(i32.const 3)
-			)
-		)
+        (br_if $fail
+            (i32.ne
+                (i32.load8_u (i32.const 0))
+                (i32.const 0)
+            )
+        )
+        (br_if $fail
+            (i32.ne
+                (i32.load8_u (i32.const 1))
+                (i32.const 1)
+            )
+        )
+        (br_if $fail
+            (i32.ne
+                (i32.load8_u (i32.const 2))
+                (i32.const 2)
+            )
+        )
+        (br_if $fail
+            (i32.ne
+                (i32.load8_u (i32.const 3))
+                (i32.const 3)
+            )
+        )
 
-		(drop
-			(call $seal_call
-				(i32.const 4)  ;; Pointer to "callee" address.
-				(i32.const 32)  ;; Length of "callee" address.
-				(i64.const 0)  ;; How much gas to devote for the execution. 0 = all.
-				(i32.const 36)  ;; Pointer to the buffer with value to transfer
-				(i32.const 16)   ;; Length of the buffer with value to transfer.
-				(i32.const 0)   ;; Pointer to input data buffer address
-				(i32.const 0)   ;; Length of input data buffer
-				(i32.const 4294967295) ;; u32 max value is the sentinel value: do not copy output
-				(i32.const 0) ;; Length is ignored in this case
-			)
-		)
+        (drop
+            (call $seal_call
+                (i32.const 4)  ;; Pointer to "callee" address.
+                (i32.const 32)  ;; Length of "callee" address.
+                (i64.const 0)  ;; How much gas to devote for the execution. 0 = all.
+                (i32.const 36)  ;; Pointer to the buffer with value to transfer
+                (i32.const 16)   ;; Length of the buffer with value to transfer.
+                (i32.const 0)   ;; Pointer to input data buffer address
+                (i32.const 0)   ;; Length of input data buffer
+                (i32.const 4294967295) ;; u32 max value is the sentinel value: do not copy output
+                (i32.const 0) ;; Length is ignored in this case
+            )
+        )
 
-		(return)
-	)
-	unreachable
+        (return)
+    )
+    unreachable
 )
 ;; Destination AccountId to transfer the funds.
 ;; Represented by H256 (32 bytes long) in little endian.
 (data (i32.const 4)
-	"\09\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
-	"\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
-	"\00\00\00\00"
+    "\09\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
+    "\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
+    "\00\00\00\00"
 )
 ;; Amount of value to transfer.
 ;; Represented by u128 (16 bytes long) in little endian.
 (data (i32.const 36)
-	"\06\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
-	"\00\00"
+    "\06\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
+    "\00\00"
 )
 ;; Length of the input buffer
 (data (i32.const 52) "\04")

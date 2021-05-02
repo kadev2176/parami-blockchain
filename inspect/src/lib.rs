@@ -235,9 +235,9 @@ impl<Hash: FromStr, Number: FromStr> FromStr for BlockAddress<Hash, Number> {
         // then assume it's bytes (hex-encoded)
         sp_core::bytes::from_hex(s).map(Self::Bytes).map_err(|e| {
             format!(
-				"Given string does not look like hash or number. It could not be parsed as bytes either: {}",
-				e
-			)
+                "Given string does not look like hash or number. It could not be parsed as bytes either: {}",
+                e
+            )
         })
     }
 }
