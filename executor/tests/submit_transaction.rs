@@ -17,7 +17,7 @@
 
 use codec::Decode;
 use frame_system::offchain::{SendSignedTransaction, Signer, SubmitTransaction};
-use parami_runtime::{Executive, Indices, Runtime, UncheckedExtrinsic};
+use parami_runtime::{Did, Executive, Runtime, UncheckedExtrinsic};
 use sp_application_crypto::AppKey;
 use sp_core::offchain::{testing::TestTransactionPoolExt, TransactionPoolExt};
 use sp_keystore::{testing::KeyStore, KeystoreExt, SyncCryptoStore};
@@ -251,7 +251,7 @@ fn submitted_transaction_should_be_valid() {
         let extrinsic = UncheckedExtrinsic::decode(&mut &*tx0).unwrap();
         // add balance to the account
         let author = extrinsic.signature.clone().unwrap().0;
-        let address = Indices::lookup(author).unwrap();
+        let address = Did::lookup(author).unwrap();
         let data = pallet_balances::AccountData {
             free: 5_000_000_000_000,
             ..Default::default()

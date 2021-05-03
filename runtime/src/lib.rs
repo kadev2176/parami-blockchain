@@ -48,7 +48,7 @@ use pallet_session::historical as pallet_session_historical;
 pub use pallet_transaction_payment::{CurrencyAdapter, Multiplier, TargetedFeeAdjustment};
 use pallet_transaction_payment::{FeeDetails, RuntimeDispatchInfo};
 pub use parami_primitives::{AccountId, Signature};
-use parami_primitives::{AccountIndex, Balance, BlockNumber, Hash, Index, Moment};
+use parami_primitives::{Balance, BlockNumber, Hash, Index, Moment};
 use sp_api::impl_runtime_apis;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{
@@ -198,7 +198,7 @@ impl frame_system::Config for Runtime {
     type Hash = Hash;
     type Hashing = BlakeTwo256;
     type AccountId = AccountId;
-    type Lookup = Indices;
+    type Lookup = Did;
     type Header = generic::Header<BlockNumber, BlakeTwo256>;
     type Event = Event;
     type BlockHashCount = BlockHashCount;
@@ -267,7 +267,6 @@ impl InstanceFilter<Call> for ProxyType {
                 c,
                 Call::Balances(..)
                     | Call::Vesting(pallet_vesting::Call::vested_transfer(..))
-                    | Call::Indices(pallet_indices::Call::transfer(..))
             ),
             ProxyType::Governance => matches!(
                 c,
@@ -355,15 +354,15 @@ impl pallet_babe::Config for Runtime {
 }
 
 parameter_types! {
-    pub const IndexDeposit: Balance = 1 * DOLLARS;
+    pub const DidDeposit: Balance = 1 * DOLLARS;
 }
 
-impl pallet_indices::Config for Runtime {
-    type AccountIndex = AccountIndex;
+impl parami_did::Config for Runtime {
     type Currency = Balances;
-    type Deposit = IndexDeposit;
+    type Deposit = DidDeposit;
     type Event = Event;
-    type WeightInfo = pallet_indices::weights::SubstrateWeight<Runtime>;
+    type Public = sp_runtime::MultiSigner;
+    type Signature = Signature;
 }
 
 parameter_types! {
@@ -827,7 +826,7 @@ where
             })
             .ok()?;
         let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
-        let address = Indices::unlookup(account);
+        let address = Did::unlookup(account);
         let (call, extra, _) = raw_payload.deconstruct();
         Some((call, (address, signature.into(), extra)))
     }
@@ -1036,7 +1035,8 @@ construct_runtime!(
         Babe: pallet_babe::{Module, Call, Storage, Config, Inherent, ValidateUnsigned},
         Timestamp: pallet_timestamp::{Module, Call, Storage, Inherent},
         Authorship: pallet_authorship::{Module, Call, Storage, Inherent},
-        Indices: pallet_indices::{Module, Call, Storage, Config<T>, Event<T>},
+        // NOTE: replaces Indices: pallet_indices::{Module, Call, Storage, Config<T>, Event<T>},
+        Did: parami_did::{Module, Call, Storage, Event<T>},
         Balances: pallet_balances::{Module, Call, Storage, Config<T>, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Module, Storage},
         Staking: pallet_staking::{Module, Call, Config<T>, Storage, Event<T>, ValidateUnsigned},
@@ -1071,7 +1071,7 @@ construct_runtime!(
 );
 
 /// The address format for describing accounts.
-pub type Address = sp_runtime::MultiAddress<AccountId, AccountIndex>;
+pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
 /// Block header type as expected by this runtime.
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
@@ -1394,7 +1394,6 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_grandpa, Grandpa);
             add_benchmark!(params, batches, pallet_identity, Identity);
             add_benchmark!(params, batches, pallet_im_online, ImOnline);
-            add_benchmark!(params, batches, pallet_indices, Indices);
             add_benchmark!(params, batches, pallet_lottery, Lottery);
             add_benchmark!(params, batches, pallet_mmr, Mmr);
             add_benchmark!(params, batches, pallet_multisig, Multisig);

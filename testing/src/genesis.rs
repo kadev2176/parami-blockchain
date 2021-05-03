@@ -22,7 +22,7 @@ use crate::keyring::*;
 use parami_runtime::constants::currency::*;
 use parami_runtime::{
     wasm_binary_unwrap, AccountId, BalancesConfig, ContractsConfig, GenesisConfig, GrandpaConfig,
-    IndicesConfig, SessionConfig, SocietyConfig, StakerStatus, StakingConfig, SystemConfig,
+    SessionConfig, SocietyConfig, StakerStatus, StakingConfig, SystemConfig,
 };
 use sp_core::ChangesTrieConfiguration;
 use sp_keyring::{Ed25519Keyring, Sr25519Keyring};
@@ -69,7 +69,6 @@ pub fn config_endowed(
                 .map(|x| x.to_vec())
                 .unwrap_or_else(|| wasm_binary_unwrap().to_vec()),
         }),
-        pallet_indices: Some(IndicesConfig { indices: vec![] }),
         pallet_balances: Some(BalancesConfig { balances: endowed }),
         pallet_session: Some(SessionConfig {
             keys: vec![
