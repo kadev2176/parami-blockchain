@@ -4236,7 +4236,6 @@ version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c080576a1fbb1187b7da9f4cba739076bbb197f44964892b2d392755920bbf63"
 dependencies = [
- "frame-benchmarking",
  "frame-support",
  "frame-system",
  "parity-scale-codec",
@@ -4948,7 +4947,6 @@ dependencies = [
  "pallet-grandpa",
  "pallet-identity",
  "pallet-im-online",
- "pallet-indices",
  "pallet-lottery",
  "pallet-membership",
  "pallet-mmr",
@@ -4972,6 +4970,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
+ "parami-did",
  "parami-primitives",
  "parity-scale-codec",
  "serde",
