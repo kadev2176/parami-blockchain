@@ -4797,6 +4797,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-did"
+version = "0.2.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-executor"
 version = "2.0.0"
 dependencies = [
