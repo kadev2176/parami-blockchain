@@ -9,6 +9,7 @@ members = [
     "rpc-client",
     "runtime",
     "testing",
+    "pallets/did",
 ]
 
 # The list of dependencies below (which can be both direct and indirect dependencies) are crates
