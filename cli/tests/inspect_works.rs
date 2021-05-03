@@ -30,7 +30,7 @@ fn inspect_works() {
 
     common::run_dev_parami_for_a_while(base_path.path());
 
-    let status = Command::new(cargo_bin("substrate"))
+    let status = Command::new(cargo_bin("parami"))
         .args(&["inspect", "--dev", "--pruning", "archive", "-d"])
         .arg(base_path.path())
         .args(&["block", "1"])
