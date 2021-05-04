@@ -36,7 +36,7 @@ pub mod pallet {
         /// The currency trait.
         type Currency: ReservableCurrency<Self::AccountId>;
 
-        /// The deposit needed for reserving an index.
+        /// The deposit needed for reserving a did.
         type Deposit: Get<BalanceOf<Self>>;
 
         type Public: IdentifyAccount<AccountId = Self::AccountId> + AsRef<[u8]> + Member + Codec;
@@ -62,6 +62,9 @@ pub mod pallet {
     pub(super) type ReferrerOf<T: Config> =
         StorageMap<_, Identity, DidMethodSpecId, DidMethodSpecId>;
 
+    #[pallet::storage]
+    pub(super) type TotalDids<T: Config> = StorageValue<_, u32>;
+
     // 5. Runtime Events
     // Can stringify event types to metadata.
     #[pallet::event]
@@ -81,7 +84,7 @@ pub mod pallet {
     pub enum Error<T> {
         /// DID does not exist
         NotExists,
-        /// did already exists
+        /// DID already exists
         DidExists,
         /// The index is assigned to another account.
         NotOwner,
@@ -105,6 +108,7 @@ pub mod pallet {
     // Functions that are callable from outside the runtime.
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+        /// Register a new DID.
         #[pallet::weight(50_000_000)]
         pub(super) fn register(
             origin: OriginFor<T>,
@@ -115,7 +119,10 @@ pub mod pallet {
 
             ensure!(!<DidOf<T>>::contains_key(&who), Error::<T>::DidExists);
             if let Some(r) = referrer.as_ref() {
-                ensure!(<Metadata<T>>::contains_key(r), Error::<T>::ReferrerNotExists);
+                ensure!(
+                    <Metadata<T>>::contains_key(r),
+                    Error::<T>::ReferrerNotExists
+                );
             }
 
             let hash = keccak_256(public.as_ref());
@@ -128,10 +135,15 @@ pub mod pallet {
 
             Metadata::<T>::try_mutate(id, |maybe_value| {
                 ensure!(maybe_value.is_none(), Error::<T>::InUse);
+
                 *maybe_value = Some((who.clone(), T::Deposit::get(), false));
                 T::Currency::reserve(&who, T::Deposit::get())
             })?;
             DidOf::<T>::insert(who.clone(), id);
+            // TODO: handle overflow?
+            TotalDids::<T>::mutate(|v| {
+                *v = Some(v.as_ref().copied().unwrap_or_default() + 1);
+            });
 
             if let Some(referrer) = referrer {
                 ReferrerOf::<T>::insert(id, referrer);
@@ -139,6 +151,30 @@ pub mod pallet {
             } else {
                 Self::deposit_event(Event::Assigned(id, who, None));
             }
+
+            Ok(().into())
+        }
+
+        /// Rovoke a DID, which will never be used in the future.
+        /// This means that you refuse to use this AccountID for identify.
+        #[pallet::weight(50_000_000)]
+        pub(super) fn revoke(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+
+            let id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
+            Metadata::<T>::try_mutate::<_, _, Error<T>, _>(id, |maybe_value| {
+                let (account, amount, revoked) = maybe_value.take().ok_or(Error::<T>::NotExists)?;
+                ensure!(&account == &who, Error::<T>::NotOwner);
+                ensure!(!revoked, Error::<T>::Revoked);
+                T::Currency::unreserve(&who, amount);
+                *maybe_value = Some((who.clone(), amount, true));
+                Ok(())
+            })?;
+            TotalDids::<T>::mutate(|v| {
+                *v = Some(v.as_ref().copied().unwrap_or_default() - 1);
+            });
+
+            Self::deposit_event(Event::<T>::Revoked(id));
 
             Ok(().into())
         }
@@ -208,20 +244,6 @@ decl_storage! {
     }
     add_extra_genesis {
         config(indices): Vec<(DidMethodSpecId, T::AccountId)>;
-    }
-}
-
-decl_event!(
-    pub enum Event<T> where
-        <T as frame_system::Config>::AccountId,
-    {
-
-    }
-);
-
-decl_error! {
-    pub enum Error for Module<T: Config> {
-
     }
 }
 

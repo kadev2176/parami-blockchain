@@ -104,6 +104,7 @@ fn register_did_should_work() {
             sr25519::Public([1; 32]),
             None
         ));
+        assert_eq!(<TotalDids<Test>>::get(), Some(1));
         assert_eq!(Balances::total_balance(&acct1), 10);
         //assert_eq!(Balances::total_balance(&2), 8);
         // should have a did
@@ -122,6 +123,7 @@ fn register_did_should_work() {
             sr25519::Public([2; 32]),
             Some(did1)
         ));
+        assert_eq!(<TotalDids<Test>>::get(), Some(2));
     });
 }
 
