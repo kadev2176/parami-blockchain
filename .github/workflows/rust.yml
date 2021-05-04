@@ -21,6 +21,8 @@ jobs:
         toolchain: nightly
         override: true
         components: rustfmt, clippy
+    - name: Add wasm32 target
+      run: rustup target add wasm32-unknown-unknown
     - uses: actions/checkout@v2
     - name: Build
       run: cargo build --verbose
