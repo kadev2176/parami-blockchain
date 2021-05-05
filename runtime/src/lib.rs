@@ -154,7 +154,6 @@ pub struct ParamiBaseCallFilter;
 impl Filter<Call> for ParamiBaseCallFilter {
     fn filter(c: &Call) -> bool {
         use pallet_identity::Data;
-        use sp_runtime::MultiSigner;
 
         match c {
             // identity rule check
