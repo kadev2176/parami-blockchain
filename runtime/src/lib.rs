@@ -154,6 +154,7 @@ pub struct ParamiBaseCallFilter;
 impl Filter<Call> for ParamiBaseCallFilter {
     fn filter(c: &Call) -> bool {
         use pallet_identity::Data;
+        use sp_runtime::MultiSigner;
 
         match c {
             // identity rule check
@@ -389,6 +390,7 @@ impl parami_did::Config for Runtime {
     type Event = Event;
     type Public = sp_runtime::MultiSigner;
     type Signature = Signature;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -1434,6 +1436,8 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
             add_benchmark!(params, batches, pallet_vesting, Vesting);
+
+            add_benchmark!(params, batches, parami_did, Did);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

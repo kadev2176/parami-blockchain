@@ -185,4 +185,5 @@ runtime-benchmarks = [
     "pallet-session-benchmarking",
     "frame-system-benchmarking",
     "hex-literal",
+    "parami-did/runtime-benchmarks",
 ]

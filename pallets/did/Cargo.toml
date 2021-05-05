@@ -23,6 +23,8 @@ frame-system = { version = "3.0.0", default-features = false }
 pallet-balances = { version = "3.0.0", default-features = false }
 pallet-timestamp = { version = "3.0.0", default-features = false }
 
+frame-benchmarking = { version = "3.0.0", default-features = false, optional = true }
+
 [features]
 default = ["std"]
 std = [
@@ -36,4 +38,9 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "pallet-timestamp/std",
+]
+runtime-benchmarks = [
+    "frame-benchmarking",
+    "frame-system/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
 ]

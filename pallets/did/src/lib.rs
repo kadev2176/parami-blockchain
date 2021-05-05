@@ -1,15 +1,17 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(test)]
+mod benchmarking;
 mod tests;
+pub mod weights;
 
 use codec::Codec;
 use frame_support::traits::{Currency, ReservableCurrency};
+use sp_core::sr25519;
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::{IdentifyAccount, LookupError, Member, StaticLookup, Verify};
 use sp_runtime::MultiAddress;
 use sp_std::prelude::*;
-// pub use weights::WeightInfo;
+pub use weights::WeightInfo;
 
 type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
@@ -37,14 +39,20 @@ pub mod pallet {
         type Currency: ReservableCurrency<Self::AccountId>;
 
         /// The deposit needed for reserving a did.
+        #[pallet::constant]
         type Deposit: Get<BalanceOf<Self>>;
 
-        type Public: IdentifyAccount<AccountId = Self::AccountId> + AsRef<[u8]> + Member + Codec;
+        /// The public key type, restricted to Sr25519.
+        type Public: IdentifyAccount<AccountId = Self::AccountId>
+            + AsRef<[u8]>
+            + From<sr25519::Public>
+            + Member
+            + Codec;
 
         type Signature: Verify<Signer = Self::Public> + Member + Codec;
 
         // /// Weight information for extrinsics in this pallet.
-        // type WeightInfo: WeightInfo;
+        type WeightInfo: WeightInfo;
     }
 
     // 4. Runtime Storage
@@ -63,6 +71,7 @@ pub mod pallet {
         StorageMap<_, Identity, DidMethodSpecId, DidMethodSpecId>;
 
     #[pallet::storage]
+    #[pallet::getter(fn total_dids)]
     pub(super) type TotalDids<T: Config> = StorageValue<_, u32>;
 
     // 5. Runtime Events
@@ -109,7 +118,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         /// Register a new DID.
-        #[pallet::weight(50_000_000)]
+        #[pallet::weight(T::WeightInfo::register())]
         pub(super) fn register(
             origin: OriginFor<T>,
             public: T::Public,
@@ -131,7 +140,7 @@ pub mod pallet {
         }
 
         /// Register a new DID for other users.
-        #[pallet::weight(50_000_000)]
+        #[pallet::weight(50_000_000 +T::DbWeight::get().reads_writes(3,3))]
         pub(super) fn register_for(
             origin: OriginFor<T>,
             public: T::Public,
@@ -158,10 +167,10 @@ pub mod pallet {
         }
 
         /// Lock balance.
-        #[pallet::weight(50_000_000)]
+        #[pallet::weight(50_000_000 + T::DbWeight::get().reads_writes(2,1))]
         pub(super) fn lock(
             origin: OriginFor<T>,
-            amount: BalanceOf<T>,
+            #[pallet::compact] amount: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 
@@ -180,7 +189,7 @@ pub mod pallet {
 
         /// Rovoke a DID, which will never be used in the future.
         /// This means that you refuse to use this AccountID for identify.
-        #[pallet::weight(50_000_000)]
+        #[pallet::weight(50_000_000 + T::DbWeight::get().reads_writes(1,2))]
         pub(super) fn revoke(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 

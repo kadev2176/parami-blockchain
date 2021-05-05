@@ -1,3 +1,5 @@
+#![cfg(test)]
+
 use super::*;
 use crate as parami_did;
 
@@ -78,9 +80,10 @@ impl Config for Test {
     type Deposit = DidDeposit;
     type Signature = sr25519::Signature;
     type Public = <sr25519::Signature as Verify>::Signer;
+    type WeightInfo = ();
 }
 
-fn new_test_ext() -> sp_io::TestExternalities {
+pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut t = frame_system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
