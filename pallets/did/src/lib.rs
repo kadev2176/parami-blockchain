@@ -2,6 +2,7 @@
 
 mod benchmarking;
 mod tests;
+#[rustfmt::skip]
 pub mod weights;
 
 use codec::Codec;
@@ -140,7 +141,7 @@ pub mod pallet {
         }
 
         /// Register a new DID for other users.
-        #[pallet::weight(50_000_000 +T::DbWeight::get().reads_writes(3,3))]
+        #[pallet::weight(T::WeightInfo::register_for())]
         pub(super) fn register_for(
             origin: OriginFor<T>,
             public: T::Public,
@@ -167,7 +168,7 @@ pub mod pallet {
         }
 
         /// Lock balance.
-        #[pallet::weight(50_000_000 + T::DbWeight::get().reads_writes(2,1))]
+        #[pallet::weight(T::WeightInfo::lock())]
         pub(super) fn lock(
             origin: OriginFor<T>,
             #[pallet::compact] amount: BalanceOf<T>,
@@ -189,7 +190,7 @@ pub mod pallet {
 
         /// Rovoke a DID, which will never be used in the future.
         /// This means that you refuse to use this AccountID for identify.
-        #[pallet::weight(50_000_000 + T::DbWeight::get().reads_writes(1,2))]
+        #[pallet::weight(T::WeightInfo::revoke())]
         pub(super) fn revoke(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 

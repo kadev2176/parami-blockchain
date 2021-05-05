@@ -22,7 +22,7 @@
 //! EXECUTION: Some(Wasm), WASM-EXECUTION: Compiled, CHAIN: Some("dev"), DB CACHE: 128
 
 // Executed Command:
-// target/release/parami
+// ./target/release/parami
 // benchmark
 // --chain=dev
 // --steps=50
@@ -35,35 +35,66 @@
 // --template=./.maintain/frame-weight-template.hbs
 // --extrinsic=*
 
+
 #![allow(unused_parens)]
 #![allow(unused_imports)]
 
-use frame_support::{
-    traits::Get,
-    weights::{constants::RocksDbWeight, Weight},
-};
+use frame_support::{traits::Get, weights::{Weight, constants::RocksDbWeight}};
 use sp_std::marker::PhantomData;
 
 /// Weight functions needed for parami_did.
 pub trait WeightInfo {
     fn register() -> Weight;
+    fn register_for() -> Weight;
+    fn lock() -> Weight;
+    fn revoke() -> Weight;
 }
 
 /// Weights for parami_did using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     fn register() -> Weight {
-        (45_967_000 as Weight)
+        (45_687_000 as Weight)
             .saturating_add(T::DbWeight::get().reads(4 as Weight))
             .saturating_add(T::DbWeight::get().writes(4 as Weight))
+    }
+    fn register_for() -> Weight {
+        (49_094_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(4 as Weight))
+            .saturating_add(T::DbWeight::get().writes(4 as Weight))
+    }
+    fn lock() -> Weight {
+        (45_553_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(2 as Weight))
+            .saturating_add(T::DbWeight::get().writes(1 as Weight))
+    }
+    fn revoke() -> Weight {
+        (58_562_000 as Weight)
+            .saturating_add(T::DbWeight::get().reads(3 as Weight))
+            .saturating_add(T::DbWeight::get().writes(2 as Weight))
     }
 }
 
 // For backwards compatibility and tests
 impl WeightInfo for () {
     fn register() -> Weight {
-        (45_967_000 as Weight)
+        (45_687_000 as Weight)
             .saturating_add(RocksDbWeight::get().reads(4 as Weight))
             .saturating_add(RocksDbWeight::get().writes(4 as Weight))
+    }
+    fn register_for() -> Weight {
+        (49_094_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(4 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(4 as Weight))
+    }
+    fn lock() -> Weight {
+        (45_553_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(2 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(1 as Weight))
+    }
+    fn revoke() -> Weight {
+        (58_562_000 as Weight)
+            .saturating_add(RocksDbWeight::get().reads(3 as Weight))
+            .saturating_add(RocksDbWeight::get().writes(2 as Weight))
     }
 }
