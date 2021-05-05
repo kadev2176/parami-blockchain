@@ -25,9 +25,9 @@ use parami_runtime::constants::currency::*;
 use parami_runtime::Block;
 use parami_runtime::{
     wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig,
-    CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig,
-    SessionConfig, SessionKeys, SocietyConfig, StakerStatus, StakingConfig, SudoConfig,
-    SystemConfig, TechnicalCommitteeConfig,
+    CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
+    SessionKeys, SocietyConfig, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
+    TechnicalCommitteeConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;

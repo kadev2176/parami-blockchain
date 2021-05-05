@@ -54,6 +54,7 @@ fn version_is_full() {
 }
 
 #[test]
+#[ignore]
 fn test_regex_matches_properly() {
     let expected = expected_regex();
 
