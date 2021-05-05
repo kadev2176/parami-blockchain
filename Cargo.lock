@@ -4799,6 +4799,7 @@ dependencies = [
 name = "parami-did"
 version = "0.2.0"
 dependencies = [
+ "frame-benchmarking",
  "frame-support",
  "frame-system",
  "pallet-balances",
