@@ -124,6 +124,21 @@ fn register_did_should_work() {
             Some(did1)
         ));
         assert_eq!(<TotalDids<Test>>::get(), Some(2));
+
+        // register for on-ex account on chain
+        // 0.you cannot register before deposit
+        assert!(Did::register_for(
+            Origin::signed(sr25519::Public([1; 32])),
+            sr25519::Public([3; 32]),
+        )
+        .is_err());
+        // 1.first, lock amount
+        assert_ok!(Did::lock(Origin::signed(sr25519::Public([1; 32])), 5));
+        // 2.then, register
+        assert_ok!(Did::register_for(
+            Origin::signed(sr25519::Public([1; 32])),
+            sr25519::Public([3; 32]),
+        ));
     });
 }
 

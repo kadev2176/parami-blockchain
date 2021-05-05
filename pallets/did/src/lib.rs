@@ -71,12 +71,10 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// A account index was assigned. \[index, who, referrer\]
+        /// A DID was assigned. \[index, who, referrer\]
         Assigned(DidMethodSpecId, T::AccountId, Option<DidMethodSpecId>),
-        /// A account index has been freed up (unassigned). \[index\]
+        /// A DID has been freed up (unassigned). \[index\]
         Revoked(DidMethodSpecId),
-        /// A account index has been frozen to its current account ID. \[index, who\]
-        Frozen(DidMethodSpecId, T::AccountId),
     }
 
     /// Error for the nicks module.
@@ -86,16 +84,18 @@ pub mod pallet {
         NotExists,
         /// DID already exists
         DidExists,
-        /// The index is assigned to another account.
+        /// The index is assigned to another account
         NotOwner,
-        /// The DID was not available or revoked.
+        /// The DID was not available or revoked
         InUse,
-        /// DID is revoked.
+        /// DID is revoked
         Revoked,
-        /// Only accepts account ID.
+        /// Only accepts account ID
         AccountIdRequired,
-        /// Referrer does not exist.
+        /// Referrer does not exist
         ReferrerNotExists,
+        /// Deposit to low
+        InsufficientDeposit,
     }
 
     // 6. Hooks
@@ -116,41 +116,64 @@ pub mod pallet {
             referrer: Option<DidMethodSpecId>,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-
             ensure!(!<DidOf<T>>::contains_key(&who), Error::<T>::DidExists);
-            if let Some(r) = referrer.as_ref() {
-                ensure!(
-                    <Metadata<T>>::contains_key(r),
-                    Error::<T>::ReferrerNotExists
-                );
-            }
 
-            let hash = keccak_256(public.as_ref());
-
-            let acct = public.into_account();
+            let acct = public.clone().into_account();
             ensure!(who == acct, Error::<T>::NotOwner);
 
+            let hash = keccak_256(public.as_ref());
             let mut id = [0u8; 20];
             id.copy_from_slice(&hash[12..]);
 
+            Self::register_did(who, id, referrer)?;
+
+            Ok(().into())
+        }
+
+        /// Register a new DID for other users.
+        #[pallet::weight(50_000_000)]
+        pub(super) fn register_for(
+            origin: OriginFor<T>,
+            public: T::Public,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+
+            let my_id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
+            let (_account, amount, revoked) =
+                Metadata::<T>::get(my_id).ok_or(Error::<T>::NotExists)?;
+            ensure!(!revoked, Error::<T>::Revoked);
+            ensure!(amount >= T::Deposit::get(), Error::<T>::InsufficientDeposit);
+
+            let acct = public.clone().into_account();
+            // If someone register_for for itself, referrer/empty check won't pass.
+            // ensure!(who != acct, Error::<T>::NotOwner);
+
+            let hash = keccak_256(public.as_ref());
+            let mut id = [0u8; 20];
+            id.copy_from_slice(&hash[12..]);
+
+            Self::register_did(acct, id, Some(my_id))?;
+
+            Ok(().into())
+        }
+
+        /// Lock balance.
+        #[pallet::weight(50_000_000)]
+        pub(super) fn lock(
+            origin: OriginFor<T>,
+            amount: BalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            let who = ensure_signed(origin)?;
+
+            ensure!(amount >= T::Deposit::get(), Error::<T>::InsufficientDeposit);
+            let id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
             Metadata::<T>::try_mutate(id, |maybe_value| {
-                ensure!(maybe_value.is_none(), Error::<T>::InUse);
-
-                *maybe_value = Some((who.clone(), T::Deposit::get(), false));
-                T::Currency::reserve(&who, T::Deposit::get())
+                let (_account, current_amount, revoked) =
+                    maybe_value.as_mut().ok_or(Error::<T>::NotExists)?;
+                ensure!(!(*revoked), Error::<T>::Revoked);
+                *current_amount += amount;
+                T::Currency::reserve(&who, amount)
             })?;
-            DidOf::<T>::insert(who.clone(), id);
-            // TODO: handle overflow?
-            TotalDids::<T>::mutate(|v| {
-                *v = Some(v.as_ref().copied().unwrap_or_default() + 1);
-            });
-
-            if let Some(referrer) = referrer {
-                ReferrerOf::<T>::insert(id, referrer);
-                Self::deposit_event(Event::Assigned(id, who, Some(referrer)));
-            } else {
-                Self::deposit_event(Event::Assigned(id, who, None));
-            }
 
             Ok(().into())
         }
@@ -182,6 +205,40 @@ pub mod pallet {
 
     // PUBLIC IMMUTABLES
     impl<T: Config> Pallet<T> {
+        pub fn register_did(
+            who: T::AccountId,
+            id: DidMethodSpecId,
+            referrer: Option<DidMethodSpecId>,
+        ) -> Result<(), DispatchError> {
+            if let Some(r) = referrer.as_ref() {
+                ensure!(
+                    <Metadata<T>>::contains_key(r),
+                    Error::<T>::ReferrerNotExists
+                );
+            }
+
+            Metadata::<T>::try_mutate::<_, _, Error<T>, _>(id, |maybe_value| {
+                ensure!(maybe_value.is_none(), Error::<T>::DidExists);
+
+                *maybe_value = Some((who.clone(), Default::default(), false));
+                Ok(())
+            })?;
+            DidOf::<T>::insert(who.clone(), id);
+            // TODO: handle overflow?
+            TotalDids::<T>::mutate(|v| {
+                *v = Some(v.as_ref().copied().unwrap_or_default() + 1);
+            });
+
+            if let Some(referrer) = referrer {
+                ReferrerOf::<T>::insert(id, referrer);
+                Self::deposit_event(Event::Assigned(id, who, Some(referrer)));
+            } else {
+                Self::deposit_event(Event::Assigned(id, who, None));
+            }
+
+            Ok(())
+        }
+
         /// Lookup an T::AccountIndex to get an Id, if there's one there.
         pub fn lookup_index(index: DidMethodSpecId) -> Option<T::AccountId> {
             Metadata::<T>::get(index).map(|x| x.0)
@@ -228,6 +285,30 @@ impl<T: Config> StaticLookup for Pallet<T> {
         MultiAddress::Id(a)
     }
 }
+
+/*
+impl<T: Config> OnKilledAccount<T::AccountId> for Pallet<T> {
+    fn on_killed_account(who: &T::AccountId) {
+        if let Some(id) = <DidOf<T>>::get(who) {
+            let _ = Metadata::<T>::try_mutate::<_, _, Error<T>, _>(id, |maybe_value| {
+                let (account, amount, revoked) = maybe_value.take().ok_or(Error::<T>::NotExists)?;
+                //ensure!(&account == who, Error::<T>::NotOwner);
+                // ensure!(!revoked, Error::<T>::Revoked);
+                if !revoked {
+                    T::Currency::unreserve(&who, amount);
+                    *maybe_value = Some((who.clone(), amount, true));
+                    TotalDids::<T>::mutate(|v| {
+                        *v = Some(v.as_ref().copied().unwrap_or_default() - 1);
+                    });
+                    Self::deposit_event(Event::<T>::Revoked(id));
+                }
+
+                Ok(())
+            });
+        }
+    }
+}
+*/
 
 /*
 decl_storage! {
