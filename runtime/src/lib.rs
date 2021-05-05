@@ -27,7 +27,7 @@ use frame_support::traits::InstanceFilter;
 use frame_support::{
     construct_runtime, debug, parameter_types,
     traits::{
-        Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, Randomness,
+        Currency, Filter, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, Randomness,
         U128CurrencyToVote,
     },
     weights::{
@@ -149,6 +149,33 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
     }
 }
 
+// NOTE: Filtered Call will be a BadOrigin error.
+pub struct ParamiBaseCallFilter;
+impl Filter<Call> for ParamiBaseCallFilter {
+    fn filter(c: &Call) -> bool {
+        use pallet_identity::Data;
+
+        match c {
+            // identity rule check
+            Call::Identity(pallet_identity::Call::set_identity(info)) => {
+                info.legal == Data::None && info.riot == Data::None && {
+                    // only accepts Raw keys for info.additional
+                    info.additional.iter().all(
+                        |(k, _v)| {
+                            if let Data::Raw(_) = k {
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                    )
+                }
+            }
+            _ => true,
+        }
+    }
+}
+
 /// We assume that ~10% of the block weight is consumed by `on_initalize` handlers.
 /// This is used to limit the maximal weight of a single extrinsic.
 const AVERAGE_ON_INITIALIZE_RATIO: Perbill = Perbill::from_percent(10);
@@ -187,7 +214,7 @@ parameter_types! {
 const_assert!(NORMAL_DISPATCH_RATIO.deconstruct() >= AVERAGE_ON_INITIALIZE_RATIO.deconstruct());
 
 impl frame_system::Config for Runtime {
-    type BaseCallFilter = ();
+    type BaseCallFilter = ParamiBaseCallFilter;
     type BlockWeights = RuntimeBlockWeights;
     type BlockLength = RuntimeBlockLength;
     type DbWeight = RocksDbWeight;
@@ -265,8 +292,7 @@ impl InstanceFilter<Call> for ProxyType {
             ProxyType::Any => true,
             ProxyType::NonTransfer => !matches!(
                 c,
-                Call::Balances(..)
-                    | Call::Vesting(pallet_vesting::Call::vested_transfer(..))
+                Call::Balances(..) | Call::Vesting(pallet_vesting::Call::vested_transfer(..))
             ),
             ProxyType::Governance => matches!(
                 c,
