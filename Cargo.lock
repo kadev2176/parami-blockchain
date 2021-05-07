@@ -4665,6 +4665,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-airdrop"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-bench"
 version = "0.8.0"
 dependencies = [
@@ -4971,6 +4989,7 @@ dependencies = [
  "pallet-treasury",
  "pallet-utility",
  "pallet-vesting",
+ "parami-airdrop",
  "parami-did",
  "parami-primitives",
  "parity-scale-codec",

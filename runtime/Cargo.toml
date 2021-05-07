@@ -84,6 +84,7 @@ pallet-vesting = { version = "3.0.0", default-features = false }
 
 # own pallets
 parami-did = { path = "../pallets/did", default-features = false }
+parami-airdrop = { path = "../pallets/airdrop", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0" }
@@ -152,6 +153,8 @@ std = [
     "pallet-society/std",
     "pallet-recovery/std",
     "pallet-vesting/std",
+    "parami-did/std",
+    "parami-airdrop/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
