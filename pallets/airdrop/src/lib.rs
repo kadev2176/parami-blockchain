@@ -7,7 +7,8 @@ mod tests;
 pub mod weights;
 */
 use frame_support::traits::{Currency, ExistenceRequirement};
-use sp_runtime::traits::StaticLookup;
+use sp_runtime::traits::{AccountIdConversion, Saturating, StaticLookup};
+use sp_runtime::ModuleId as PalletId;
 use sp_std::prelude::*;
 
 type BalanceOf<T> =
@@ -22,6 +23,9 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
+        /// The Airdrop's module id
+        type PalletId: Get<PalletId>;
+
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -51,18 +55,27 @@ pub mod pallet {
             // TODO: find a reasonable default limit
             ensure!(dests.len() <= 2_000, Error::<T>::TooManyDests);
 
+            let (airdrop_account, airdrop_balance) = Self::pool();
+
             frame_support::debug::native::info!("airdrop to {} dests", dests.len());
             frame_support::debug::native::info!("airdrop {:?}", amount);
 
             let total_amount = amount * <BalanceOf<T>>::from(dests.len() as u32);
-            let free_balance = T::Currency::free_balance(&sender);
 
-            ensure!(free_balance > total_amount, Error::<T>::InsufficientBalance);
+            ensure!(
+                airdrop_balance > total_amount,
+                Error::<T>::InsufficientBalance
+            );
 
             for dest in &dests {
                 let who = T::Lookup::lookup(dest.clone())?;
                 frame_support::debug::native::info!("airdrop to {:?}", dest);
-                T::Currency::transfer(&sender, &who, amount, ExistenceRequirement::AllowDeath)?;
+                T::Currency::transfer(
+                    &airdrop_account,
+                    &who,
+                    amount,
+                    ExistenceRequirement::KeepAlive,
+                )?;
             }
 
             Self::deposit_event(Event::<T>::Airdropped(dests, amount));
@@ -70,8 +83,25 @@ pub mod pallet {
             Ok(().into())
         }
 
+        /// Donates to airdrop pool
         #[pallet::weight(0)]
-        pub(crate) fn set_admin(
+        pub(super) fn donate(
+            origin: OriginFor<T>,
+            #[pallet::compact] amount: BalanceOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            let sender = ensure_signed(origin)?;
+            T::Currency::transfer(
+                &sender,
+                &Self::account_id(),
+                amount,
+                ExistenceRequirement::AllowDeath,
+            )?;
+
+            Ok(().into())
+        }
+
+        #[pallet::weight(0)]
+        pub(super) fn set_admin(
             origin: OriginFor<T>,
             new: <T::Lookup as StaticLookup>::Source,
         ) -> DispatchResultWithPostInfo {
@@ -87,7 +117,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub fn force_set_admin(
+        pub(super) fn force_set_admin(
             origin: OriginFor<T>,
             new: <T::Lookup as StaticLookup>::Source,
         ) -> DispatchResultWithPostInfo {
@@ -145,6 +175,27 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             <Admin<T>>::put(&self.admin);
+        }
+    }
+
+    // public functions
+    impl<T: Config> Pallet<T> {
+        /// The account ID of the airdrop pool.
+        ///
+        /// This actually does computation. If you need to keep using it, then make sure you cache the
+        /// value and only call this once.
+        pub fn account_id() -> T::AccountId {
+            T::PalletId::get().into_account()
+        }
+
+        /// Return the pool account and amount of money in the pool.
+        // The existential deposit is not part of the pool so airdrop account never gets deleted.
+        fn pool() -> (T::AccountId, BalanceOf<T>) {
+            let account_id = Self::account_id();
+            let balance = T::Currency::free_balance(&account_id)
+                .saturating_sub(T::Currency::minimum_balance());
+
+            (account_id, balance)
         }
     }
 }

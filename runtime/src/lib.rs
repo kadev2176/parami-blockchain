@@ -392,7 +392,13 @@ impl parami_did::Config for Runtime {
     type WeightInfo = ();
 }
 
+use sp_runtime::ModuleId as PalletId;
+parameter_types! {
+    pub const AirdropPalletId: PalletId = PalletId(*b"py/adrop");
+}
+
 impl parami_airdrop::Config for Runtime {
+    type PalletId = AirdropPalletId;
     type Event = Event;
     type Currency = Balances;
 }
