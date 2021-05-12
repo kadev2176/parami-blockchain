@@ -392,6 +392,11 @@ impl parami_did::Config for Runtime {
     type WeightInfo = ();
 }
 
+impl parami_airdrop::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+}
+
 parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * DOLLARS;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
@@ -1094,6 +1099,8 @@ construct_runtime!(
         Assets: pallet_assets::{Module, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Module, Storage},
         Lottery: pallet_lottery::{Module, Call, Storage, Event<T>},
+
+        Airdrop: parami_airdrop::{Module, Call, Config<T>, Storage, Event<T>},
     }
 );
 
