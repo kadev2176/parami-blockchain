@@ -58,7 +58,6 @@ pallet-elections-phragmen = { version = "3.0.0", default-features = false }
 pallet-grandpa = { version = "3.0.0", default-features = false }
 pallet-im-online = { version = "3.0.0", default-features = false }
 pallet-identity = { version = "3.0.0", default-features = false }
-pallet-lottery = { version = "3.0.0", default-features = false }
 pallet-membership = { version = "3.0.0", default-features = false }
 pallet-mmr = { version = "3.0.0", default-features = false }
 pallet-multisig = { version = "3.0.0", default-features = false }
@@ -116,7 +115,6 @@ std = [
     "pallet-grandpa/std",
     "pallet-im-online/std",
     "sp-inherents/std",
-    "pallet-lottery/std",
     "pallet-membership/std",
     "pallet-mmr/std",
     "pallet-multisig/std",
@@ -172,7 +170,6 @@ runtime-benchmarks = [
     "pallet-grandpa/runtime-benchmarks",
     "pallet-identity/runtime-benchmarks",
     "pallet-im-online/runtime-benchmarks",
-    "pallet-lottery/runtime-benchmarks",
     "pallet-mmr/runtime-benchmarks",
     "pallet-multisig/runtime-benchmarks",
     "pallet-proxy/runtime-benchmarks",
