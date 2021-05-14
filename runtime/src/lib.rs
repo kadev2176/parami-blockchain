@@ -404,6 +404,19 @@ impl parami_airdrop::Config for Runtime {
 }
 
 parameter_types! {
+    pub const MyChainId: u8 = 233;
+    pub const ProposalLifetime: BlockNumber = 50;
+}
+
+impl chainbridge::Config for Runtime {
+    type Event = Event;
+    type AdminOrigin = frame_system::EnsureRoot<Self::AccountId>;
+    type Proposal = Call;
+    type ChainId = MyChainId;
+    type ProposalLifetime = ProposalLifetime;
+}
+
+parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * DOLLARS;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
     // This number may need to be adjusted in the future if this assumption no longer holds true.
@@ -1087,6 +1100,7 @@ construct_runtime!(
         Mmr: pallet_mmr::{Module, Storage},
 
         Airdrop: parami_airdrop::{Module, Call, Config<T>, Storage, Event<T>},
+        ChainBridge: chainbridge::{Module, Call, Storage, Event<T>},
     }
 );
 

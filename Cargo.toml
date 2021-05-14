@@ -11,6 +11,7 @@ members = [
     "testing",
     "pallets/did",
     "pallets/airdrop",
+    "pallets/chainbridge",
 ]
 
 # The list of dependencies below (which can be both direct and indirect dependencies) are crates
