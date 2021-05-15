@@ -85,6 +85,7 @@ pallet-vesting = { version = "3.0.0", default-features = false }
 parami-did = { path = "../pallets/did", default-features = false }
 parami-airdrop = { path = "../pallets/airdrop", default-features = false }
 chainbridge = { path = "../pallets/chainbridge", default-features = false }
+parami-cross-assets = { path = "../pallets/cross-assets", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0" }
@@ -155,6 +156,7 @@ std = [
     "parami-did/std",
     "parami-airdrop/std",
     "chainbridge/std",
+    "parami-cross-assets/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

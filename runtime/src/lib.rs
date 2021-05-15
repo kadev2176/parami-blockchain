@@ -417,6 +417,29 @@ impl chainbridge::Config for Runtime {
 }
 
 parameter_types! {
+    // NOTE: chain id is 233 for Parami.
+    // NOTE: chain id is 0 for ETH(or testnet).
+    // &blake2_128(b"hash")
+    pub HashId: chainbridge::ResourceId = chainbridge::derive_resource_id(233,
+        b"\x97\xed\xaaiYd8\x13m\xcd\x12\x85S\xe9\x04\xbc\x03\xf5&Bor}'\x0bi\x84\x1f\xb6\xcfP\xd3"
+    );
+    // &blake2_128(b"AD3")
+    // 000000000000000000000000000000c76ebe4a02bbc34786d860b355f5a5ce00
+    // Note: Chain ID is 0 indicating this is native to another chain
+    pub NativeTokenId: chainbridge::ResourceId = chainbridge::derive_resource_id(0,
+        b"\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\xc7n\xbeJ\x02\xbb\xc3G\x86\xd8`\xb3U\xf5\xa5\xce\x00"
+    );
+}
+
+impl parami_cross_assets::Config for Runtime {
+    type Event = Event;
+    type BridgeOrigin = chainbridge::EnsureBridge<Runtime>;
+    type Currency = Balances;
+    type HashId = HashId;
+    type NativeTokenId = NativeTokenId;
+}
+
+parameter_types! {
     pub const ExistentialDeposit: Balance = 1 * DOLLARS;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
     // This number may need to be adjusted in the future if this assumption no longer holds true.
@@ -1101,6 +1124,7 @@ construct_runtime!(
 
         Airdrop: parami_airdrop::{Module, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Module, Call, Storage, Event<T>},
+        CrossAssets: parami_cross_assets::{Module, Call, Event<T>},
     }
 );
 
