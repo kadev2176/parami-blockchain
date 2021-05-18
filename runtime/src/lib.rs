@@ -26,7 +26,8 @@ use codec::{Decode, Encode};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, Filter, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced, U128CurrencyToVote,
+        Currency, Filter, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced,
+        U128CurrencyToVote,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -446,6 +447,14 @@ impl parami_cross_assets::Config for Runtime {
     type Currency = Balances;
     type HashId = HashId;
     type NativeTokenId = NativeTokenId;
+}
+
+impl orml_nft::Config for Runtime {
+    type ClassId = u32;
+    type TokenId = u64;
+    // TODO: fill Class metadata and Token metadata
+    type ClassData = ();
+    type TokenData = ();
 }
 
 parameter_types! {
@@ -1176,6 +1185,8 @@ construct_runtime!(
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
+
+        OrmlNft: orml_nft::{Pallet, Storage} = 100,
     }
 );
 

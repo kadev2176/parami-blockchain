@@ -84,6 +84,9 @@ pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", 
 pallet-transaction-payment-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 pallet-vesting = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 
+# orml
+orml-nft = { path = "../orml/nft", default-features = false }
+
 # own pallets
 parami-did = { path = "../pallets/did", default-features = false }
 parami-airdrop = { path = "../pallets/airdrop", default-features = false }
@@ -162,6 +165,7 @@ std = [
     "parami-airdrop/std",
     "chainbridge/std",
     "parami-cross-assets/std",
+    "orml-nft/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
