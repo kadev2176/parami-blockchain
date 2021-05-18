@@ -29,7 +29,8 @@ use std::{borrow::Cow, collections::HashMap, pin::Pin, sync::Arc};
 
 use parami_primitives::Block;
 use parami_testing::bench::{BenchDb, BlockType, DatabaseType, KeyTypes, Profile};
-use sp_consensus::{Environment, Proposer, RecordProof};
+use sp_consensus::{Environment, Proposer};
+use sp_inherents::InherentDataProvider;
 use sp_runtime::{generic::BlockId, traits::NumberFor, OpaqueExtrinsic};
 use sp_transaction_pool::{
     ImportNotificationStream, PoolFuture, PoolStatus, TransactionFor, TransactionSource,
@@ -132,11 +133,9 @@ impl core::Benchmark for ConstructionBenchmark {
             context.client.clone(),
             self.transactions.clone().into(),
             None,
+            None,
         );
-        let inherent_data_providers = sp_inherents::InherentDataProviders::new();
-        inherent_data_providers
-            .register_provider(sp_timestamp::InherentDataProvider)
-            .expect("Failed to register timestamp data provider");
+        let timestamp_provider = sp_timestamp::InherentDataProvider::from_system_time();
 
         let start = std::time::Instant::now();
 
@@ -153,12 +152,12 @@ impl core::Benchmark for ConstructionBenchmark {
 
         let _block = futures::executor::block_on(
             proposer.propose(
-                inherent_data_providers
+                timestamp_provider
                     .create_inherent_data()
                     .expect("Create inherent data failed"),
                 Default::default(),
                 std::time::Duration::from_secs(20),
-                RecordProof::Yes,
+                None,
             ),
         )
         .map(|r| r.block)

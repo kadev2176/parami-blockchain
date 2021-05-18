@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// 	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -20,6 +20,10 @@ use frame_support::Hashable;
 use frame_system::offchain::AppCrypto;
 use sc_executor::error::Result;
 use sc_executor::{NativeExecutor, WasmExecutionMethod};
+use sp_consensus_babe::{
+    digests::{PreDigest, SecondaryPlainPreDigest},
+    Slot, BABE_ENGINE_ID,
+};
 use sp_core::{
     crypto::KeyTypeId,
     sr25519::Signature,
@@ -28,7 +32,7 @@ use sp_core::{
 };
 use sp_runtime::{
     traits::{BlakeTwo256, Header as HeaderT},
-    ApplyExtrinsicResult, MultiSignature, MultiSigner,
+    ApplyExtrinsicResult, Digest, DigestItem, MultiSignature, MultiSigner,
 };
 use sp_state_machine::TestExternalities as CoreTestExternalities;
 
@@ -69,7 +73,7 @@ impl AppCrypto<MultiSigner, MultiSignature> for TestAuthorityId {
 pub fn compact_code_unwrap() -> &'static [u8] {
     parami_runtime::WASM_BINARY.expect(
         "Development wasm binary is not available. \
-                                      Testing is only supported with the flag disabled.",
+        Testing is only supported with the flag disabled.",
     )
 }
 
@@ -105,7 +109,8 @@ pub fn executor() -> NativeExecutor<Executor> {
 
 pub fn executor_call<
     R: Decode + Encode + PartialEq,
-    NC: FnOnce() -> std::result::Result<R, String> + std::panic::UnwindSafe,
+    NC: FnOnce() -> std::result::Result<R, Box<dyn std::error::Error + Send + Sync>>
+        + std::panic::UnwindSafe,
 >(
     t: &mut TestExternalities<BlakeTwo256>,
     method: &str,
@@ -147,6 +152,7 @@ pub fn construct_block(
     number: BlockNumber,
     parent_hash: Hash,
     extrinsics: Vec<CheckedExtrinsic>,
+    babe_slot: Slot,
 ) -> (Vec<u8>, Hash) {
     use sp_trie::{trie_types::Layout, TrieConfiguration};
 
@@ -164,7 +170,16 @@ pub fn construct_block(
         number,
         extrinsics_root,
         state_root: Default::default(),
-        digest: Default::default(),
+        digest: Digest {
+            logs: vec![DigestItem::PreRuntime(
+                BABE_ENGINE_ID,
+                PreDigest::SecondaryPlain(SecondaryPlainPreDigest {
+                    slot: babe_slot,
+                    authority_index: 42,
+                })
+                .encode(),
+            )],
+        },
     };
 
     // execute the block to get the real header.

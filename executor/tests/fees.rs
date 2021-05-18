@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// 	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -24,12 +24,12 @@ use frame_support::{
 };
 use parami_primitives::Balance;
 use parami_runtime::{
-    constants::currency::*, Balances, Call, CheckedExtrinsic, Multiplier, Runtime,
-    TransactionByteFee, TransactionPayment,
+    constants::{currency::*, time::SLOT_DURATION},
+    Balances, Call, CheckedExtrinsic, Multiplier, Runtime, TransactionByteFee, TransactionPayment,
 };
 use parami_testing::keyring::*;
 use sp_core::NeverNativeValue;
-use sp_runtime::{FixedPointNumber, Perbill};
+use sp_runtime::{traits::One, Perbill};
 
 pub mod common;
 use self::common::{sign, *};
@@ -47,6 +47,7 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
 
     let mut tt = new_test_ext(compact_code_unwrap(), false);
 
+    let time1 = 42 * 1000;
     // big one in terms of weight.
     let block1 = construct_block(
         &mut tt,
@@ -55,15 +56,17 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
         vec![
             CheckedExtrinsic {
                 signed: None,
-                function: Call::Timestamp(pallet_timestamp::Call::set(42 * 1000)),
+                function: Call::Timestamp(pallet_timestamp::Call::set(time1)),
             },
             CheckedExtrinsic {
                 signed: Some((charlie(), signed_extra(0, 0))),
                 function: Call::System(frame_system::Call::fill_block(Perbill::from_percent(60))),
             },
         ],
+        (time1 / SLOT_DURATION).into(),
     );
 
+    let time2 = 52 * 1000;
     // small one in terms of weight.
     let block2 = construct_block(
         &mut tt,
@@ -72,13 +75,14 @@ fn fee_multiplier_increases_and_decreases_on_big_weight() {
         vec![
             CheckedExtrinsic {
                 signed: None,
-                function: Call::Timestamp(pallet_timestamp::Call::set(52 * 1000)),
+                function: Call::Timestamp(pallet_timestamp::Call::set(time2)),
             },
             CheckedExtrinsic {
                 signed: Some((charlie(), signed_extra(1, 0))),
                 function: Call::System(frame_system::Call::remark(vec![0; 1])),
             },
         ],
+        (time2 / SLOT_DURATION).into(),
     );
 
     println!(
@@ -130,6 +134,7 @@ fn new_account_info(free_dollars: u128) -> Vec<u8> {
         nonce: 0u32,
         consumers: 0,
         providers: 0,
+        sufficients: 0,
         data: (
             free_dollars * DOLLARS,
             0 * DOLLARS,
@@ -241,7 +246,7 @@ fn block_weight_capacity_report() {
     let mut time = 10;
     let mut nonce: Index = 0;
     let mut block_number = 1;
-    let mut previous_hash: Hash = GENESIS_HASH.into();
+    let mut previous_hash: parami_primitives::Hash = GENESIS_HASH.into();
 
     loop {
         let num_transfers = block_number * factor;
@@ -261,7 +266,13 @@ fn block_weight_capacity_report() {
         );
 
         // NOTE: this is super slow. Can probably be improved.
-        let block = construct_block(&mut tt, block_number, previous_hash, xts);
+        let block = construct_block(
+            &mut tt,
+            block_number,
+            previous_hash,
+            xts,
+            (time * 1000 / SLOT_DURATION).into(),
+        );
 
         let len = block.0.len();
         print!(
@@ -309,7 +320,7 @@ fn block_length_capacity_report() {
     let mut time = 10;
     let mut nonce: Index = 0;
     let mut block_number = 1;
-    let mut previous_hash: Hash = GENESIS_HASH.into();
+    let mut previous_hash: parami_primitives::Hash = GENESIS_HASH.into();
 
     loop {
         // NOTE: this is super slow. Can probably be improved.
@@ -331,6 +342,7 @@ fn block_length_capacity_report() {
                     ])),
                 },
             ],
+            (time * 1000 / SLOT_DURATION).into(),
         );
 
         let len = block.0.len();

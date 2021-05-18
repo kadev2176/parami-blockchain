@@ -7,8 +7,8 @@ mod tests;
 pub mod weights;
 */
 use frame_support::traits::{Currency, ExistenceRequirement};
+use frame_support::PalletId;
 use sp_runtime::traits::{AccountIdConversion, Saturating, StaticLookup};
-use sp_runtime::ModuleId as PalletId;
 use sp_std::prelude::*;
 
 type BalanceOf<T> =
@@ -57,8 +57,8 @@ pub mod pallet {
 
             let (airdrop_account, airdrop_balance) = Self::pool();
 
-            frame_support::debug::native::info!("airdrop to {} dests", dests.len());
-            frame_support::debug::native::info!("airdrop {:?}", amount);
+            frame_support::runtime_print!("airdrop to {} dests", dests.len());
+            frame_support::runtime_print!("airdrop {:?}", amount);
 
             let total_amount = amount * <BalanceOf<T>>::from(dests.len() as u32);
 
@@ -69,7 +69,7 @@ pub mod pallet {
 
             for dest in &dests {
                 let who = T::Lookup::lookup(dest.clone())?;
-                frame_support::debug::native::info!("airdrop to {:?}", dest);
+                frame_support::runtime_print!("airdrop to {:?}", dest);
                 T::Currency::transfer(
                     &airdrop_account,
                     &who,

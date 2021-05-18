@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// 	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -171,46 +171,46 @@ fn should_submit_signed_twice_from_all_accounts() {
     t.register_extension(KeystoreExt(Arc::new(keystore)));
 
     t.execute_with(|| {
-        let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
-            .send_signed_transaction(|_| {
-                pallet_balances::Call::transfer(Default::default(), Default::default())
-            });
+		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
+			.send_signed_transaction(|_| {
+				pallet_balances::Call::transfer(Default::default(), Default::default())
+			});
 
-        let len = results.len();
-        assert_eq!(len, 2);
-        assert_eq!(results.into_iter().filter_map(|x| x.1.ok()).count(), len);
-        assert_eq!(state.read().transactions.len(), 2);
+		let len = results.len();
+		assert_eq!(len, 2);
+		assert_eq!(results.into_iter().filter_map(|x| x.1.ok()).count(), len);
+		assert_eq!(state.read().transactions.len(), 2);
 
-        // submit another one from the same account. The nonce should be incremented.
-        let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
-            .send_signed_transaction(|_| {
-                pallet_balances::Call::transfer(Default::default(), Default::default())
-            });
+		// submit another one from the same account. The nonce should be incremented.
+		let results = Signer::<Runtime, TestAuthorityId>::all_accounts()
+			.send_signed_transaction(|_| {
+				pallet_balances::Call::transfer(Default::default(), Default::default())
+			});
 
-        let len = results.len();
-        assert_eq!(len, 2);
-        assert_eq!(results.into_iter().filter_map(|x| x.1.ok()).count(), len);
-        assert_eq!(state.read().transactions.len(), 4);
+		let len = results.len();
+		assert_eq!(len, 2);
+		assert_eq!(results.into_iter().filter_map(|x| x.1.ok()).count(), len);
+		assert_eq!(state.read().transactions.len(), 4);
 
-        // now check that the transaction nonces are not equal
-        let s = state.read();
-        fn nonce(tx: UncheckedExtrinsic) -> frame_system::CheckNonce<Runtime> {
-            let extra = tx.signature.unwrap().2;
-            extra.4
-        }
-        let nonce1 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[0]).unwrap());
-        let nonce2 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[1]).unwrap());
-        let nonce3 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[2]).unwrap());
-        let nonce4 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[3]).unwrap());
-        assert!(
-            nonce1 != nonce3,
-            "Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd nonce: {:?}", nonce1, nonce3
-        );
-        assert!(
-            nonce2 != nonce4,
-            "Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd tx nonce: {:?}", nonce2, nonce4
-        );
-    });
+		// now check that the transaction nonces are not equal
+		let s = state.read();
+		fn nonce(tx: UncheckedExtrinsic) -> frame_system::CheckNonce<Runtime> {
+			let extra = tx.signature.unwrap().2;
+			extra.4
+		}
+		let nonce1 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[0]).unwrap());
+		let nonce2 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[1]).unwrap());
+		let nonce3 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[2]).unwrap());
+		let nonce4 = nonce(UncheckedExtrinsic::decode(&mut &*s.transactions[3]).unwrap());
+		assert!(
+			nonce1 != nonce3,
+			"Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd nonce: {:?}", nonce1, nonce3
+		);
+		assert!(
+			nonce2 != nonce4,
+			"Transactions should have different nonces. Got: 1st tx nonce: {:?}, 2nd tx nonce: {:?}", nonce2, nonce4
+		);
+	});
 }
 
 #[test]
@@ -257,10 +257,8 @@ fn submitted_transaction_should_be_valid() {
             ..Default::default()
         };
         let account = frame_system::AccountInfo {
-            nonce: 0,
-            consumers: 0,
-            providers: 0,
             data,
+            ..Default::default()
         };
         <frame_system::Account<Runtime>>::insert(&address, account);
 
