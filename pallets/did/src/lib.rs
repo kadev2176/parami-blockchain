@@ -43,7 +43,7 @@ pub mod pallet {
         #[pallet::constant]
         type Deposit: Get<BalanceOf<Self>>;
 
-        /// The public key type, restricted to Sr25519.
+        /// The public key type, MultiSigner
         type Public: IdentifyAccount<AccountId = Self::AccountId>
             + AsRef<[u8]>
             + From<sr25519::Public>
