@@ -9,7 +9,7 @@ license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4.8"
+log = "0.4.14"
 serde = "1.0.101"
 serde_json = "1.0.41"
 structopt = "0.3"
