@@ -57,8 +57,8 @@ pub mod pallet {
 
             let (airdrop_account, airdrop_balance) = Self::pool();
 
-            frame_support::runtime_print!("airdrop to {} dests", dests.len());
-            frame_support::runtime_print!("airdrop {:?}", amount);
+            log::info!("airdrop to {} dests", dests.len());
+            log::info!("airdrop {:?}", amount);
 
             let total_amount = amount * <BalanceOf<T>>::from(dests.len() as u32);
 
@@ -69,7 +69,7 @@ pub mod pallet {
 
             for dest in &dests {
                 let who = T::Lookup::lookup(dest.clone())?;
-                frame_support::runtime_print!("airdrop to {:?}", dest);
+                log::info!("airdrop to {:?}", dest);
                 T::Currency::transfer(
                     &airdrop_account,
                     &who,
