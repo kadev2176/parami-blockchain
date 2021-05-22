@@ -277,7 +277,7 @@ pub fn testnet_genesis(
 
     let num_endowed_accounts = endowed_accounts.len();
 
-    const ENDOWMENT: Balance = 100_000_000 * DOLLARS;
+    const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
     const STASH: Balance = ENDOWMENT / 1000;
 
     GenesisConfig {
