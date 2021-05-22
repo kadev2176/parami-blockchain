@@ -1,0 +1,21 @@
+{
+    "DidMethodSpecId": "[u8; 20]",
+    "Public": "MultiSigner",
+    "LookupSource": "MultiAddress",
+    "Address": "MultiAddress",
+    "ChainId": "u8",
+    "ResourceId": "[u8; 32]",
+    "DepositNonce": "u64",
+    "ClassId": "()",
+    "TokenId": "()",
+    "TAssetBalance": "u128",
+    "NativeBalance": "Balance",
+    "SwapAssetBalance": "TAssetBalance",
+    "SwapPair": {
+        "account": "AccountId",
+        "nativeBalance": "Balance",
+        "assetBalance": "TAssetBalance",
+        "chargeRate": "u32",
+        "issuedLiquidity": "u128"
+    }
+}
