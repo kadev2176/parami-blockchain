@@ -42,7 +42,7 @@ pub type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::Account
 // /// The type for looking up accounts. We don't expect more than 4 billion of them.
 // pub type AccountIndex = u32;
 
-/// Balance of an account.
+/// Balance of an account. Enough for 10 decimals with 100_000_000 total supply.
 pub type Balance = u128;
 
 /// Type used for expressing timestamp.

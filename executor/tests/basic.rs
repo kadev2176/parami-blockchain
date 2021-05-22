@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// 	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -19,9 +19,8 @@ use codec::{Decode, Encode, Joiner};
 use frame_support::{
     traits::Currency,
     weights::{DispatchClass, DispatchInfo, GetDispatchInfo},
-    StorageMap,
 };
-use frame_system::{self, EventRecord, Phase};
+use frame_system::{self, AccountInfo, EventRecord, Phase};
 use sp_core::{storage::well_known_keys, traits::Externalities, NeverNativeValue};
 use sp_runtime::{
     traits::Hash as HashT, transaction_validity::InvalidTransaction, ApplyExtrinsicResult,
@@ -29,8 +28,9 @@ use sp_runtime::{
 
 use parami_primitives::{Balance, Hash};
 use parami_runtime::{
-    constants::currency::*, Balances, Block, Call, CheckedExtrinsic, Event, Header, Runtime,
-    System, TransactionPayment, UncheckedExtrinsic,
+    constants::{currency::*, time::SLOT_DURATION},
+    Balances, Block, Call, CheckedExtrinsic, Event, Header, Runtime, System, TransactionPayment,
+    UncheckedExtrinsic,
 };
 use parami_testing::keyring::*;
 use wat;
@@ -46,7 +46,7 @@ use self::common::{sign, *};
 pub fn bloaty_code_unwrap() -> &'static [u8] {
     parami_runtime::WASM_BINARY_BLOATY.expect(
         "Development wasm binary is not available. \
-                                             Testing is only supported with the flag disabled.",
+        Testing is only supported with the flag disabled.",
     )
 }
 
@@ -78,6 +78,7 @@ fn set_heap_pages<E: Externalities>(ext: &mut E, heap_pages: u64) {
 }
 
 fn changes_trie_block() -> (Vec<u8>, Hash) {
+    let time = 42 * 1000;
     construct_block(
         &mut new_test_ext(compact_code_unwrap(), true),
         1,
@@ -85,7 +86,7 @@ fn changes_trie_block() -> (Vec<u8>, Hash) {
         vec![
             CheckedExtrinsic {
                 signed: None,
-                function: Call::Timestamp(pallet_timestamp::Call::set(42 * 1000)),
+                function: Call::Timestamp(pallet_timestamp::Call::set(time)),
             },
             CheckedExtrinsic {
                 signed: Some((alice(), signed_extra(0, 0))),
@@ -95,6 +96,7 @@ fn changes_trie_block() -> (Vec<u8>, Hash) {
                 )),
             },
         ],
+        (time / SLOT_DURATION).into(),
     )
 }
 
@@ -103,6 +105,7 @@ fn changes_trie_block() -> (Vec<u8>, Hash) {
 /// from block1's execution to block2 to derive the correct storage_root.
 fn blocks() -> ((Vec<u8>, Hash), (Vec<u8>, Hash)) {
     let mut t = new_test_ext(compact_code_unwrap(), false);
+    let time1 = 42 * 1000;
     let block1 = construct_block(
         &mut t,
         1,
@@ -110,7 +113,7 @@ fn blocks() -> ((Vec<u8>, Hash), (Vec<u8>, Hash)) {
         vec![
             CheckedExtrinsic {
                 signed: None,
-                function: Call::Timestamp(pallet_timestamp::Call::set(42 * 1000)),
+                function: Call::Timestamp(pallet_timestamp::Call::set(time1)),
             },
             CheckedExtrinsic {
                 signed: Some((alice(), signed_extra(0, 0))),
@@ -120,7 +123,9 @@ fn blocks() -> ((Vec<u8>, Hash), (Vec<u8>, Hash)) {
                 )),
             },
         ],
+        (time1 / SLOT_DURATION).into(),
     );
+    let time2 = 52 * 1000;
     let block2 = construct_block(
         &mut t,
         2,
@@ -128,7 +133,7 @@ fn blocks() -> ((Vec<u8>, Hash), (Vec<u8>, Hash)) {
         vec![
             CheckedExtrinsic {
                 signed: None,
-                function: Call::Timestamp(pallet_timestamp::Call::set(52 * 1000)),
+                function: Call::Timestamp(pallet_timestamp::Call::set(time2)),
             },
             CheckedExtrinsic {
                 signed: Some((bob(), signed_extra(0, 0))),
@@ -145,11 +150,12 @@ fn blocks() -> ((Vec<u8>, Hash), (Vec<u8>, Hash)) {
                 )),
             },
         ],
+        (time2 / SLOT_DURATION).into(),
     );
 
     // session change => consensus authorities change => authorities change digest item appears
     let digest = Header::decode(&mut &block2.0[..]).unwrap().digest;
-    assert_eq!(digest.logs().len(), 0);
+    assert_eq!(digest.logs().len(), 1 /* Just babe slot */);
 
     (block1, block2)
 }
@@ -169,6 +175,7 @@ fn block_with_size(time: u64, nonce: u32, size: usize) -> (Vec<u8>, Hash) {
                 function: Call::System(frame_system::Call::remark(vec![0; size])),
             },
         ],
+        (time * 1000 / SLOT_DURATION).into(),
     )
 }
 
@@ -253,11 +260,19 @@ fn successful_execution_with_native_equivalent_code_gives_ok() {
     let mut t = new_test_ext(compact_code_unwrap(), false);
     t.insert(
         <frame_system::Account<Runtime>>::hashed_key_for(alice()),
-        (0u32, 0u32, 0u32, 111 * DOLLARS, 0u128, 0u128, 0u128).encode(),
+        AccountInfo::<<Runtime as frame_system::Config>::Index, _> {
+            data: (111 * DOLLARS, 0u128, 0u128, 0u128),
+            ..Default::default()
+        }
+        .encode(),
     );
     t.insert(
         <frame_system::Account<Runtime>>::hashed_key_for(bob()),
-        (0u32, 0u32, 0u32, 0 * DOLLARS, 0u128, 0u128, 0u128).encode(),
+        AccountInfo::<<Runtime as frame_system::Config>::Index, _> {
+            data: (0 * DOLLARS, 0u128, 0u128, 0u128),
+            ..Default::default()
+        }
+        .encode(),
     );
     t.insert(
         <pallet_balances::TotalIssuance<Runtime>>::hashed_key().to_vec(),
@@ -301,11 +316,19 @@ fn successful_execution_with_foreign_code_gives_ok() {
     let mut t = new_test_ext(bloaty_code_unwrap(), false);
     t.insert(
         <frame_system::Account<Runtime>>::hashed_key_for(alice()),
-        (0u32, 0u32, 0u32, 111 * DOLLARS, 0u128, 0u128, 0u128).encode(),
+        AccountInfo::<<Runtime as frame_system::Config>::Index, _> {
+            data: (111 * DOLLARS, 0u128, 0u128, 0u128),
+            ..Default::default()
+        }
+        .encode(),
     );
     t.insert(
         <frame_system::Account<Runtime>>::hashed_key_for(bob()),
-        (0u32, 0u32, 0u32, 0 * DOLLARS, 0u128, 0u128, 0u128).encode(),
+        AccountInfo::<<Runtime as frame_system::Config>::Index, _> {
+            data: (0 * DOLLARS, 0u128, 0u128, 0u128),
+            ..Default::default()
+        }
+        .encode(),
     );
     t.insert(
         <pallet_balances::TotalIssuance<Runtime>>::hashed_key().to_vec(),
@@ -550,76 +573,76 @@ const CODE_TRANSFER: &str = r#"
 (func (export "deploy")
 )
 (func (export "call")
-    (block $fail
-        ;; Load input data to contract memory
-        (call $seal_input
-            (i32.const 0)
-            (i32.const 52)
-        )
+	(block $fail
+		;; Load input data to contract memory
+		(call $seal_input
+			(i32.const 0)
+			(i32.const 52)
+		)
 
-        ;; fail if the input size is not != 4
-        (br_if $fail
-            (i32.ne
-                (i32.const 4)
-                (i32.load (i32.const 52))
-            )
-        )
+		;; fail if the input size is not != 4
+		(br_if $fail
+			(i32.ne
+				(i32.const 4)
+				(i32.load (i32.const 52))
+			)
+		)
 
-        (br_if $fail
-            (i32.ne
-                (i32.load8_u (i32.const 0))
-                (i32.const 0)
-            )
-        )
-        (br_if $fail
-            (i32.ne
-                (i32.load8_u (i32.const 1))
-                (i32.const 1)
-            )
-        )
-        (br_if $fail
-            (i32.ne
-                (i32.load8_u (i32.const 2))
-                (i32.const 2)
-            )
-        )
-        (br_if $fail
-            (i32.ne
-                (i32.load8_u (i32.const 3))
-                (i32.const 3)
-            )
-        )
+		(br_if $fail
+			(i32.ne
+				(i32.load8_u (i32.const 0))
+				(i32.const 0)
+			)
+		)
+		(br_if $fail
+			(i32.ne
+				(i32.load8_u (i32.const 1))
+				(i32.const 1)
+			)
+		)
+		(br_if $fail
+			(i32.ne
+				(i32.load8_u (i32.const 2))
+				(i32.const 2)
+			)
+		)
+		(br_if $fail
+			(i32.ne
+				(i32.load8_u (i32.const 3))
+				(i32.const 3)
+			)
+		)
 
-        (drop
-            (call $seal_call
-                (i32.const 4)  ;; Pointer to "callee" address.
-                (i32.const 32)  ;; Length of "callee" address.
-                (i64.const 0)  ;; How much gas to devote for the execution. 0 = all.
-                (i32.const 36)  ;; Pointer to the buffer with value to transfer
-                (i32.const 16)   ;; Length of the buffer with value to transfer.
-                (i32.const 0)   ;; Pointer to input data buffer address
-                (i32.const 0)   ;; Length of input data buffer
-                (i32.const 4294967295) ;; u32 max value is the sentinel value: do not copy output
-                (i32.const 0) ;; Length is ignored in this case
-            )
-        )
+		(drop
+			(call $seal_call
+				(i32.const 4)  ;; Pointer to "callee" address.
+				(i32.const 32)  ;; Length of "callee" address.
+				(i64.const 0)  ;; How much gas to devote for the execution. 0 = all.
+				(i32.const 36)  ;; Pointer to the buffer with value to transfer
+				(i32.const 16)   ;; Length of the buffer with value to transfer.
+				(i32.const 0)   ;; Pointer to input data buffer address
+				(i32.const 0)   ;; Length of input data buffer
+				(i32.const 4294967295) ;; u32 max value is the sentinel value: do not copy output
+				(i32.const 0) ;; Length is ignored in this case
+			)
+		)
 
-        (return)
-    )
-    unreachable
+		(return)
+	)
+	unreachable
 )
 ;; Destination AccountId to transfer the funds.
 ;; Represented by H256 (32 bytes long) in little endian.
 (data (i32.const 4)
-    "\09\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
-    "\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
-    "\00\00\00\00"
+	"\09\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
+	"\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
+	"\00\00\00\00"
 )
 ;; Amount of value to transfer.
 ;; Represented by u128 (16 bytes long) in little endian.
 (data (i32.const 36)
-    "\06\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
-    "\00\00"
+	"\06\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00\00"
+	"\00\00"
 )
 ;; Length of the input buffer
 (data (i32.const 52) "\04")
@@ -631,10 +654,11 @@ fn deploying_wasm_contract_should_work() {
     let transfer_code = wat::parse_str(CODE_TRANSFER).unwrap();
     let transfer_ch = <Runtime as frame_system::Config>::Hashing::hash(&transfer_code);
 
-    let addr = pallet_contracts::Module::<Runtime>::contract_address(&charlie(), &transfer_ch, &[]);
+    let addr = pallet_contracts::Pallet::<Runtime>::contract_address(&charlie(), &transfer_ch, &[]);
 
-    let subsistence = pallet_contracts::Module::<Runtime>::subsistence_threshold();
+    let subsistence = pallet_contracts::Pallet::<Runtime>::subsistence_threshold();
 
+    let time = 42 * 1000;
     let b = construct_block(
         &mut new_test_ext(compact_code_unwrap(), false),
         1,
@@ -642,7 +666,7 @@ fn deploying_wasm_contract_should_work() {
         vec![
             CheckedExtrinsic {
                 signed: None,
-                function: Call::Timestamp(pallet_timestamp::Call::set(42 * 1000)),
+                function: Call::Timestamp(pallet_timestamp::Call::set(time)),
             },
             CheckedExtrinsic {
                 signed: Some((charlie(), signed_extra(0, 0))),
@@ -666,6 +690,7 @@ fn deploying_wasm_contract_should_work() {
                 )),
             },
         ],
+        (time / SLOT_DURATION).into(),
     );
 
     let mut t = new_test_ext(compact_code_unwrap(), false);
@@ -675,13 +700,10 @@ fn deploying_wasm_contract_should_work() {
         .unwrap();
 
     t.execute_with(|| {
-        // Verify that the contract constructor worked well and code of TRANSFER contract is actually deployed.
-        assert_eq!(
-            &pallet_contracts::ContractInfoOf::<Runtime>::get(addr)
-                .and_then(|c| c.get_alive())
-                .unwrap()
-                .code_hash,
-            &transfer_ch
+        // Verify that the contract does exist by querying some of its storage items
+        // It does not matter that the storage item itself does not exist.
+        assert!(
+            &pallet_contracts::Pallet::<Runtime>::get_storage(addr, Default::default()).is_ok()
         );
     });
 }
@@ -738,7 +760,11 @@ fn panic_execution_gives_error() {
     let mut t = new_test_ext(bloaty_code_unwrap(), false);
     t.insert(
         <frame_system::Account<Runtime>>::hashed_key_for(alice()),
-        (0u32, 0u32, 0u32, 0 * DOLLARS, 0u128, 0u128, 0u128).encode(),
+        AccountInfo::<<Runtime as frame_system::Config>::Index, _> {
+            data: (0 * DOLLARS, 0u128, 0u128, 0u128),
+            ..Default::default()
+        }
+        .encode(),
     );
     t.insert(
         <pallet_balances::TotalIssuance<Runtime>>::hashed_key().to_vec(),
@@ -777,11 +803,19 @@ fn successful_execution_gives_ok() {
     let mut t = new_test_ext(compact_code_unwrap(), false);
     t.insert(
         <frame_system::Account<Runtime>>::hashed_key_for(alice()),
-        (0u32, 0u32, 0u32, 111 * DOLLARS, 0u128, 0u128, 0u128).encode(),
+        AccountInfo::<<Runtime as frame_system::Config>::Index, _> {
+            data: (111 * DOLLARS, 0u128, 0u128, 0u128),
+            ..Default::default()
+        }
+        .encode(),
     );
     t.insert(
         <frame_system::Account<Runtime>>::hashed_key_for(bob()),
-        (0u32, 0u32, 0u32, 0 * DOLLARS, 0u128, 0u128, 0u128).encode(),
+        AccountInfo::<<Runtime as frame_system::Config>::Index, _> {
+            data: (0 * DOLLARS, 0u128, 0u128, 0u128),
+            ..Default::default()
+        }
+        .encode(),
     );
     t.insert(
         <pallet_balances::TotalIssuance<Runtime>>::hashed_key().to_vec(),
@@ -885,5 +919,5 @@ fn should_import_block_with_test_client() {
     let block_data = block1.0;
     let block = parami_primitives::Block::decode(&mut &block_data[..]).unwrap();
 
-    client.import(BlockOrigin::Own, block).unwrap();
+    futures::executor::block_on(client.import(BlockOrigin::Own, block)).unwrap();
 }

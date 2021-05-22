@@ -7,7 +7,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// 	http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! A collection of parami-specific RPC methods.
+//! A collection of node-specific RPC methods.
 //!
 //! Since `substrate` core functionality makes no assumptions
 //! about the modules used inside the runtime, so do
@@ -25,7 +25,7 @@
 //!
 //! The RPCs available in this crate however can make some assumptions
 //! about how the runtime is constructed and what FRAME pallets
-//! are part of it. Therefore all parami-runtime-specific RPCs can
+//! are part of it. Therefore all node-runtime-specific RPCs can
 //! be placed here or imported from corresponding FRAME RPC definitions.
 
 #![warn(missing_docs)]
@@ -121,7 +121,8 @@ where
         + Send
         + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
-    C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber>,
+    C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber, Hash>,
+    C::Api: pallet_mmr_rpc::MmrRuntimeApi<Block, <Block as sp_runtime::traits::Block>::Hash>,
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: BabeApi<Block>,
     C::Api: BlockBuilder<Block>,
@@ -131,6 +132,7 @@ where
     B::State: sc_client_api::backend::StateBackend<sp_runtime::traits::HashFor<Block>>,
 {
     use pallet_contracts_rpc::{Contracts, ContractsApi};
+    use pallet_mmr_rpc::{Mmr, MmrApi};
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
     use substrate_frame_rpc_system::{FullSystem, SystemApi};
 
@@ -167,6 +169,7 @@ where
     // more context: https://github.com/paritytech/substrate/pull/3480
     // These RPCs should use an asynchronous caller instead.
     io.extend_with(ContractsApi::to_delegate(Contracts::new(client.clone())));
+    io.extend_with(MmrApi::to_delegate(Mmr::new(client.clone())));
     io.extend_with(TransactionPaymentApi::to_delegate(TransactionPayment::new(
         client.clone(),
     )));

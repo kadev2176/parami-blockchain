@@ -13,43 +13,46 @@ publish = true
 targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
-pallet-balances = { version = "3.0.0" }
-sc-service = { version = "0.9.0", features = ["test-helpers", "db"] }
-sc-client-db = { version = "0.9.0", features = ["kvdb-rocksdb", "parity-db"] }
-sc-client-api = { version = "3.0.0" }
 codec = { package = "parity-scale-codec", version = "2.0.0" }
-pallet-contracts = { version = "3.0.0" }
-pallet-grandpa = { version = "3.0.0" }
-pallet-indices = { version = "3.0.0" }
-sp-keyring = { version = "3.0.0" }
-parami-executor = { version = "2.0.0", path = "../executor" }
-parami-primitives = { version = "2.0.0", path = "../primitives" }
-parami-runtime = { version = "2.0.0", path = "../runtime" }
-sp-core = { version = "3.0.0" }
-sp-io = { version = "3.0.0" }
-frame-support = { version = "3.0.0" }
-pallet-session = { version = "3.0.0" }
-pallet-society = { version = "3.0.0" }
-sp-runtime = { version = "3.0.0" }
-pallet-staking = { version = "3.0.0" }
-sc-executor = { version = "0.9.0", features = ["wasmtime"] }
-sp-consensus = { version = "0.9.0" }
-frame-system = { version = "3.0.0" }
-substrate-test-client = { version = "2.0.1", git = "https://github.com/parami-protocol/sc-test-utils.git" }
-pallet-timestamp = { version = "3.0.0" }
-pallet-transaction-payment = { version = "3.0.0" }
-pallet-treasury = { version = "3.0.0" }
-sp-api = { version = "3.0.0" }
-sp-timestamp = { version = "3.0.0", default-features = false }
-sp-block-builder = { version = "3.0.0" }
-sc-block-builder = { version = "0.9.0" }
-sp-inherents = { version = "3.0.0" }
-sp-blockchain = { version = "3.0.0" }
-log = "0.4.8"
+log = "0.4.14"
 tempfile = "3.1.0"
 fs_extra = "1"
 futures = "0.3.1"
 
+pallet-balances = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sc-service = { git = "https://github.com/paritytech/substrate", version = "0.9.0", features = ["test-helpers", "db"] }
+sc-client-db = { git = "https://github.com/paritytech/substrate", version = "0.9.0", features = ["kvdb-rocksdb", "parity-db"] }
+sc-client-api = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-contracts = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-grandpa = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-indices = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sp-keyring = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sp-core = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sp-io = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+frame-support = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-session = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-society = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sp-runtime = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-staking = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sc-executor = { git = "https://github.com/paritytech/substrate", version = "0.9.0", features = ["wasmtime"] }
+sp-consensus = { git = "https://github.com/paritytech/substrate", version = "0.9.0" }
+frame-system = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+substrate-test-client = { git = "https://github.com/paritytech/substrate", version = "2.0.1" }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-transaction-payment = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-treasury = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sp-api = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sp-timestamp = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
+sp-block-builder = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sc-block-builder = { git = "https://github.com/paritytech/substrate", version = "0.9.0" }
+sp-inherents = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+sp-blockchain = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+
+parami-executor = { version = "2.0.0", path = "../executor" }
+parami-primitives = { version = "2.0.0", path = "../primitives" }
+parami-runtime = { version = "2.0.0", path = "../runtime" }
+
 [dev-dependencies]
 criterion = "0.3.0"
-sc-cli = { version = "0.9.0" }
+
+sc-cli = { git = "https://github.com/paritytech/substrate", version = "0.9.0" }

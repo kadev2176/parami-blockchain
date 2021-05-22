@@ -13,6 +13,7 @@ members = [
     "pallets/airdrop",
     "pallets/chainbridge",
     "pallets/cross-assets",
+    "pallets/swap",
 ]
 
 # The list of dependencies below (which can be both direct and indirect dependencies) are crates

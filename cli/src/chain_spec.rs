@@ -24,10 +24,9 @@ use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
 use parami_runtime::constants::currency::*;
 use parami_runtime::Block;
 use parami_runtime::{
-    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, ContractsConfig,
-    CouncilConfig, DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, SessionConfig,
-    SessionKeys, SocietyConfig, StakerStatus, StakingConfig, SudoConfig, SystemConfig,
-    TechnicalCommitteeConfig,
+    wasm_binary_unwrap, AuthorityDiscoveryConfig, BabeConfig, BalancesConfig, CouncilConfig,
+    DemocracyConfig, ElectionsConfig, GrandpaConfig, ImOnlineConfig, SessionConfig, SessionKeys,
+    SocietyConfig, StakerStatus, StakingConfig, SudoConfig, SystemConfig, TechnicalCommitteeConfig,
 };
 use sc_chain_spec::ChainSpecExtension;
 use sc_service::ChainType;
@@ -184,7 +183,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 
     let endowed_accounts: Vec<AccountId> = vec![root_key.clone()];
 
-    testnet_genesis(initial_authorities, root_key, Some(endowed_accounts), false)
+    testnet_genesis(initial_authorities, root_key, Some(endowed_accounts))
 }
 
 /// Staging testnet config.
@@ -255,7 +254,6 @@ pub fn testnet_genesis(
     )>,
     root_key: AccountId,
     endowed_accounts: Option<Vec<AccountId>>,
-    enable_println: bool,
 ) -> GenesisConfig {
     let mut endowed_accounts: Vec<AccountId> = endowed_accounts.unwrap_or_else(|| {
         vec![
@@ -279,22 +277,22 @@ pub fn testnet_genesis(
 
     let num_endowed_accounts = endowed_accounts.len();
 
-    const ENDOWMENT: Balance = 100_000_000 * DOLLARS;
+    const ENDOWMENT: Balance = 10_000_000 * DOLLARS;
     const STASH: Balance = ENDOWMENT / 1000;
 
     GenesisConfig {
-        frame_system: Some(SystemConfig {
+        frame_system: SystemConfig {
             code: wasm_binary_unwrap().to_vec(),
             changes_trie_config: Default::default(),
-        }),
-        pallet_balances: Some(BalancesConfig {
+        },
+        pallet_balances: BalancesConfig {
             balances: endowed_accounts
                 .iter()
                 .cloned()
                 .map(|x| (x, ENDOWMENT))
                 .collect(),
-        }),
-        pallet_session: Some(SessionConfig {
+        },
+        pallet_session: SessionConfig {
             keys: initial_authorities
                 .iter()
                 .map(|x| {
@@ -305,8 +303,8 @@ pub fn testnet_genesis(
                     )
                 })
                 .collect::<Vec<_>>(),
-        }),
-        pallet_staking: Some(StakingConfig {
+        },
+        pallet_staking: StakingConfig {
             validator_count: initial_authorities.len() as u32 * 2,
             minimum_validator_count: initial_authorities.len() as u32,
             stakers: initial_authorities
@@ -316,43 +314,38 @@ pub fn testnet_genesis(
             invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
             slash_reward_fraction: Perbill::from_percent(10),
             ..Default::default()
-        }),
-        pallet_democracy: Some(DemocracyConfig::default()),
-        pallet_elections_phragmen: Some(ElectionsConfig {
+        },
+        pallet_democracy: DemocracyConfig::default(),
+        pallet_elections_phragmen: ElectionsConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
                 .cloned()
                 .map(|member| (member, STASH))
                 .collect(),
-        }),
-        pallet_collective_Instance1: Some(CouncilConfig::default()),
-        pallet_collective_Instance2: Some(TechnicalCommitteeConfig {
+        },
+        pallet_collective_Instance1: CouncilConfig::default(),
+        pallet_collective_Instance2: TechnicalCommitteeConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
                 .cloned()
                 .collect(),
             phantom: Default::default(),
-        }),
-        pallet_contracts: Some(ContractsConfig {
-            current_schedule: pallet_contracts::Schedule {
-                enable_println, // this should only be enabled on development chains
-                ..Default::default()
-            },
-        }),
-        pallet_sudo: Some(SudoConfig { key: root_key }),
-        pallet_babe: Some(BabeConfig {
+        },
+        pallet_sudo: SudoConfig { key: root_key },
+        pallet_babe: BabeConfig {
             authorities: vec![],
-        }),
-        pallet_im_online: Some(ImOnlineConfig { keys: vec![] }),
-        pallet_authority_discovery: Some(AuthorityDiscoveryConfig { keys: vec![] }),
-        pallet_grandpa: Some(GrandpaConfig {
+            epoch_config: Some(parami_runtime::BABE_GENESIS_EPOCH_CONFIG),
+        },
+        pallet_im_online: ImOnlineConfig { keys: vec![] },
+        pallet_authority_discovery: AuthorityDiscoveryConfig { keys: vec![] },
+        pallet_grandpa: GrandpaConfig {
             authorities: vec![],
-        }),
-        pallet_membership_Instance1: Some(Default::default()),
-        pallet_treasury: Some(Default::default()),
-        pallet_society: Some(SocietyConfig {
+        },
+        pallet_membership_Instance1: Default::default(),
+        pallet_treasury: Default::default(),
+        pallet_society: SocietyConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
@@ -360,10 +353,10 @@ pub fn testnet_genesis(
                 .collect(),
             pot: 0,
             max_members: 999,
-        }),
-        pallet_vesting: Some(Default::default()),
+        },
+        pallet_vesting: Default::default(),
 
-        parami_airdrop: Some(Default::default()),
+        parami_airdrop: Default::default(),
     }
 }
 
@@ -372,7 +365,6 @@ fn development_config_genesis() -> GenesisConfig {
         vec![authority_keys_from_seed("Alice")],
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         None,
-        true,
     )
 }
 
@@ -400,7 +392,6 @@ fn local_testnet_genesis() -> GenesisConfig {
         ],
         get_account_id_from_seed::<sr25519::Public>("Alice"),
         None,
-        false,
     )
 }
 
@@ -432,7 +423,6 @@ pub(crate) mod tests {
             vec![authority_keys_from_seed("Alice")],
             get_account_id_from_seed::<sr25519::Public>("Alice"),
             None,
-            false,
         )
     }
 
@@ -489,7 +479,7 @@ pub(crate) mod tests {
                 ))
             },
             |config| {
-                let (keep_alive, _, _, client, network, transaction_pool) = new_light_base(config)?;
+                let (keep_alive, _, client, network, transaction_pool) = new_light_base(config)?;
                 Ok(sc_service_test::TestNetComponents::new(
                     keep_alive,
                     client,
