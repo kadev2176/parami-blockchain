@@ -24,7 +24,7 @@ jobs:
     - name: Add wasm32 target
       run: rustup target add wasm32-unknown-unknown
     - uses: actions/checkout@v2
-    #- name: Build
-    #  run: cargo build --verbose
-    - name: Run tests
-      run: cargo test --verbose
+    - name: Build only
+      run: cargo build --workspace
+    #- name: Run tests
+    #  run: cargo test --verbose
