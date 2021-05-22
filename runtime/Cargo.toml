@@ -45,7 +45,6 @@ frame-support = { git = "https://github.com/paritytech/substrate", version = "3.
 frame-system = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 frame-system-benchmarking = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false, optional = true }
 frame-system-rpc-runtime-api = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
-pallet-assets = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 pallet-authority-discovery = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 pallet-authorship = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 pallet-babe = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
@@ -92,6 +91,8 @@ parami-did = { path = "../pallets/did", default-features = false }
 parami-airdrop = { path = "../pallets/airdrop", default-features = false }
 chainbridge = { path = "../pallets/chainbridge", default-features = false }
 parami-cross-assets = { path = "../pallets/cross-assets", default-features = false }
+parami-assets = { path = "../pallets/assets", default-features = false }
+parami-swap = { path = "../pallets/swap", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { version = "4.0.0" }
@@ -104,7 +105,6 @@ default = ["std"]
 with-tracing = [ "frame-executive/with-tracing" ]
 std = [
     "sp-authority-discovery/std",
-    "pallet-assets/std",
     "pallet-authority-discovery/std",
     "pallet-authorship/std",
     "sp-consensus-babe/std",
@@ -166,13 +166,14 @@ std = [
     "chainbridge/std",
     "parami-cross-assets/std",
     "orml-nft/std",
+    "parami-assets/std",
+    "parami-swap/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "sp-runtime/runtime-benchmarks",
-    "pallet-assets/runtime-benchmarks",
     "pallet-babe/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
     "pallet-bounties/runtime-benchmarks",
@@ -199,4 +200,5 @@ runtime-benchmarks = [
     "frame-system-benchmarking",
     "hex-literal",
     "parami-did/runtime-benchmarks",
+    "parami-assets/runtime-benchmarks",
 ]

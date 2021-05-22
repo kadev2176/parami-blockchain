@@ -458,7 +458,8 @@ impl orml_nft::Config for Runtime {
 }
 
 parameter_types! {
-    pub const ExistentialDeposit: Balance = 1 * DOLLARS;
+    // NOTE: minimum balance is 1 cent, 0.01 dollar
+    pub const ExistentialDeposit: Balance = CENTS;
     // For weight estimation, we assume that the most locks on an individual account will be 50.
     // This number may need to be adjusted in the future if this assumption no longer holds true.
     pub const MaxLocks: u32 = 50;
@@ -1123,9 +1124,10 @@ parameter_types! {
     pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
-impl pallet_assets::Config for Runtime {
+impl parami_assets::Config for Runtime {
     type Event = Event;
-    type Balance = u64;
+    // asset token balance unit, for simplicity, use the same as Balances
+    type Balance = u128;
     type AssetId = u32;
     type Currency = Balances;
     type ForceOrigin = EnsureRoot<AccountId>;
@@ -1136,7 +1138,15 @@ impl pallet_assets::Config for Runtime {
     type StringLimit = StringLimit;
     type Freezer = ();
     type Extra = ();
-    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
+}
+
+impl parami_swap::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type NativeBalance = Balance;
+    // avoid name confliction with AssetBalance struct
+    type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
 }
 
 construct_runtime!(
@@ -1179,12 +1189,14 @@ construct_runtime!(
         Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>},
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
-        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Pallet, Storage},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
+        // borrowed from pallet-assets
+        Assets: parami_assets::{Pallet, Call, Storage, Event<T>},
+        Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
 
         OrmlNft: orml_nft::{Pallet, Storage} = 100,
     }
@@ -1530,7 +1542,6 @@ impl_runtime_apis! {
             let mut batches = Vec::<BenchmarkBatch>::new();
             let params = (&config, &whitelist);
 
-            add_benchmark!(params, batches, pallet_assets, Assets);
             add_benchmark!(params, batches, pallet_babe, Babe);
             add_benchmark!(params, batches, pallet_balances, Balances);
             add_benchmark!(params, batches, pallet_bounties, Bounties);
@@ -1559,6 +1570,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_vesting, Vesting);
 
             add_benchmark!(params, batches, parami_did, Did);
+            add_benchmark!(params, batches, parami_assets, Assets);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)
