@@ -1124,7 +1124,7 @@ parameter_types! {
     pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
-impl pallet_assets::Config for Runtime {
+impl parami_assets::Config for Runtime {
     type Event = Event;
     // asset token balance unit, for simplicity, use the same as Balances
     type Balance = u128;
@@ -1138,7 +1138,7 @@ impl pallet_assets::Config for Runtime {
     type StringLimit = StringLimit;
     type Freezer = ();
     type Extra = ();
-    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
 }
 
 impl parami_swap::Config for Runtime {
@@ -1146,7 +1146,7 @@ impl parami_swap::Config for Runtime {
     type Currency = Balances;
     type NativeBalance = Balance;
     // avoid name confliction with AssetBalance struct
-    type SwapAssetBalance = <Self as pallet_assets::Config>::Balance;
+    type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
 }
 
 construct_runtime!(
@@ -1190,7 +1190,7 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Pallet, Storage},
-        Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+        Assets: parami_assets::{Pallet, Call, Storage, Event<T>},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
@@ -1570,7 +1570,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_vesting, Vesting);
 
             add_benchmark!(params, batches, parami_did, Did);
-            add_benchmark!(params, batches, pallet_assets, Assets);
+            add_benchmark!(params, batches, parami_assets, Assets);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

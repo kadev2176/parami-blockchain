@@ -37,7 +37,7 @@ pub mod pallet {
     #[pallet::config]
     /// The module configuration trait.
     pub trait Config:
-        frame_system::Config + pallet_assets::Config + pallet_balances::Config
+        frame_system::Config + parami_assets::Config + pallet_balances::Config
     {
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -53,7 +53,7 @@ pub mod pallet {
             + AtLeast32BitUnsigned
             + IsType<u128>
             + IsType<<<Self as Config>::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
-        type SwapAssetBalance: IsType<<Self as pallet_assets::Config>::Balance>
+        type SwapAssetBalance: IsType<<Self as parami_assets::Config>::Balance>
             + Parameter
             + Member
             + Copy
@@ -139,7 +139,7 @@ pub mod pallet {
         <<T as pallet::Config>::Currency as frame_support::traits::Currency<
             <T as frame_system::Config>::AccountId,
         >>::Balance: From<u128> + Into<u128>,
-        <T as pallet_assets::Config>::Balance: From<u128>,
+        <T as parami_assets::Config>::Balance: From<u128>,
     {
         #[pallet::weight(0)]
         pub(super) fn create(
@@ -150,13 +150,13 @@ pub mod pallet {
 
             let sender = origin;
 
-            let total_supply = <pallet_assets::Pallet<T>>::total_supply(asset_id);
+            let total_supply = <parami_assets::Pallet<T>>::total_supply(asset_id);
             log::info!("!! create total supply => {:?}", total_supply);
             ensure!(total_supply > Zero::zero(), Error::<T>::AssetNotFound);
 
             log::debug!(
                 "!! min balance => {:?}",
-                <pallet_assets::Pallet<T>>::minimum_balance(asset_id)
+                <parami_assets::Pallet<T>>::minimum_balance(asset_id)
             );
 
             ensure!(!Swap::<T>::contains_key(asset_id), Error::<T>::Exists);
@@ -168,11 +168,11 @@ pub mod pallet {
                 <T as pallet::Config>::Currency::minimum_balance(),
                 ExistenceRequirement::KeepAlive,
             )?;
-            <pallet_assets::Pallet<T>>::transfer(
+            <parami_assets::Pallet<T>>::transfer(
                 asset_id,
                 &sender,
                 &pool_account_id,
-                <pallet_assets::Pallet<T>>::minimum_balance(asset_id),
+                <parami_assets::Pallet<T>>::minimum_balance(asset_id),
                 true,
             )?;
 
@@ -274,7 +274,7 @@ pub mod pallet {
             // sender asset amount check
             {
                 let sender_asset_balance: T::SwapAssetBalance =
-                    <pallet_assets::Pallet<T>>::balance(asset_id, &sender).into();
+                    <parami_assets::Pallet<T>>::balance(asset_id, &sender).into();
                 ensure!(
                     sender_asset_balance > asset_amount.into(),
                     Error::<T>::InsufficientAssetBalance
@@ -291,7 +291,7 @@ pub mod pallet {
                 ExistenceRequirement::KeepAlive,
             )?;
             // asset token inject
-            <pallet_assets::Pallet<T>>::transfer(
+            <parami_assets::Pallet<T>>::transfer(
                 asset_id,
                 &sender,
                 &pool_account_id,
@@ -394,7 +394,7 @@ pub mod pallet {
                 ExistenceRequirement::AllowDeath,
             )?;
             // asset token inject
-            <pallet_assets::Pallet<T>>::transfer(
+            <parami_assets::Pallet<T>>::transfer(
                 asset_id,
                 &pool_account_id,
                 &sender,
@@ -500,7 +500,7 @@ pub mod pallet {
                 ExistenceRequirement::AllowDeath,
             )?;
             // asset token inject
-            <pallet_assets::Pallet<T>>::transfer(
+            <parami_assets::Pallet<T>>::transfer(
                 asset_id,
                 &pool_account_id,
                 &sender,
@@ -562,7 +562,7 @@ pub mod pallet {
             // free balance check
             {
                 let sender_asset_balance: T::SwapAssetBalance =
-                    <pallet_assets::Pallet<T>>::balance(asset_id, &sender).into();
+                    <parami_assets::Pallet<T>>::balance(asset_id, &sender).into();
                 ensure!(
                     sender_asset_balance > asset_amount.into(),
                     Error::<T>::InsufficientAssetBalance
@@ -574,7 +574,7 @@ pub mod pallet {
             );
 
             // do transfer
-            <pallet_assets::Pallet<T>>::transfer(
+            <parami_assets::Pallet<T>>::transfer(
                 asset_id,
                 &sender,
                 &pool_account_id,
@@ -623,7 +623,7 @@ pub mod pallet {
             let account_id = Self::asset_account_id(asset_id);
 
             // FIXME: Should minimum_balance be considered here?
-            let asset_balance = <pallet_assets::Pallet<T>>::balance(asset_id, &account_id);
+            let asset_balance = <parami_assets::Pallet<T>>::balance(asset_id, &account_id);
             (account_id, asset_balance.into())
         }
 
