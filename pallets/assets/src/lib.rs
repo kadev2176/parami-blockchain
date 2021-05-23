@@ -368,7 +368,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::create())]
-        pub(super) fn create(
+        pub fn create(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             admin: <T::Lookup as StaticLookup>::Source,
@@ -539,7 +539,7 @@ pub mod pallet {
         /// Weight: `O(1)`
         /// Modes: Pre-existing balance of `beneficiary`; Account pre-existence of `beneficiary`.
         #[pallet::weight(T::WeightInfo::mint())]
-        pub(super) fn mint(
+        pub fn mint(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             beneficiary: <T::Lookup as StaticLookup>::Source,
@@ -909,7 +909,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::set_metadata(name.len() as u32, symbol.len() as u32))]
-        pub(super) fn set_metadata(
+        pub fn set_metadata(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             name: Vec<u8>,
