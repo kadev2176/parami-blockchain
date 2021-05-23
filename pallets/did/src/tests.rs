@@ -64,11 +64,6 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
     type WeightInfo = ();
 }
-parameter_types! {
-    pub const ReservationFee: u64 = 2;
-    pub const MinLength: usize = 3;
-    pub const MaxLength: usize = 16;
-}
 ord_parameter_types! {
     pub const One: u64 = 1;
     pub const DidDeposit: u64 = 1;
@@ -187,61 +182,3 @@ fn refuse_multiple_registrations() {
         .is_err());
     });
 }
-
-/*
-#[test]
-fn force_name_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            Nicks::set_name(Origin::signed(2), b"Dr. David Brubeck, III".to_vec()),
-            Error::<Test>::TooLong,
-        );
-
-        assert_ok!(Nicks::set_name(Origin::signed(2), b"Dave".to_vec()));
-        assert_eq!(Balances::reserved_balance(2), 2);
-        assert_ok!(Nicks::force_name(Origin::signed(1), 2, b"Dr. David Brubeck, III".to_vec()));
-        assert_eq!(Balances::reserved_balance(2), 2);
-        assert_eq!(<NameOf<Test>>::get(2).unwrap(), (b"Dr. David Brubeck, III".to_vec(), 2));
-    });
-}
-
-#[test]
-fn normal_operation_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Nicks::set_name(Origin::signed(1), b"Gav".to_vec()));
-        assert_eq!(Balances::reserved_balance(1), 2);
-        assert_eq!(Balances::free_balance(1), 8);
-        assert_eq!(<NameOf<Test>>::get(1).unwrap().0, b"Gav".to_vec());
-
-        assert_ok!(Nicks::set_name(Origin::signed(1), b"Gavin".to_vec()));
-        assert_eq!(Balances::reserved_balance(1), 2);
-        assert_eq!(Balances::free_balance(1), 8);
-        assert_eq!(<NameOf<Test>>::get(1).unwrap().0, b"Gavin".to_vec());
-
-        assert_ok!(Nicks::clear_name(Origin::signed(1)));
-        assert_eq!(Balances::reserved_balance(1), 0);
-        assert_eq!(Balances::free_balance(1), 10);
-    });
-}
-
-#[test]
-fn error_catching_should_work() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(Nicks::clear_name(Origin::signed(1)), Error::<Test>::Unnamed);
-
-        assert_noop!(
-            Nicks::set_name(Origin::signed(3), b"Dave".to_vec()),
-            pallet_balances::Error::<Test, _>::InsufficientBalance
-        );
-
-        assert_noop!(Nicks::set_name(Origin::signed(1), b"Ga".to_vec()), Error::<Test>::TooShort);
-        assert_noop!(
-            Nicks::set_name(Origin::signed(1), b"Gavin James Wood, Esquire".to_vec()),
-            Error::<Test>::TooLong
-        );
-        assert_ok!(Nicks::set_name(Origin::signed(1), b"Dave".to_vec()));
-        assert_noop!(Nicks::kill_name(Origin::signed(2), 1), BadOrigin);
-        assert_noop!(Nicks::force_name(Origin::signed(2), 1, b"Whatever".to_vec()), BadOrigin);
-    });
-}
-*/
