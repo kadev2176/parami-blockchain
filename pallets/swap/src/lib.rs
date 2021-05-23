@@ -10,6 +10,8 @@ use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, Saturating, 
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
+mod tests;
+
 pub const PALLET_ID: PalletId = PalletId(*b"paraswap");
 
 #[derive(Clone, Eq, PartialEq, Default, Encode, Decode, RuntimeDebug)]
