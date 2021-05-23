@@ -4165,19 +4165,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pallet-assets"
-version = "3.0.0"
-source = "git+https://github.com/paritytech/substrate#a76cc733f4fe895d8be002ce13fdae0ca1ba555e"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "parity-scale-codec",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "pallet-authority-discovery"
 version = "3.0.0"
 source = "git+https://github.com/paritytech/substrate#a76cc733f4fe895d8be002ce13fdae0ca1ba555e"
@@ -4887,6 +4874,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-assets"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-bench"
 version = "0.8.0"
 dependencies = [
@@ -5182,7 +5184,6 @@ dependencies = [
  "hex-literal",
  "log",
  "orml-nft",
- "pallet-assets",
  "pallet-authority-discovery",
  "pallet-authorship",
  "pallet-babe",
@@ -5221,6 +5222,7 @@ dependencies = [
  "pallet-utility",
  "pallet-vesting",
  "parami-airdrop",
+ "parami-assets",
  "parami-cross-assets",
  "parami-did",
  "parami-primitives",
@@ -5254,9 +5256,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
- "pallet-assets",
  "pallet-balances",
- "pallet-timestamp",
+ "parami-assets",
  "parity-scale-codec",
  "serde",
  "sp-core",
