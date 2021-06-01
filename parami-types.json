@@ -15,7 +15,6 @@
         "account": "AccountId",
         "nativeBalance": "Balance",
         "assetBalance": "TAssetBalance",
-        "chargeRate": "u32",
         "issuedLiquidity": "u128"
     }
 }
