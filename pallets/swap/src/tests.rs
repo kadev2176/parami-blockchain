@@ -147,8 +147,8 @@ fn create_swap() {
         assert_ok!(Swap::add_liquidity(
             Origin::signed(A),
             id,
-            1000,
-            Some(1000_00)
+            10_000,
+            Some(1000_000)
         ));
 
         println!("native bal => {:?}", Balances::total_balance(&A));
@@ -159,7 +159,7 @@ fn create_swap() {
         println!("native bal => {:?}", Balances::total_balance(&B));
         println!("asset bal => {:?}", Assets::balance(id, &B));
 
-        assert_ok!(Swap::buy(Origin::signed(A), id, 20));
+        assert_ok!(Swap::swap_native(Origin::signed(A), id, 20));
         println!("asset bal => {:?}", Assets::balance(id, &A));
     });
 }
