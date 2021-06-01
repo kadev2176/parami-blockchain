@@ -5255,6 +5255,7 @@ version = "0.1.0"
 dependencies = [
  "frame-support",
  "frame-system",
+ "integer-sqrt",
  "log",
  "pallet-balances",
  "parami-assets",
