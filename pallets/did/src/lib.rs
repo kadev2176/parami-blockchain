@@ -6,7 +6,8 @@ mod tests;
 pub mod weights;
 
 use codec::Codec;
-use frame_support::traits::{Currency, ReservableCurrency};
+use frame_support::traits::{Currency, ReservableCurrency, Time, UnfilteredDispatchable};
+use frame_support::weights::GetDispatchInfo;
 use sp_core::sr25519;
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::{IdentifyAccount, LookupError, Member, StaticLookup, Verify};
@@ -52,6 +53,11 @@ pub mod pallet {
 
         type Signature: Verify<Signer = Self::Public> + Member + Codec;
 
+        /// A sudo-able call.
+        type Call: Parameter + UnfilteredDispatchable<Origin = Self::Origin> + GetDispatchInfo;
+
+        type Time: Time;
+
         // /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
     }
@@ -59,9 +65,14 @@ pub mod pallet {
     // 4. Runtime Storage
     // Use to declare storage items.
     #[pallet::storage]
-    pub(super) type Metadata<T: Config> =
-        StorageMap<_, Blake2_128Concat, DidMethodSpecId, (T::AccountId, BalanceOf<T>, bool)>;
+    pub(super) type Metadata<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        DidMethodSpecId,
+        (T::AccountId, BalanceOf<T>, <T::Time as Time>::Moment, bool),
+    >;
 
+    /// The account id of a did.
     #[pallet::storage]
     #[pallet::getter(fn did_of)]
     pub(super) type DidOf<T: Config> = StorageMap<_, Twox64Concat, T::AccountId, DidMethodSpecId>;
@@ -71,6 +82,23 @@ pub mod pallet {
     pub(super) type ReferrerOf<T: Config> =
         StorageMap<_, Identity, DidMethodSpecId, DidMethodSpecId>;
 
+    /// The special controller of a did, used for account recovery.
+    #[pallet::storage]
+    #[pallet::getter(fn controller_of)]
+    pub(super) type ControllerOf<T: Config> =
+        StorageMap<_, Identity, DidMethodSpecId, T::AccountId>;
+
+    /// Tracking the latest identity update.
+    #[pallet::storage]
+    #[pallet::getter(fn updated_by)]
+    pub(super) type UpdatedBy<T: Config> = StorageMap<
+        _,
+        Blake2_128Concat,
+        DidMethodSpecId,
+        (T::AccountId, T::BlockNumber, <T::Time as Time>::Moment),
+    >;
+
+    /// Tracking total dids
     #[pallet::storage]
     #[pallet::getter(fn total_dids)]
     pub(super) type TotalDids<T: Config> = StorageValue<_, u32>;
@@ -85,6 +113,10 @@ pub mod pallet {
         Assigned(DidMethodSpecId, T::AccountId, Option<DidMethodSpecId>),
         /// A DID has been freed up (unassigned). \[index\]
         Revoked(DidMethodSpecId),
+        /// A Did call is done
+        CallDone(DispatchResult),
+        /// Controller is changed, \[did, new_controller\]
+        ControllerChanged(DidMethodSpecId, T::AccountId),
     }
 
     /// Error for the nicks module.
@@ -135,7 +167,11 @@ pub mod pallet {
             let mut id = [0u8; 20];
             id.copy_from_slice(&hash[12..]);
 
-            Self::register_did(who, id, referrer)?;
+            Self::register_did(who.clone(), id, referrer)?;
+
+            let now_timestamp = T::Time::now();
+            let now_block_number = <frame_system::Pallet<T>>::block_number();
+            <UpdatedBy<T>>::insert(id, (who, now_block_number, now_timestamp));
 
             Ok(().into())
         }
@@ -149,7 +185,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
 
             let my_id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
-            let (_account, amount, revoked) =
+            let (_account, amount, _when, revoked) =
                 Metadata::<T>::get(my_id).ok_or(Error::<T>::NotExists)?;
             ensure!(!revoked, Error::<T>::Revoked);
             ensure!(amount >= T::Deposit::get(), Error::<T>::InsufficientDeposit);
@@ -163,6 +199,10 @@ pub mod pallet {
             id.copy_from_slice(&hash[12..]);
 
             Self::register_did(acct, id, Some(my_id))?;
+
+            let now_timestamp = T::Time::now();
+            let now_block_number = <frame_system::Pallet<T>>::block_number();
+            <UpdatedBy<T>>::insert(id, (who, now_block_number, now_timestamp));
 
             Ok(().into())
         }
@@ -178,7 +218,7 @@ pub mod pallet {
             ensure!(amount >= T::Deposit::get(), Error::<T>::InsufficientDeposit);
             let id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
             Metadata::<T>::try_mutate(id, |maybe_value| {
-                let (_account, current_amount, revoked) =
+                let (_account, current_amount, _when, revoked) =
                     maybe_value.as_mut().ok_or(Error::<T>::NotExists)?;
                 ensure!(!(*revoked), Error::<T>::Revoked);
                 *current_amount += amount;
@@ -196,11 +236,13 @@ pub mod pallet {
 
             let id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
             Metadata::<T>::try_mutate::<_, _, Error<T>, _>(id, |maybe_value| {
-                let (account, amount, revoked) = maybe_value.take().ok_or(Error::<T>::NotExists)?;
+                let (account, amount, _when, revoked) =
+                    maybe_value.take().ok_or(Error::<T>::NotExists)?;
                 ensure!(&account == &who, Error::<T>::NotOwner);
                 ensure!(!revoked, Error::<T>::Revoked);
                 T::Currency::unreserve(&who, amount);
-                *maybe_value = Some((who.clone(), amount, true));
+                // set created timestamp = 0
+                *maybe_value = Some((who.clone(), amount, Default::default(), true));
                 Ok(())
             })?;
             TotalDids::<T>::mutate(|v| {
@@ -209,7 +251,75 @@ pub mod pallet {
 
             Self::deposit_event(Event::<T>::Revoked(id));
 
+            let now_timestamp = T::Time::now();
+            let now_block_number = <frame_system::Pallet<T>>::block_number();
+            <UpdatedBy<T>>::insert(id, (who, now_block_number, now_timestamp));
+
             Ok(().into())
+        }
+
+        // change_owner
+        #[pallet::weight(0)]
+        pub fn change_controller(
+            origin: OriginFor<T>,
+            identity: DidMethodSpecId,
+            new_owner: T::AccountId,
+        ) -> DispatchResult {
+            let who = ensure_signed(origin)?;
+            let (owner, _, _, _) = Metadata::<T>::get(identity).ok_or(Error::<T>::NotExists)?;
+
+            ControllerOf::<T>::try_mutate(identity, |maybe_owner| -> DispatchResult {
+                if maybe_owner.is_none() {
+                    ensure!(owner == who, Error::<T>::NotOwner);
+                } else {
+                    ensure!(maybe_owner.as_ref().unwrap() == &who, Error::<T>::NotOwner);
+                }
+
+                *maybe_owner = Some(new_owner.clone());
+                Ok(())
+            })?;
+
+            Self::deposit_event(Event::ControllerChanged(identity, new_owner));
+
+            let now_timestamp = T::Time::now();
+            let now_block_number = <frame_system::Pallet<T>>::block_number();
+            <UpdatedBy<T>>::insert(identity, (who, now_block_number, now_timestamp));
+
+            Ok(().into())
+        }
+
+        #[pallet::weight({
+            let dispatch_info = call.get_dispatch_info();
+            (
+                dispatch_info.weight
+                    .saturating_add(10_000)
+                    // AccountData for inner call origin accountdata.
+                    .saturating_add(T::DbWeight::get().reads_writes(1, 1)),
+                dispatch_info.class,
+            )
+        })]
+        pub(crate) fn call(
+            origin: OriginFor<T>,
+            identity: DidMethodSpecId,
+            call: Box<<T as Config>::Call>,
+        ) -> DispatchResultWithPostInfo {
+            // This is a public call, so we ensure that the origin is some signed account.
+            let sender = ensure_signed(origin)?;
+
+            // owner is the mapping account of did
+            let (owner, _, _, _) = Metadata::<T>::get(identity).ok_or(Error::<T>::NotExists)?;
+            // changed owner is the controller account
+            if let Some(changed_owner) = ControllerOf::<T>::get(identity) {
+                ensure!(sender == changed_owner, Error::<T>::NotOwner);
+            } else {
+                ensure!(sender == owner, Error::<T>::NotOwner);
+            }
+
+            let res = call.dispatch_bypass_filter(frame_system::RawOrigin::Signed(owner).into());
+
+            Self::deposit_event(Event::CallDone(res.map(|_| ()).map_err(|e| e.error)));
+
+            Ok(Pays::No.into())
         }
     }
 
@@ -230,7 +340,7 @@ pub mod pallet {
             Metadata::<T>::try_mutate::<_, _, Error<T>, _>(id, |maybe_value| {
                 ensure!(maybe_value.is_none(), Error::<T>::DidExists);
 
-                *maybe_value = Some((who.clone(), Default::default(), false));
+                *maybe_value = Some((who.clone(), Default::default(), T::Time::now(), false));
                 Ok(())
             })?;
             DidOf::<T>::insert(who.clone(), id);

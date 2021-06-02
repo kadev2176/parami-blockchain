@@ -400,6 +400,8 @@ impl parami_did::Config for Runtime {
     type Event = Event;
     type Public = sp_runtime::MultiSigner;
     type Signature = Signature;
+    type Call = Call;
+    type Time = Timestamp;
     type WeightInfo = ();
 }
 
