@@ -826,7 +826,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::transfer_ownership())]
-        pub(super) fn transfer_ownership(
+        pub fn transfer_ownership(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             owner: <T::Lookup as StaticLookup>::Source,

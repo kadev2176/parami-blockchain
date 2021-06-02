@@ -43,6 +43,12 @@ impl<T: Config<I>, I: 'static> Pallet<T, I> {
             .unwrap_or_else(Zero::zero)
     }
 
+    /// Name, symbol, decimals.
+    pub fn metadata(id: T::AssetId) -> (Vec<u8>, Vec<u8>, u8) {
+        let m = Metadata::<T, I>::get(id);
+        (m.name, m.symbol, m.decimals)
+    }
+
     pub(super) fn new_account(
         who: &T::AccountId,
         d: &mut AssetDetails<T::Balance, T::AccountId, DepositBalanceOf<T, I>>,

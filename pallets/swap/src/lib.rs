@@ -3,17 +3,22 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 use codec::{Decode, Encode, HasCompact};
-use frame_support::traits::tokens::fungibles::{Inspect, Transfer};
+use core::str;
+use frame_support::traits::tokens::fungibles::{Inspect, Mutate, Transfer};
 use frame_support::traits::{Currency, ExistenceRequirement};
 use frame_support::PalletId;
 use integer_sqrt::IntegerSquareRoot;
-use sp_runtime::traits::{AccountIdConversion, AtLeast32BitUnsigned, Saturating, Zero};
+use sp_runtime::traits::{
+    AccountIdConversion, AtLeast32BitUnsigned, Saturating, StaticLookup, Zero,
+};
 use sp_runtime::RuntimeDebug;
 use sp_std::prelude::*;
 
 mod tests;
 
 pub const PALLET_ID: PalletId = PalletId(*b"paraswap");
+
+const MINIMUM_LIQUIDITY: u128 = 1_000;
 
 #[derive(Clone, Eq, PartialEq, Default, Encode, Decode, RuntimeDebug)]
 pub struct SwapPair<AccountId> {
@@ -22,7 +27,6 @@ pub struct SwapPair<AccountId> {
     native_reserve: u128,
     // reserveB
     asset_reserve: u128,
-    issued_liquidity: u128,
 }
 
 pub use pallet::*;
@@ -149,16 +153,23 @@ pub mod pallet {
         <<T as pallet::Config>::Currency as frame_support::traits::Currency<
             <T as frame_system::Config>::AccountId,
         >>::Balance: From<u128> + Into<u128>,
-        <T as parami_assets::Config>::Balance: From<u128>,
+        <T as parami_assets::Config>::Balance: From<u128> + Into<u128>,
+        <T as parami_assets::Config>::AssetId: AtLeast32BitUnsigned,
     {
         #[pallet::weight(0)]
         pub(super) fn create(
             origin: OriginFor<T>,
             #[pallet::compact] asset_id: T::AssetId,
         ) -> DispatchResult {
-            let origin = ensure_signed(origin)?;
+            let who = ensure_signed(origin.clone())?;
 
-            let sender = origin;
+            let sender = who;
+
+            // constrait on asset_id
+            ensure!(
+                asset_id < T::AssetId::from(1_000_000_u32),
+                Error::<T>::AssetNotFound
+            );
 
             let total_supply = <parami_assets::Pallet<T>>::total_supply(asset_id);
             log::info!("!! create total supply => {:?}", total_supply);
@@ -171,7 +182,7 @@ pub mod pallet {
 
             ensure!(!Swap::<T>::contains_key(asset_id), Error::<T>::Exists);
 
-            // creates pool account
+            // create pool account
             let pool_account_id = Self::asset_account_id(asset_id);
             <T as pallet::Config>::Currency::transfer(
                 &sender,
@@ -187,13 +198,41 @@ pub mod pallet {
                 true,
             )?;
 
+            // create lp-token
+            // offset asset_id by 1_000_000, constraint, won't save
+            let lp_asset_id = asset_id + T::AssetId::from(1_000_000_u32);
+            <parami_assets::Pallet<T>>::create(
+                origin.clone(),
+                lp_asset_id,
+                <T::Lookup as StaticLookup>::unlookup(pool_account_id.clone()),
+                MINIMUM_LIQUIDITY.into(),
+            )?;
+            let (_, asset_symbol, _) = <parami_assets::Pallet<T>>::metadata(asset_id);
+            let mut lp_name = asset_symbol.clone();
+            lp_name.extend_from_slice(b"/AD3 LP");
+            let mut lp_symbol = asset_symbol.clone();
+            lp_symbol.extend_from_slice(b"-AD3");
+
+            log::info!("issure LP token {:?}", str::from_utf8(&lp_symbol));
+            <parami_assets::Pallet<T>>::set_metadata(
+                origin.clone(),
+                lp_asset_id,
+                lp_name,
+                lp_symbol,
+                0,
+            )?;
+            <parami_assets::Pallet<T>>::transfer_ownership(
+                origin.clone(),
+                lp_asset_id,
+                <T::Lookup as StaticLookup>::unlookup(pool_account_id),
+            )?;
+
             Swap::<T>::insert(
                 asset_id,
                 SwapPair {
                     account: Self::asset_account_id(asset_id),
                     native_reserve: 0,
                     asset_reserve: 0,
-                    issued_liquidity: 0,
                 },
             );
 
@@ -216,6 +255,7 @@ pub mod pallet {
             let mut pair = Swap::<T>::get(asset_id).ok_or(Error::<T>::SwapNotFound)?;
 
             log::info!("trade pair => {:?}", pair);
+            let lp_asset_id = asset_id + T::AssetId::from(1_000_000_u32);
 
             // sender's native balance check
             ensure!(native_amount > Zero::zero(), Error::<T>::NativeAmountIsZero);
@@ -247,10 +287,17 @@ pub mod pallet {
                 );
                 asset_amount = maybe_asset_amount.unwrap().into();
                 // MINIMUM_LIQUIDITY = 1_000
-                ensure!(asset_amount > 1_000, Error::<T>::MinimumLiquidity);
-                ensure!(native_amount > 1_000, Error::<T>::MinimumLiquidity);
+                ensure!(
+                    asset_amount > MINIMUM_LIQUIDITY,
+                    Error::<T>::MinimumLiquidity
+                );
+                ensure!(
+                    native_amount > MINIMUM_LIQUIDITY,
+                    Error::<T>::MinimumLiquidity
+                );
 
-                minted_liquidity = (asset_amount * native_amount).integer_sqrt() - 1_000;
+                minted_liquidity =
+                    (asset_amount * native_amount).integer_sqrt() - MINIMUM_LIQUIDITY;
             } else {
                 let pool_asset_amount: u128 = pool_asset_amount.into();
                 asset_amount = pool_asset_amount
@@ -265,9 +312,13 @@ pub mod pallet {
                     );
                 }
 
+                // total liquidity
+                let total_supply: u128 =
+                    <parami_assets::Pallet<T>>::total_supply(lp_asset_id).into();
+
                 minted_liquidity = u128::min(
-                    native_amount * pair.issued_liquidity / pair.native_reserve,
-                    asset_amount * pair.issued_liquidity / pair.asset_reserve,
+                    native_amount * total_supply / pair.native_reserve,
+                    asset_amount * total_supply / pair.asset_reserve,
                 );
 
                 log::info!(
@@ -288,8 +339,9 @@ pub mod pallet {
 
             // sender asset amount check
             {
-                let sender_asset_balance: T::SwapAssetBalance =
-                    <parami_assets::Pallet<T>>::balance(asset_id, &sender).into();
+                let sender_asset_balance: T::SwapAssetBalance = T::SwapAssetBalance::from(
+                    <parami_assets::Pallet<T>>::balance(asset_id, &sender),
+                );
                 ensure!(
                     sender_asset_balance > asset_amount.into(),
                     Error::<T>::InsufficientAssetBalance
@@ -327,13 +379,17 @@ pub mod pallet {
                     Ok(())
                 },
             )?;
+            // mint LP token, won't trigger event
+            <parami_assets::Pallet<T>>::mint_into(lp_asset_id, &sender, minted_liquidity.into())?;
 
             pair.native_reserve = Self::native_pool(asset_id).1.into();
             pair.asset_reserve = Self::asset_pool(asset_id).1.into();
+            /*
             pair.issued_liquidity = pair
                 .issued_liquidity
                 .checked_add(minted_liquidity)
                 .ok_or(Error::<T>::Overflow)?;
+                */
             Swap::<T>::insert(asset_id, pair);
 
             Self::deposit_event(Event::LiquidityAdded(sender, asset_id));
@@ -352,13 +408,14 @@ pub mod pallet {
             let sender = origin;
             let mut pair = Swap::<T>::get(asset_id).ok_or(Error::<T>::SwapNotFound)?;
 
-            ensure!(
-                liquidity <= pair.issued_liquidity,
-                Error::<T>::InsufficientLiquidity
-            );
+            let lp_asset_id = asset_id + T::AssetId::from(1_000_000_u32);
+            // total liquidity
+            let total_supply: u128 = <parami_assets::Pallet<T>>::total_supply(lp_asset_id).into();
+
+            ensure!(liquidity <= total_supply, Error::<T>::InsufficientLiquidity);
             // FIXME: the error might be inarguments, or pair info
             ensure!(
-                liquidity > Zero::zero() && pair.issued_liquidity > 0,
+                liquidity > Zero::zero() && total_supply > 0,
                 Error::<T>::LiquidityAmountIsZero
             );
 
@@ -377,8 +434,8 @@ pub mod pallet {
             let pool_native_amount: u128 = pool_native_amount.into();
             let pool_asset_amount: u128 = pool_asset_amount.into();
 
-            let native_amount = liquidity * pool_native_amount / pair.issued_liquidity;
-            let asset_amount = liquidity * pool_asset_amount / pair.issued_liquidity;
+            let native_amount = liquidity * pool_native_amount / total_supply;
+            let asset_amount = liquidity * pool_asset_amount / total_supply;
 
             log::info!(
                 "remove liquidity, native={:?}, asset={:?}",
@@ -433,15 +490,19 @@ pub mod pallet {
                     Ok(())
                 },
             )?;
+            // burn LP token
+            <parami_assets::Pallet<T>>::burn_from(lp_asset_id, &sender, liquidity.into())?;
 
             // _update
             pair.native_reserve = Self::native_pool(asset_id).1.into();
             pair.asset_reserve = Self::asset_pool(asset_id).1.into();
             // total supply
+            /*
             pair.issued_liquidity = pair
                 .issued_liquidity
                 .checked_sub(liquidity.into())
                 .ok_or(Error::<T>::Overflow)?;
+            */
             Swap::<T>::insert(asset_id, pair);
 
             Self::deposit_event(Event::LiquidityRemoved(sender, asset_id));
@@ -461,8 +522,7 @@ pub mod pallet {
 
             let mut pair = Swap::<T>::get(asset_id).ok_or(Error::<T>::SwapNotFound)?;
 
-            let (pool_account_id, pool_native_amount) = Self::native_pool(asset_id);
-            let (_, pool_asset_amount) = Self::asset_pool(asset_id);
+            let pool_account_id = Self::asset_account_id(asset_id);
 
             // UniswapV2Library.getAmountOut
             // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
@@ -541,8 +601,7 @@ pub mod pallet {
 
             let mut pair = Swap::<T>::get(asset_id).ok_or(Error::<T>::SwapNotFound)?;
 
-            let (pool_account_id, pool_native_amount) = Self::native_pool(asset_id);
-            let (_, pool_asset_amount) = Self::asset_pool(asset_id);
+            let pool_account_id = Self::asset_account_id(asset_id);
 
             // UniswapV2Library.getAmountOut
             // given an input amount of an asset and pair reserves, returns the maximum output amount of the other asset
@@ -569,8 +628,9 @@ pub mod pallet {
 
             // check balance
             {
-                let sender_asset_balance: T::SwapAssetBalance =
-                    <parami_assets::Pallet<T>>::balance(asset_id, &sender).into();
+                let sender_asset_balance: T::SwapAssetBalance = T::SwapAssetBalance::from(
+                    <parami_assets::Pallet<T>>::balance(asset_id, &sender),
+                );
                 ensure!(
                     sender_asset_balance > asset_amount_in.into(),
                     Error::<T>::InsufficientAssetBalance
@@ -610,176 +670,6 @@ pub mod pallet {
             );
 
             Self::deposit_event(Event::SwapSell(sender, asset_id, native_amount_out.into()));
-            Ok(().into())
-        }
-
-        // Old style
-
-        /// Buy asset token with native token.
-        #[pallet::weight(0)]
-        pub(super) fn buy(
-            origin: OriginFor<T>,
-            asset_id: T::AssetId,
-            native_amount: T::NativeBalance,
-        ) -> DispatchResult {
-            let origin = ensure_signed(origin)?;
-
-            let sender = origin;
-            let pair = Swap::<T>::get(asset_id).ok_or(Error::<T>::SwapNotFound)?;
-
-            let (pool_account_id, pool_native_amount) = Self::native_pool(asset_id);
-            let (_, pool_asset_amount) = Self::asset_pool(asset_id);
-            ensure!(
-                pool_asset_amount > Zero::zero(),
-                Error::<T>::InsufficientPoolAssetAmount
-            );
-            ensure!(
-                pool_native_amount > Zero::zero(),
-                Error::<T>::InsufficientPoolNativeAmount
-            );
-            let pool_native_amount: u128 = pool_native_amount.into();
-            let pool_asset_amount: u128 = pool_asset_amount.into();
-
-            // TODO: support fees
-
-            let new_native_amount = pool_native_amount
-                .checked_add(native_amount.into())
-                .ok_or(Error::<T>::Overflow)?;
-            let asset_amount = pool_asset_amount
-                .checked_mul(new_native_amount)
-                .ok_or(Error::<T>::Overflow)?
-                .checked_sub(
-                    pool_asset_amount
-                        .checked_mul(pool_native_amount)
-                        .ok_or(Error::<T>::Overflow)?,
-                )
-                .ok_or(Error::<T>::Overflow)?
-                .checked_div(new_native_amount)
-                .ok_or(Error::<T>::Overflow)?;
-
-            ensure!(native_amount > Zero::zero(), Error::<T>::NativeAmountIsZero);
-            ensure!(asset_amount > Zero::zero(), Error::<T>::AssetAmountIsZero);
-
-            // free balance check
-            // pool's asset token
-            ensure!(
-                pool_asset_amount > asset_amount,
-                Error::<T>::InsufficientPoolAssetAmount
-            );
-            // sender's native token
-            ensure!(
-                // <T as pallet::Config>::Currency::free_balance(&sender) > native_amount,
-                <pallet_balances::Pallet<T> as Currency<_>>::free_balance(&sender)
-                    > native_amount.into(),
-                Error::<T>::InsufficientNativeBalance
-            );
-
-            log::debug!(
-                "swap issued_liquidity={:?} pool={:?} / {:?}",
-                pair.issued_liquidity,
-                pool_native_amount,
-                pool_asset_amount
-            );
-
-            // do transfer
-            <T as pallet::Config>::Currency::transfer(
-                &sender,
-                &pool_account_id,
-                native_amount.into(),
-                ExistenceRequirement::AllowDeath,
-            )?;
-            // asset token inject
-            <parami_assets::Pallet<T>>::transfer(
-                asset_id,
-                &pool_account_id,
-                &sender,
-                asset_amount.into(),
-                true,
-            )?;
-
-            // event
-            Self::deposit_event(Event::SwapBuy(sender, asset_id, asset_amount.into()));
-
-            Ok(().into())
-        }
-
-        /// Sell asset token for native token.
-        #[pallet::weight(0)]
-        pub(super) fn sell(
-            origin: OriginFor<T>,
-            asset_id: T::AssetId,
-            asset_amount: T::SwapAssetBalance,
-        ) -> DispatchResult {
-            let origin = ensure_signed(origin)?;
-
-            let sender = origin;
-            let _pair = Swap::<T>::get(asset_id).ok_or(Error::<T>::SwapNotFound)?;
-
-            // check pool
-            let (pool_account_id, pool_native_amount) = Self::native_pool(asset_id);
-            let (_, pool_asset_amount) = Self::asset_pool(asset_id);
-            ensure!(
-                pool_native_amount > Zero::zero(),
-                Error::<T>::InsufficientPoolNativeAmount
-            );
-            ensure!(
-                pool_asset_amount > Zero::zero(),
-                Error::<T>::InsufficientPoolAssetAmount
-            );
-            let pool_native_amount: u128 = pool_native_amount.into();
-            let pool_asset_amount: u128 = pool_asset_amount.into();
-
-            // calculate swap
-            let new_asset_amount = pool_asset_amount
-                .checked_add(asset_amount.into())
-                .ok_or(Error::<T>::Overflow)?;
-            let native_amount = pool_native_amount
-                .checked_mul(new_asset_amount)
-                .ok_or(Error::<T>::Overflow)?
-                .checked_sub(
-                    pool_asset_amount
-                        .checked_mul(pool_native_amount)
-                        .ok_or(Error::<T>::Overflow)?,
-                )
-                .ok_or(Error::<T>::Overflow)?
-                .checked_div(new_asset_amount)
-                .ok_or(Error::<T>::Overflow)?;
-
-            ensure!(native_amount > Zero::zero(), Error::<T>::NativeAmountIsZero);
-            ensure!(asset_amount > Zero::zero(), Error::<T>::AssetAmountIsZero);
-
-            // free balance check
-            {
-                let sender_asset_balance: T::SwapAssetBalance =
-                    <parami_assets::Pallet<T>>::balance(asset_id, &sender).into();
-                ensure!(
-                    sender_asset_balance > asset_amount.into(),
-                    Error::<T>::InsufficientAssetBalance
-                );
-            }
-            ensure!(
-                pool_native_amount > native_amount,
-                Error::<T>::InsufficientPoolNativeAmount
-            );
-
-            // do transfer
-            <parami_assets::Pallet<T>>::transfer(
-                asset_id,
-                &sender,
-                &pool_account_id,
-                asset_amount.into(),
-                true,
-            )?;
-            <T as pallet::Config>::Currency::transfer(
-                &pool_account_id,
-                &sender,
-                native_amount.into(),
-                ExistenceRequirement::AllowDeath,
-            )?;
-
-            // event
-            Self::deposit_event(Event::SwapSell(sender, asset_id, native_amount.into()));
-
             Ok(().into())
         }
     }
