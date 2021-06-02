@@ -13,8 +13,7 @@
     "SwapAssetBalance": "TAssetBalance",
     "SwapPair": {
         "account": "AccountId",
-        "nativeBalance": "Balance",
-        "assetBalance": "TAssetBalance",
-        "issuedLiquidity": "u128"
+        "nativeReserve": "Balance",
+        "assetReserve": "TAssetBalance",
     }
 }
