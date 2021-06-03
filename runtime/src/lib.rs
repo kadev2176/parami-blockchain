@@ -1132,6 +1132,7 @@ impl parami_assets::Config for Runtime {
     type Balance = u128;
     type AssetId = u32;
     type Currency = Balances;
+    // only root can do force call
     type ForceOrigin = EnsureRoot<AccountId>;
     type AssetDeposit = AssetDeposit;
     type MetadataDepositBase = MetadataDepositBase;
@@ -1140,6 +1141,7 @@ impl parami_assets::Config for Runtime {
     type StringLimit = StringLimit;
     type Freezer = ();
     type Extra = ();
+    type UnixTime = Timestamp; // time for lock
     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
 }
 

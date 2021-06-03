@@ -140,7 +140,9 @@ pub use types::*;
 
 use codec::{Decode, Encode, HasCompact};
 use frame_support::traits::tokens::{fungibles, DepositConsequence, WithdrawConsequence};
-use frame_support::traits::{BalanceStatus::Reserved, Currency, ReservableCurrency, StoredMap};
+use frame_support::traits::{
+    BalanceStatus::Reserved, Currency, ReservableCurrency, StoredMap, UnixTime,
+};
 use frame_support::{
     dispatch::{DispatchError, DispatchResult},
     ensure,
@@ -175,7 +177,7 @@ pub mod pallet {
         type Event: From<Event<Self, I>> + IsType<<Self as frame_system::Config>::Event>;
 
         /// The units in which we record balances.
-        type Balance: Member + Parameter + AtLeast32BitUnsigned + Default + Copy;
+        type Balance: Member + Parameter + AtLeast32BitUnsigned + Default + Copy + IsType<u128>;
 
         /// Identifier for the class of asset.
         type AssetId: Member + Parameter + Default + Copy + HasCompact;
@@ -209,6 +211,9 @@ pub mod pallet {
 
         /// Additional data to be stored with an account's asset balance.
         type Extra: Member + Parameter + Default;
+
+        /// Time
+        type UnixTime: UnixTime;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -257,6 +262,11 @@ pub mod pallet {
         AssetMetadata<DepositBalanceOf<T, I>>,
         ValueQuery,
     >;
+
+    #[pallet::storage]
+    /// Linear vesting, (start, end, last, remain_amount)
+    pub(super) type Vesting<T: Config<I>, I: 'static = ()> =
+        StorageMap<_, Blake2_128Concat, T::AssetId, (u64, u64, u64, T::Balance)>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -341,6 +351,16 @@ pub mod pallet {
         Unapproved,
         /// The source account would not survive the transfer and it needs to stay alive.
         WouldDie,
+        /// Can only mint with linear vesting once.
+        AlreadyMinted,
+        /// Invalid vesting timing.
+        BadTiming,
+        /// Invalid vesting amount.
+        InvalidAmount,
+        /// No vesting found.
+        NoVesting,
+        /// Not yet to claim vesting.
+        NotYet,
     }
 
     #[pallet::hooks]
@@ -475,10 +495,10 @@ pub mod pallet {
         /// - `s = witness.sufficients`
         /// - `a = witness.approvals`
         #[pallet::weight(T::WeightInfo::destroy(
-			witness.accounts.saturating_sub(witness.sufficients),
- 			witness.sufficients,
- 			witness.approvals,
- 		))]
+            witness.accounts.saturating_sub(witness.sufficients),
+            witness.sufficients,
+            witness.approvals,
+        ))]
         pub(super) fn destroy(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
@@ -550,6 +570,81 @@ pub mod pallet {
             Self::do_mint(id, &beneficiary, amount, Some(origin))?;
             Self::deposit_event(Event::Issued(id, beneficiary, amount));
             Ok(())
+        }
+
+        /// Mint with linear vesting, timestamp in millis.
+        #[pallet::weight(T::WeightInfo::mint())]
+        pub fn mint_with_linear_release(
+            origin: OriginFor<T>,
+            #[pallet::compact] id: T::AssetId,
+            beneficiary: <T::Lookup as StaticLookup>::Source,
+            cliff: u64,
+            duration: u64,
+            #[pallet::compact] instant_amount: T::Balance,
+            #[pallet::compact] total_amount: T::Balance,
+        ) -> DispatchResult {
+            let origin = ensure_signed(origin)?;
+
+            ensure!(
+                Vesting::<T, I>::get(id).is_none(),
+                Error::<T, I>::AlreadyMinted
+            );
+            ensure!(cliff < duration, Error::<T, I>::BadTiming);
+            ensure!(total_amount >= instant_amount, Error::<T, I>::InvalidAmount);
+
+            let beneficiary = T::Lookup::lookup(beneficiary)?;
+            Self::do_mint(id, &beneficiary, instant_amount, Some(origin))?;
+            Self::deposit_event(Event::Issued(id, beneficiary, instant_amount));
+
+            let now = T::UnixTime::now().as_millis() as u64;
+            let remain = total_amount - instant_amount;
+
+            let start = now + cliff;
+            let end = now + duration;
+
+            Vesting::<T, I>::insert(id, (start, end, 0, remain));
+            Ok(().into())
+        }
+
+        /// Claim for linear vesting.
+        #[pallet::weight(T::WeightInfo::mint())]
+        pub fn release(
+            origin: OriginFor<T>,
+            #[pallet::compact] id: T::AssetId,
+            beneficiary: <T::Lookup as StaticLookup>::Source,
+        ) -> DispatchResult {
+            let origin = ensure_signed(origin)?;
+            let beneficiary = T::Lookup::lookup(beneficiary)?;
+
+            Vesting::<T, I>::try_mutate(id, |maybe_vesting| {
+                let (start, end, last, remain_amount) =
+                    maybe_vesting.take().ok_or(Error::<T, I>::NoVesting)?;
+
+                let now = T::UnixTime::now().as_millis() as u64;
+                ensure!(now > start, Error::<T, I>::NotYet);
+                // FIXME: is this another type of error?
+                ensure!(now > last, Error::<T, I>::NotYet);
+                ensure!(remain_amount > Zero::zero(), Error::<T, I>::NoVesting);
+
+                let last_release = if start > last { start } else { last };
+
+                let amount = if now >= end {
+                    remain_amount
+                } else {
+                    let total_duration = end - last_release;
+                    let duration = now - last_release;
+
+                    remain_amount * T::Balance::from(duration as u128)
+                        / T::Balance::from(total_duration as u128)
+                };
+
+                Self::do_mint(id, &beneficiary, amount, Some(origin))?;
+                Self::deposit_event(Event::Issued(id, beneficiary, amount));
+
+                *maybe_vesting = Some((start, end, now, remain_amount.saturating_sub(amount)));
+
+                Ok(())
+            })
         }
 
         /// Reduce the balance of `who` by as much as possible up to `amount` assets of `id`.
@@ -982,6 +1077,11 @@ pub mod pallet {
             ensure!(&origin == &d.owner, Error::<T, I>::NoPermission);
 
             Metadata::<T, I>::try_mutate_exists(id, |metadata| {
+                // also check is_frozen
+                ensure!(
+                    metadata.as_ref().map_or(true, |m| !m.is_frozen),
+                    Error::<T, I>::NoPermission
+                );
                 let deposit = metadata.take().ok_or(Error::<T, I>::Unknown)?.deposit;
                 T::Currency::unreserve(&d.owner, deposit);
                 Self::deposit_event(Event::MetadataCleared(id));
