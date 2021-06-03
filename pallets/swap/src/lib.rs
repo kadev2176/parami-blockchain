@@ -58,6 +58,7 @@ pub mod pallet {
             + Member
             + Copy
             + AtLeast32BitUnsigned
+            + HasCompact
             + IsType<u128>
             + IsType<<<Self as Config>::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
         type SwapAssetBalance: IsType<<Self as parami_assets::Config>::Balance>
@@ -65,6 +66,7 @@ pub mod pallet {
             + Member
             + Copy
             + AtLeast32BitUnsigned
+            + HasCompact
             + IsType<u128>;
     }
 
@@ -245,8 +247,8 @@ pub mod pallet {
         #[pallet::weight(0)]
         pub(super) fn add_liquidity(
             origin: OriginFor<T>,
-            asset_id: T::AssetId,
-            native_amount: T::NativeBalance,
+            #[pallet::compact] asset_id: T::AssetId,
+            #[pallet::compact] native_amount: T::NativeBalance,
             maybe_asset_amount: Option<T::SwapAssetBalance>,
         ) -> DispatchResult {
             let origin = ensure_signed(origin)?;
@@ -400,12 +402,13 @@ pub mod pallet {
         #[pallet::weight(0)]
         pub(super) fn remove_liquidity(
             origin: OriginFor<T>,
-            asset_id: T::AssetId,
-            liquidity: u128,
+            #[pallet::compact] asset_id: T::AssetId,
+            #[pallet::compact] liquidity: T::SwapAssetBalance,
         ) -> DispatchResult {
             let origin = ensure_signed(origin)?;
 
             let sender = origin;
+            let liquidity: u128 = liquidity.into();
             let mut pair = Swap::<T>::get(asset_id).ok_or(Error::<T>::SwapNotFound)?;
 
             let lp_asset_id = asset_id + T::AssetId::from(1_000_000_u32);
@@ -513,9 +516,8 @@ pub mod pallet {
         #[pallet::weight(0)]
         pub(super) fn swap_native(
             origin: OriginFor<T>,
-            asset_id: T::AssetId,
-            native_amount_in: T::NativeBalance,
-            // assert_amount_out: T::SwapAssetBalance,
+            #[pallet::compact] asset_id: T::AssetId,
+            #[pallet::compact] native_amount_in: T::NativeBalance,
         ) -> DispatchResult {
             let origin = ensure_signed(origin)?;
             let sender = origin;
@@ -593,8 +595,8 @@ pub mod pallet {
         #[pallet::weight(0)]
         pub(super) fn swap_asset(
             origin: OriginFor<T>,
-            asset_id: T::AssetId,
-            asset_amount_in: T::SwapAssetBalance,
+            #[pallet::compact] asset_id: T::AssetId,
+            #[pallet::compact] asset_amount_in: T::SwapAssetBalance,
         ) -> DispatchResult {
             let origin = ensure_signed(origin)?;
             let sender = origin;
@@ -703,7 +705,7 @@ pub mod pallet {
 
             let asset_balance = <parami_assets::Pallet<T>>::balance(asset_id, &account_id)
                 - <parami_assets::Pallet<T>>::minimum_balance(asset_id);
-            (account_id, asset_balance.into())
+            (account_id, T::SwapAssetBalance::from(asset_balance))
         }
 
         fn native_pool(asset_id: T::AssetId) -> (T::AccountId, T::NativeBalance) {
