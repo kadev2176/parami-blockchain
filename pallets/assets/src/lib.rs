@@ -608,7 +608,7 @@ pub mod pallet {
 
         /// Claim for linear vesting.
         #[pallet::weight(T::WeightInfo::mint())]
-        pub fn release(
+        pub fn claim(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             beneficiary: <T::Lookup as StaticLookup>::Source,
