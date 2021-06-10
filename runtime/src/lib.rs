@@ -453,6 +453,7 @@ impl parami_cross_assets::Config for Runtime {
     type NativeTokenId = NativeTokenId;
 }
 
+/*
 impl orml_nft::Config for Runtime {
     type ClassId = u32;
     type TokenId = u64;
@@ -460,6 +461,7 @@ impl orml_nft::Config for Runtime {
     type ClassData = ();
     type TokenData = ();
 }
+ */
 
 parameter_types! {
     // NOTE: minimum balance is 1 cent, 0.01 dollar
@@ -1200,15 +1202,16 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Pallet, Storage},
+
+        // borrowed from pallet-assets
         Assets: parami_assets::{Pallet, Call, Storage, Event<T>},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
-        // borrowed from pallet-assets
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
 
-        OrmlNft: orml_nft::{Pallet, Storage} = 100,
+        // OrmlNft: orml_nft::{Pallet, Storage} = 100,
     }
 );
 
