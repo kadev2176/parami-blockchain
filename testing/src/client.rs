@@ -16,14 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Utilities to build a `TestClient` for `parami-runtime`.
+//! Utilities to build a `TestClient` for `node-runtime`.
 
 use sc_service::client;
 use sp_runtime::BuildStorage;
 /// Re-export test-client utilities.
 pub use substrate_test_client::*;
 
-/// Call executor for `parami-runtime` `TestClient`.
+/// Call executor for `node-runtime` `TestClient`.
 pub type Executor = sc_executor::NativeExecutor<parami_executor::Executor>;
 
 /// Default backend type.
@@ -32,12 +32,12 @@ pub type Backend = sc_client_db::Backend<parami_primitives::Block>;
 /// Test client type.
 pub type Client = client::Client<
     Backend,
-    client::LocalCallExecutor<Backend, Executor>,
+    client::LocalCallExecutor<parami_primitives::Block, Backend, Executor>,
     parami_primitives::Block,
     parami_runtime::RuntimeApi,
 >;
 
-/// Transaction for parami-runtime.
+/// Transaction for node-runtime.
 pub type Transaction = sc_client_api::backend::TransactionFor<Backend, parami_primitives::Block>;
 
 /// Genesis configuration parameters for `TestClient`.
@@ -66,7 +66,7 @@ pub trait TestClientBuilderExt: Sized {
 impl TestClientBuilderExt
     for substrate_test_client::TestClientBuilder<
         parami_primitives::Block,
-        client::LocalCallExecutor<Backend, Executor>,
+        client::LocalCallExecutor<parami_primitives::Block, Backend, Executor>,
         Backend,
         GenesisParameters,
     >

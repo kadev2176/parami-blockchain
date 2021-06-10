@@ -398,7 +398,7 @@ fn full_native_block_import_works() {
         let events = vec![
             EventRecord {
                 phase: Phase::ApplyExtrinsic(0),
-                event: Event::frame_system(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
+                event: Event::System(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
                     weight: timestamp_weight,
                     class: DispatchClass::Mandatory,
                     ..Default::default()
@@ -407,7 +407,7 @@ fn full_native_block_import_works() {
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(1),
-                event: Event::pallet_balances(pallet_balances::Event::Transfer(
+                event: Event::Balances(pallet_balances::Event::Transfer(
                     alice().into(),
                     bob().into(),
                     69 * DOLLARS,
@@ -416,12 +416,12 @@ fn full_native_block_import_works() {
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(1),
-                event: Event::pallet_treasury(pallet_treasury::RawEvent::Deposit(fees * 8 / 10)),
+                event: Event::Treasury(pallet_treasury::RawEvent::Deposit(fees * 8 / 10)),
                 topics: vec![],
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(1),
-                event: Event::frame_system(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
+                event: Event::System(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
                     weight: transfer_weight,
                     ..Default::default()
                 })),
@@ -452,7 +452,7 @@ fn full_native_block_import_works() {
         let events = vec![
             EventRecord {
                 phase: Phase::ApplyExtrinsic(0),
-                event: Event::frame_system(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
+                event: Event::System(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
                     weight: timestamp_weight,
                     class: DispatchClass::Mandatory,
                     ..Default::default()
@@ -461,7 +461,7 @@ fn full_native_block_import_works() {
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(1),
-                event: Event::pallet_balances(pallet_balances::Event::Transfer(
+                event: Event::Balances(pallet_balances::Event::Transfer(
                     bob().into(),
                     alice().into(),
                     5 * DOLLARS,
@@ -470,12 +470,12 @@ fn full_native_block_import_works() {
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(1),
-                event: Event::pallet_treasury(pallet_treasury::RawEvent::Deposit(fees * 8 / 10)),
+                event: Event::Treasury(pallet_treasury::RawEvent::Deposit(fees * 8 / 10)),
                 topics: vec![],
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(1),
-                event: Event::frame_system(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
+                event: Event::System(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
                     weight: transfer_weight,
                     ..Default::default()
                 })),
@@ -483,7 +483,7 @@ fn full_native_block_import_works() {
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(2),
-                event: Event::pallet_balances(pallet_balances::Event::Transfer(
+                event: Event::Balances(pallet_balances::Event::Transfer(
                     alice().into(),
                     bob().into(),
                     15 * DOLLARS,
@@ -492,12 +492,12 @@ fn full_native_block_import_works() {
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(2),
-                event: Event::pallet_treasury(pallet_treasury::RawEvent::Deposit(fees * 8 / 10)),
+                event: Event::Treasury(pallet_treasury::RawEvent::Deposit(fees * 8 / 10)),
                 topics: vec![],
             },
             EventRecord {
                 phase: Phase::ApplyExtrinsic(2),
-                event: Event::frame_system(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
+                event: Event::System(frame_system::Event::ExtrinsicSuccess(DispatchInfo {
                     weight: transfer_weight,
                     ..Default::default()
                 })),
@@ -743,6 +743,9 @@ fn native_big_block_import_succeeds() {
 #[test]
 fn native_big_block_import_fails_on_fallback() {
     let mut t = new_test_ext(compact_code_unwrap(), false);
+
+    // We set the heap pages to 8 because we know that should give an OOM in WASM with the given block.
+    set_heap_pages(&mut t.ext(), 8);
 
     assert!(executor_call::<NeverNativeValue, fn() -> _>(
         &mut t,

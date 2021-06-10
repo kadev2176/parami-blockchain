@@ -6,7 +6,7 @@ use crate as parami_swap;
 // use frame_support::traits::tokens::fungibles::{Inspect, Transfer, Mutate};
 use frame_support::{assert_ok, parameter_types};
 use frame_system::EnsureRoot;
-use sp_core::{sr25519, H256};
+use sp_core::H256;
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, IdentityLookup},
@@ -27,6 +27,7 @@ frame_support::construct_runtime!(
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: parami_assets::{Pallet, Call, Storage, Event<T>},
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
     }
 );
 
@@ -71,6 +72,17 @@ impl pallet_balances::Config for Test {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = ();
+    type MaxReserves = ();
+    type ReserveIdentifier = [u8; 8];
+}
+parameter_types! {
+    pub const MinimumPeriod: u64 = 1;
+}
+impl pallet_timestamp::Config for Test {
+    type Moment = u64;
+    type OnTimestampSet = ();
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 parameter_types! {
     pub const AssetDeposit: Balance = 100;
@@ -94,6 +106,7 @@ impl parami_assets::Config for Test {
     type Freezer = ();
     type Extra = ();
     type WeightInfo = ();
+    type UnixTime = Timestamp;
 }
 
 impl Config for Test {

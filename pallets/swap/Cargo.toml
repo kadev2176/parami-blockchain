@@ -26,6 +26,7 @@ parami-assets = { path = "../assets", default-features = false }
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate" }
 sp-core = { git = "https://github.com/paritytech/substrate" }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 
 [features]
 default = ["std"]

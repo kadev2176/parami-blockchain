@@ -19,6 +19,7 @@ frame_support::construct_runtime!(
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Did: parami_did::{Pallet, Call, Storage, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
     }
 );
 
@@ -63,11 +64,23 @@ impl pallet_balances::Config for Test {
     type ExistentialDeposit = ExistentialDeposit;
     type AccountStore = System;
     type WeightInfo = ();
+    type MaxReserves = ();
+    type ReserveIdentifier = [u8; 8];
 }
 ord_parameter_types! {
     pub const One: u64 = 1;
     pub const DidDeposit: u64 = 1;
 
+}
+
+parameter_types! {
+    pub const MinimumPeriod: u64 = 1;
+}
+impl pallet_timestamp::Config for Test {
+    type Moment = u64;
+    type OnTimestampSet = ();
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 impl Config for Test {
@@ -77,6 +90,8 @@ impl Config for Test {
     type Signature = sr25519::Signature;
     type Public = <sr25519::Signature as Verify>::Signer;
     type WeightInfo = ();
+    type Call = Call;
+    type Time = Timestamp;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
@@ -113,7 +128,7 @@ fn register_did_should_work() {
         let maybe_metadata = <Metadata<Test>>::get(maybe_did.unwrap());
         assert!(maybe_metadata.is_some());
         // not revoked
-        assert!(!maybe_metadata.unwrap().2);
+        assert!(!maybe_metadata.unwrap().3);
 
         // referrer should work
         let did1 = maybe_did.unwrap();

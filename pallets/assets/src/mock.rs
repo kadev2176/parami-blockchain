@@ -39,6 +39,7 @@ construct_runtime!(
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
     }
 );
 
@@ -83,6 +84,18 @@ impl pallet_balances::Config for Test {
     type AccountStore = System;
     type WeightInfo = ();
     type MaxLocks = ();
+    type MaxReserves = ();
+    type ReserveIdentifier = [u8; 8];
+}
+
+parameter_types! {
+    pub const MinimumPeriod: u64 = 1;
+}
+impl pallet_timestamp::Config for Test {
+    type Moment = u64;
+    type OnTimestampSet = ();
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -95,7 +108,7 @@ parameter_types! {
 
 impl Config for Test {
     type Event = Event;
-    type Balance = u64;
+    type Balance = u128;
     type AssetId = u32;
     type Currency = Balances;
     type ForceOrigin = frame_system::EnsureRoot<u64>;
@@ -107,6 +120,7 @@ impl Config for Test {
     type Freezer = TestFreezer;
     type WeightInfo = ();
     type Extra = ();
+    type UnixTime = Timestamp; // time for lock
 }
 
 use std::cell::RefCell;
@@ -117,13 +131,13 @@ pub(crate) enum Hook {
     Died(u32, u64),
 }
 thread_local! {
-    static FROZEN: RefCell<HashMap<(u32, u64), u64>> = RefCell::new(Default::default());
+    static FROZEN: RefCell<HashMap<(u32, u64), u128>> = RefCell::new(Default::default());
     static HOOKS: RefCell<Vec<Hook>> = RefCell::new(Default::default());
 }
 
 pub struct TestFreezer;
-impl FrozenBalance<u32, u64, u64> for TestFreezer {
-    fn frozen_balance(asset: u32, who: &u64) -> Option<u64> {
+impl FrozenBalance<u32, u64, u128> for TestFreezer {
+    fn frozen_balance(asset: u32, who: &u64) -> Option<u128> {
         FROZEN.with(|f| f.borrow().get(&(asset, who.clone())).cloned())
     }
 
@@ -132,7 +146,7 @@ impl FrozenBalance<u32, u64, u64> for TestFreezer {
     }
 }
 
-pub(crate) fn set_frozen_balance(asset: u32, who: u64, amount: u64) {
+pub(crate) fn set_frozen_balance(asset: u32, who: u64, amount: u128) {
     FROZEN.with(|f| f.borrow_mut().insert((asset, who), amount));
 }
 pub(crate) fn clear_frozen_balance(asset: u32, who: u64) {
