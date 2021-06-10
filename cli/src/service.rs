@@ -203,7 +203,6 @@ pub struct NewFullBase {
     pub task_manager: TaskManager,
     pub client: Arc<FullClient>,
     pub network: Arc<NetworkService<Block, <Block as BlockT>::Hash>>,
-    pub network_status_sinks: sc_service::NetworkStatusSinks<Block>,
     pub transaction_pool: Arc<sc_transaction_pool::FullPool<Block, FullClient>>,
 }
 
@@ -244,7 +243,7 @@ pub fn new_full_base(
         ),
     );
 
-    let (network, network_status_sinks, system_rpc_tx, network_starter) =
+    let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -283,7 +282,6 @@ pub fn new_full_base(
         task_manager: &mut task_manager,
         on_demand: None,
         remote_blockchain: None,
-        network_status_sinks: network_status_sinks.clone(),
         system_rpc_tx,
         telemetry: telemetry.as_mut(),
     })?;
@@ -313,6 +311,7 @@ pub fn new_full_base(
             env: proposer,
             block_import,
             sync_oracle: network.clone(),
+            justification_sync_link: network.clone(),
             create_inherent_data_providers: move |parent, ()| {
                 let client_clone = client_clone.clone();
                 async move {
@@ -324,10 +323,10 @@ pub fn new_full_base(
                     let timestamp = sp_timestamp::InherentDataProvider::from_system_time();
 
                     let slot =
-                        sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
-                            *timestamp,
-                            slot_duration,
-                        );
+						sp_consensus_babe::inherents::InherentDataProvider::from_timestamp_and_duration(
+							*timestamp,
+							slot_duration,
+						);
 
                     Ok((timestamp, slot, uncles))
                 }
@@ -393,7 +392,7 @@ pub fn new_full_base(
         name: Some(name),
         observer_enabled: false,
         keystore,
-        is_authority: role.is_authority(),
+        local_role: role,
         telemetry: telemetry.as_ref().map(|x| x.handle()),
     };
 
@@ -426,7 +425,6 @@ pub fn new_full_base(
         task_manager,
         client,
         network,
-        network_status_sinks,
         transaction_pool,
     })
 }
@@ -494,7 +492,7 @@ pub fn new_light_base(
         on_demand.clone(),
     ));
 
-    let (grandpa_block_import, _) = grandpa::block_import(
+    let (grandpa_block_import, grandpa_link) = grandpa::block_import(
         client.clone(),
         &(client.clone() as Arc<_>),
         select_chain.clone(),
@@ -535,7 +533,7 @@ pub fn new_light_base(
         telemetry.as_ref().map(|x| x.handle()),
     )?;
 
-    let (network, network_status_sinks, system_rpc_tx, network_starter) =
+    let (network, system_rpc_tx, network_starter) =
         sc_service::build_network(sc_service::BuildNetworkParams {
             config: &config,
             client: client.clone(),
@@ -545,7 +543,26 @@ pub fn new_light_base(
             on_demand: Some(on_demand.clone()),
             block_announce_validator_builder: None,
         })?;
-    network_starter.start_network();
+
+    let enable_grandpa = !config.disable_grandpa;
+    if enable_grandpa {
+        let name = config.network.node_name.clone();
+
+        let config = grandpa::Config {
+            gossip_duration: std::time::Duration::from_millis(333),
+            justification_period: 512,
+            name: Some(name),
+            observer_enabled: false,
+            keystore: None,
+            local_role: config.role.clone(),
+            telemetry: telemetry.as_ref().map(|x| x.handle()),
+        };
+
+        task_manager.spawn_handle().spawn_blocking(
+            "grandpa-observer",
+            grandpa::run_grandpa_observer(config, grandpa_link, network.clone())?,
+        );
+    }
 
     if config.offchain_worker.enabled {
         sc_service::build_offchain_workers(
@@ -574,13 +591,13 @@ pub fn new_light_base(
         keystore: keystore_container.sync_keystore(),
         config,
         backend,
-        network_status_sinks,
         system_rpc_tx,
         network: network.clone(),
         task_manager: &mut task_manager,
         telemetry: telemetry.as_mut(),
     })?;
 
+    network_starter.start_network();
     Ok((
         task_manager,
         rpc_handlers,

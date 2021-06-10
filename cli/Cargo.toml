@@ -90,7 +90,7 @@ frame-support = { git = "https://github.com/paritytech/substrate", version = "3.
 pallet-im-online = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
 pallet-authority-discovery = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
 pallet-staking = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
-pallet-grandpa = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-grandpa = { git = "https://github.com/paritytech/substrate", version = "3.1.0" }
 
 # parami-specific dependencies
 parami-runtime = { version = "2.0.0", path = "../runtime" }

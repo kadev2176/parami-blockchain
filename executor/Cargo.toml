@@ -34,7 +34,7 @@ frame-support = { git = "https://github.com/paritytech/substrate", version = "3.
 frame-system = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
 pallet-balances = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
 pallet-contracts = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
-pallet-grandpa = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
+pallet-grandpa = { git = "https://github.com/paritytech/substrate", version = "3.1.0" }
 pallet-im-online = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
 pallet-indices = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
 pallet-session = { git = "https://github.com/paritytech/substrate", version = "3.0.0" }
