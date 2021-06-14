@@ -267,13 +267,13 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 /// Staging testnet config.
 pub fn staging_testnet_config() -> ChainSpec {
     let boot_nodes = vec![
-        "/dns/sg0.dev.ad3.app/tcp/30333/p2p/12D3KooWLK2gMLhWsYJzjW3q35zAs9FDDVqfqVfVuskiGZGRSMvR"
+        "/dns/us1.dev.ad3.app/tcp/30333/p2p/12D3KooWMHs1sd41Gk8UmFJjhwn7Pmo58nWNe6pi9Dz2p8DaFDmw"
             .parse()
             .unwrap(),
-        "/dns/cn3.dev.ad3.app/tcp/30333/p2p/12D3KooWHyUSQkoL1WtnhLUYHuKbowZEZW1NNJe7TePKYZf9ucBY"
+        "/dns/sg1.dev.ad3.app/tcp/30333/p2p/12D3KooWGVEHNi64iL1VyKqjonsQUMFYrZsVmCHhq2Eq75S5oFS1"
             .parse()
             .unwrap(),
-        "/dns/us2.dev.ad3.app/tcp/30333/p2p/12D3KooWFcry65ShtPT6roTTEPXD9H89A1iA2wPKgJCgXW1yZwyy"
+        "/dns/sg2.dev.ad3.app/tcp/30333/p2p/12D3KooWDQY6ExjvaSzT7vjNbPpeKGP7nLvUaEp6iiqPtz21v9yd"
             .parse()
             .unwrap(),
     ];
