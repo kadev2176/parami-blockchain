@@ -225,7 +225,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
         .parse()
         .unwrap();
 
-    // 10 endowed accounts
+    // 5 endowed accounts
     let endowed_accounts: Vec<AccountId> = vec![
         "5FvDj5YQF3m1MUsgHDd4mSnCNNFevFuVQnQ3Bbb7Yi6kxE3a"
             .parse()
@@ -242,23 +242,6 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
         "5FnaseCGczaTq5xjgyvQLnu9ZFcNzR99KGXZ3A9yDDHp6fHv"
             .parse()
             .unwrap(),
-        "5GKxYTewp7qyHe8ZmhHAKmGFCPaDLVT9U6LChiGUhzy7coYu"
-            .parse()
-            .unwrap(),
-        "5EnqxnrvUc8tCu3LAe4ygfLKRVRGbtq1o3QMJSput55wj3ou"
-            .parse()
-            .unwrap(),
-        "5HGW4QkKsq5Zn4jSYJLWioVnJdSZMXYzgXXrG3G7FFVn8L8Q"
-            .parse()
-            .unwrap(),
-        "5CXNtPepcyEvJNRWJmC7Du9CHTB3NUJCuJoHXzn75YX9TiZ5"
-            .parse()
-            .unwrap(),
-        "5EcgwpTSjoTr4ChsFMbgyrSvkgumLSHvBRqAAEReSoFwJbUy"
-            .parse()
-            .unwrap(),
-        //
-        // "5ELomM16X264LYbPdRdQ884MrauXQWicxv632g8TotfRiDgi".parse().unwrap(),
     ];
 
     testnet_genesis(initial_authorities, root_key, Some(endowed_accounts))
@@ -279,8 +262,8 @@ pub fn staging_testnet_config() -> ChainSpec {
     ];
     let properties = serde_json::from_str(TOKEN_PROPERTIES).unwrap();
     ChainSpec::from_genesis(
-        "Parami Testnet",
-        "parami_testnet",
+        "Parami Dana",
+        "parami_dana",
         ChainType::Live,
         staging_testnet_config_genesis,
         boot_nodes,
