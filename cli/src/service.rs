@@ -265,8 +265,11 @@ pub fn new_full_base(
 
     let role = config.role.clone();
     let force_authoring = config.force_authoring;
-    let backoff_authoring_blocks =
-        Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
+    let mut strategy = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
+    strategy.max_interval = 10;
+    let mut backoff_authoring_blocks = Some(strategy);
+    let _ = backoff_authoring_blocks.take();
+
     let name = config.network.node_name.clone();
     let enable_grandpa = !config.disable_grandpa;
     let prometheus_registry = config.prometheus_registry().cloned();
