@@ -1,7 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-    "bench",
     "cli",
     "executor",
     "primitives",
@@ -13,8 +12,9 @@ members = [
     "pallets/airdrop",
     "pallets/chainbridge",
     "pallets/cross-assets",
-    "pallets/assets",
-    "pallets/swap",
+    # "pallets/assets",
+    # "pallets/swap",
+    # "pallets/nft",
 ]
 
 # The list of dependencies below (which can be both direct and indirect dependencies) are crates

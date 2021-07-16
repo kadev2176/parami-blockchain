@@ -22,12 +22,12 @@
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
-use codec::{Decode, Encode};
+use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, Filter, Imbalance, KeyOwnerProofSystem, LockIdentifier, MaxEncodedLen,
-        OnUnbalanced, U128CurrencyToVote,
+        Currency, Filter, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced,
+        U128CurrencyToVote,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -41,6 +41,7 @@ use frame_system::{
     EnsureOneOf, EnsureRoot,
 };
 use pallet_contracts::weights::WeightInfo;
+use pallet_election_provider_multi_phase::FallbackStrategy;
 use pallet_grandpa::fg_primitives;
 use pallet_grandpa::{AuthorityId as GrandpaId, AuthorityList as GrandpaAuthorityList};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -246,6 +247,8 @@ impl frame_system::Config for Runtime {
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
 }
+
+impl pallet_randomness_collective_flip::Config for Runtime {}
 
 impl pallet_utility::Config for Runtime {
     type Event = Event;
@@ -572,6 +575,7 @@ parameter_types! {
     pub OffchainRepeat: BlockNumber = 5;
 }
 
+use frame_election_provider_support::onchain;
 impl pallet_staking::Config for Runtime {
     const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
     type Currency = Balances;
@@ -595,6 +599,9 @@ impl pallet_staking::Config for Runtime {
     type NextNewSession = Session;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type ElectionProvider = ElectionProviderMultiPhase;
+    type GenesisElectionProvider = onchain::OnChainSequentialPhragmen<
+        pallet_election_provider_multi_phase::OnChainConfig<Self>,
+    >;
     type WeightInfo = pallet_staking::weights::SubstrateWeight<Runtime>;
 }
 
@@ -603,9 +610,14 @@ parameter_types! {
     pub const SignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
     pub const UnsignedPhase: u32 = EPOCH_DURATION_IN_BLOCKS / 4;
 
-    // fallback: no need to do on-chain phragmen initially.
-    pub const Fallback: pallet_election_provider_multi_phase::FallbackStrategy =
-        pallet_election_provider_multi_phase::FallbackStrategy::OnChain;
+    // signed config
+    pub const SignedMaxSubmissions: u32 = 10;
+    pub const SignedRewardBase: Balance = 1 * DOLLARS;
+    pub const SignedDepositBase: Balance = 1 * DOLLARS;
+    pub const SignedDepositByte: Balance = 1 * CENTS;
+
+    // fallback: no on-chain fallback.
+    pub const Fallback: FallbackStrategy = FallbackStrategy::Nothing;
 
     pub SolutionImprovementThreshold: Perbill = Perbill::from_rational(1u32, 10_000);
 
@@ -635,6 +647,19 @@ sp_npos_elections::generate_solution_type!(
 pub const MAX_NOMINATIONS: u32 =
     <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
 
+/// The numbers configured here should always be more than the the maximum limits of staking pallet
+/// to ensure election snapshot will not run out of memory.
+pub struct BenchmarkConfig;
+impl pallet_election_provider_multi_phase::BenchmarkingConfig for BenchmarkConfig {
+    const VOTERS: [u32; 2] = [5_000, 10_000];
+    const TARGETS: [u32; 2] = [1_000, 2_000];
+    const ACTIVE_VOTERS: [u32; 2] = [1000, 4_000];
+    const DESIRED_TARGETS: [u32; 2] = [400, 800];
+    const SNAPSHOT_MAXIMUM_VOTERS: u32 = 25_000;
+    const MINER_MAXIMUM_VOTERS: u32 = 15_000;
+    const MAXIMUM_TARGETS: u32 = 2000;
+}
+
 impl pallet_election_provider_multi_phase::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
@@ -646,13 +671,21 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type MinerMaxWeight = MinerMaxWeight;
     type MinerMaxLength = MinerMaxLength;
     type MinerTxPriority = MultiPhaseUnsignedPriority;
+    type SignedMaxSubmissions = SignedMaxSubmissions;
+    type SignedRewardBase = SignedRewardBase;
+    type SignedDepositBase = SignedDepositBase;
+    type SignedDepositByte = SignedDepositByte;
+    type SignedDepositWeight = ();
+    type SignedMaxWeight = MinerMaxWeight;
+    type SlashHandler = (); // burn slashes
+    type RewardHandler = (); // nothing to do upon rewards
     type DataProvider = Staking;
     type OnChainAccuracy = Perbill;
     type CompactSolution = NposCompactSolution16;
     type Fallback = Fallback;
     type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
     type ForceOrigin = EnsureRootOrHalfCouncil;
-    type BenchmarkingConfig = ();
+    type BenchmarkingConfig = BenchmarkConfig;
 }
 
 parameter_types! {
@@ -905,6 +938,14 @@ impl pallet_contracts::Config for Runtime {
     type Randomness = RandomnessCollectiveFlip;
     type Currency = Balances;
     type Event = Event;
+    type Call = Call;
+    /// The safest default is to allow no calls at all.
+    ///
+    /// Runtimes should whitelist dispatchables that are allowed to be called from contracts
+    /// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
+    /// change because that would break already deployed contracts. The `Call` structure itself
+    /// is not allowed to change the indices of existing pallets, too.
+    type CallFilter = frame_support::traits::DenyAll;
     type RentPayment = ();
     type SignedClaimHandicap = SignedClaimHandicap;
     type TombstoneDeposit = TombstoneDeposit;
@@ -914,7 +955,7 @@ impl pallet_contracts::Config for Runtime {
     type RentFraction = RentFraction;
     type SurchargeReward = SurchargeReward;
     type CallStack = [pallet_contracts::Frame<Self>; 31];
-    type WeightPrice = pallet_transaction_payment::Module<Self>;
+    type WeightPrice = pallet_transaction_payment::Pallet<Self>;
     type WeightInfo = pallet_contracts::weights::SubstrateWeight<Self>;
     type ChainExtension = ();
     type DeletionQueueDepth = DeletionQueueDepth;
@@ -1126,6 +1167,7 @@ impl pallet_mmr::Config for Runtime {
     type WeightInfo = ();
 }
 
+/*
 parameter_types! {
     pub const AssetDeposit: Balance = 100 * DOLLARS;
     pub const ApprovalDeposit: Balance = 1 * DOLLARS;
@@ -1134,7 +1176,7 @@ parameter_types! {
     pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
-impl parami_assets::Config for Runtime {
+impl pallet_assets::Config for Runtime {
     type Event = Event;
     // asset token balance unit, for simplicity, use the same as Balances
     type Balance = u128;
@@ -1150,7 +1192,7 @@ impl parami_assets::Config for Runtime {
     type Freezer = ();
     type Extra = ();
     type UnixTime = Timestamp; // time for lock
-    type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
+    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 }
 
 impl parami_swap::Config for Runtime {
@@ -1160,6 +1202,7 @@ impl parami_swap::Config for Runtime {
     // avoid name confliction with AssetBalance struct
     type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
 }
+*/
 
 construct_runtime!(
     pub enum Runtime where
@@ -1188,10 +1231,10 @@ construct_runtime!(
         Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>},
         Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>},
         ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, ValidateUnsigned, Config<T>},
-        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Call, Config},
-        Offences: pallet_offences::{Pallet, Call, Storage, Event},
+        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config},
+        Offences: pallet_offences::{Pallet, Storage, Event},
         Historical: pallet_session_historical::{Pallet},
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Call, Storage},
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage},
         Identity: pallet_identity::{Pallet, Call, Storage, Event<T>},
         Society: pallet_society::{Pallet, Call, Storage, Event<T>, Config<T>},
         Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>},
@@ -1204,12 +1247,12 @@ construct_runtime!(
         Mmr: pallet_mmr::{Pallet, Storage},
 
         // borrowed from pallet-assets
-        Assets: parami_assets::{Pallet, Call, Storage, Event<T>},
+        // Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
-        Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
+        // Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
 
         // OrmlNft: orml_nft::{Pallet, Storage} = 100,
     }
@@ -1308,8 +1351,9 @@ impl_runtime_apis! {
         fn validate_transaction(
             source: TransactionSource,
             tx: <Block as BlockT>::Extrinsic,
+            block_hash: <Block as BlockT>::Hash,
         ) -> TransactionValidity {
-            Executive::validate_transaction(source, tx)
+            Executive::validate_transaction(source, tx, block_hash)
         }
     }
 
@@ -1581,9 +1625,9 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, pallet_treasury, Treasury);
             add_benchmark!(params, batches, pallet_utility, Utility);
             add_benchmark!(params, batches, pallet_vesting, Vesting);
+            //add_benchmark!(params, batches, pallet_assets, Assets);
 
             add_benchmark!(params, batches, parami_did, Did);
-            add_benchmark!(params, batches, parami_assets, Assets);
 
             if batches.is_empty() { return Err("Benchmark not found for this pallet.".into()) }
             Ok(batches)

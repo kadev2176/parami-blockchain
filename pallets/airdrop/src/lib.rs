@@ -43,7 +43,7 @@ pub mod pallet {
     #[pallet::call]
     impl<T: Config> Pallet<T> {
         #[pallet::weight(<() as pallet_balances::weights::WeightInfo>::transfer() * dests.len() as u64)]
-        pub(super) fn airdrop(
+        pub fn airdrop(
             origin: OriginFor<T>,
             dests: Vec<<T::Lookup as StaticLookup>::Source>,
             #[pallet::compact] amount: BalanceOf<T>,
@@ -85,7 +85,7 @@ pub mod pallet {
 
         /// Donates to airdrop pool
         #[pallet::weight(0)]
-        pub(super) fn donate(
+        pub fn donate(
             origin: OriginFor<T>,
             #[pallet::compact] amount: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
@@ -101,7 +101,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub(super) fn set_admin(
+        pub fn set_admin(
             origin: OriginFor<T>,
             new: <T::Lookup as StaticLookup>::Source,
         ) -> DispatchResultWithPostInfo {
@@ -117,7 +117,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub(super) fn force_set_admin(
+        pub fn force_set_admin(
             origin: OriginFor<T>,
             new: <T::Lookup as StaticLookup>::Source,
         ) -> DispatchResultWithPostInfo {

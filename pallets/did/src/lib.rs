@@ -152,7 +152,7 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Register a new DID.
         #[pallet::weight(T::WeightInfo::register())]
-        pub(super) fn register(
+        pub fn register(
             origin: OriginFor<T>,
             public: T::Public,
             referrer: Option<DidMethodSpecId>,
@@ -178,10 +178,7 @@ pub mod pallet {
 
         /// Register a new DID for other users.
         #[pallet::weight(T::WeightInfo::register_for())]
-        pub(super) fn register_for(
-            origin: OriginFor<T>,
-            public: T::Public,
-        ) -> DispatchResultWithPostInfo {
+        pub fn register_for(origin: OriginFor<T>, public: T::Public) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 
             let my_id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
@@ -209,7 +206,7 @@ pub mod pallet {
 
         /// Lock balance.
         #[pallet::weight(T::WeightInfo::lock())]
-        pub(super) fn lock(
+        pub fn lock(
             origin: OriginFor<T>,
             #[pallet::compact] amount: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
@@ -231,7 +228,7 @@ pub mod pallet {
         /// Rovoke a DID, which will never be used in the future.
         /// This means that you refuse to use this AccountID for identify.
         #[pallet::weight(T::WeightInfo::revoke())]
-        pub(super) fn revoke(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
+        pub fn revoke(origin: OriginFor<T>) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
 
             let id = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
@@ -298,7 +295,7 @@ pub mod pallet {
                 dispatch_info.class,
             )
         })]
-        pub(crate) fn call(
+        pub fn call(
             origin: OriginFor<T>,
             identity: DidMethodSpecId,
             call: Box<<T as Config>::Call>,

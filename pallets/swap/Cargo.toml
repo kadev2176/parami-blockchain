@@ -18,15 +18,15 @@ sp-runtime = { git = "https://github.com/paritytech/substrate", default-features
 frame-support = { git = "https://github.com/paritytech/substrate", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", default-features = false }
 
-pallet-balances = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
-# pallet-assets = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
+pallet-assets = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 
-parami-assets = { path = "../assets", default-features = false }
+# parami-assets = { path = "../assets", default-features = false }
 
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate" }
 sp-core = { git = "https://github.com/paritytech/substrate" }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "3.0.0", default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 
 [features]
 default = ["std"]
@@ -39,6 +39,6 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "pallet-balances/std",
-    "parami-assets/std",
+    "pallet-assets/std",
 ]
 try-runtime = ["frame-support/try-runtime"]

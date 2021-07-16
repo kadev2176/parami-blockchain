@@ -44,7 +44,7 @@ pub mod pallet {
     #[pallet::config]
     /// The module configuration trait.
     pub trait Config:
-        frame_system::Config + parami_assets::Config + pallet_balances::Config
+        frame_system::Config + pallet_assets::Config + pallet_balances::Config
     {
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -61,7 +61,7 @@ pub mod pallet {
             + HasCompact
             + IsType<u128>
             + IsType<<<Self as Config>::Currency as Currency<<Self as frame_system::Config>::AccountId>>::Balance>;
-        type SwapAssetBalance: IsType<<Self as parami_assets::Config>::Balance>
+        type SwapAssetBalance: IsType<<Self as pallet_assets::Config>::Balance>
             + Parameter
             + Member
             + Copy
@@ -155,11 +155,11 @@ pub mod pallet {
         <<T as pallet::Config>::Currency as frame_support::traits::Currency<
             <T as frame_system::Config>::AccountId,
         >>::Balance: From<u128> + Into<u128>,
-        <T as parami_assets::Config>::Balance: From<u128> + Into<u128>,
-        <T as parami_assets::Config>::AssetId: AtLeast32BitUnsigned,
+        <T as pallet_assets::Config>::Balance: From<u128> + Into<u128>,
+        <T as pallet_assets::Config>::AssetId: AtLeast32BitUnsigned,
     {
         #[pallet::weight(0)]
-        pub(super) fn create(
+        pub fn create(
             origin: OriginFor<T>,
             #[pallet::compact] asset_id: T::AssetId,
         ) -> DispatchResult {
@@ -173,13 +173,13 @@ pub mod pallet {
                 Error::<T>::AssetNotFound
             );
 
-            let total_supply = <parami_assets::Pallet<T>>::total_supply(asset_id);
+            let total_supply = <pallet_assets::Pallet<T>>::total_supply(asset_id);
             log::info!("!! create total supply => {:?}", total_supply);
             ensure!(total_supply > Zero::zero(), Error::<T>::AssetNotFound);
 
             log::debug!(
                 "!! min balance => {:?}",
-                <parami_assets::Pallet<T>>::minimum_balance(asset_id)
+                <pallet_assets::Pallet<T>>::minimum_balance(asset_id)
             );
 
             ensure!(!Swap::<T>::contains_key(asset_id), Error::<T>::Exists);
@@ -192,38 +192,37 @@ pub mod pallet {
                 <T as pallet::Config>::Currency::minimum_balance(),
                 ExistenceRequirement::KeepAlive,
             )?;
-            <parami_assets::Pallet<T>>::transfer(
+            <pallet_assets::Pallet<T>>::transfer(
+                origin.clone(),
                 asset_id,
-                &sender,
-                &pool_account_id,
-                <parami_assets::Pallet<T>>::minimum_balance(asset_id),
-                true,
+                pool_account_id.into(),
+                <pallet_assets::Pallet<T>>::minimum_balance(asset_id),
             )?;
 
             // create lp-token
             // offset asset_id by 1_000_000, constraint, won't save
             let lp_asset_id = asset_id + T::AssetId::from(1_000_000_u32);
-            <parami_assets::Pallet<T>>::create(
+            <pallet_assets::Pallet<T>>::create(
                 origin.clone(),
                 lp_asset_id,
                 <T::Lookup as StaticLookup>::unlookup(pool_account_id.clone()),
                 MINIMUM_LIQUIDITY.into(),
             )?;
-            let (_, asset_symbol, _) = <parami_assets::Pallet<T>>::metadata(asset_id);
+            let (_, asset_symbol, _) = <pallet_assets::Pallet<T>>::metadata(asset_id);
             let mut lp_name = asset_symbol.clone();
             lp_name.extend_from_slice(b"/AD3 LP");
             let mut lp_symbol = asset_symbol.clone();
             lp_symbol.extend_from_slice(b"-AD3");
 
             log::info!("issure LP token {:?}", str::from_utf8(&lp_symbol));
-            <parami_assets::Pallet<T>>::set_metadata(
+            <pallet_assets::Pallet<T>>::set_metadata(
                 origin.clone(),
                 lp_asset_id,
                 lp_name,
                 lp_symbol,
                 0,
             )?;
-            <parami_assets::Pallet<T>>::transfer_ownership(
+            <pallet_assets::Pallet<T>>::transfer_ownership(
                 origin.clone(),
                 lp_asset_id,
                 <T::Lookup as StaticLookup>::unlookup(pool_account_id),
@@ -245,7 +244,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub(super) fn add_liquidity(
+        pub fn add_liquidity(
             origin: OriginFor<T>,
             #[pallet::compact] asset_id: T::AssetId,
             #[pallet::compact] native_amount: T::NativeBalance,
@@ -316,7 +315,7 @@ pub mod pallet {
 
                 // total liquidity
                 let total_supply: u128 =
-                    <parami_assets::Pallet<T>>::total_supply(lp_asset_id).into();
+                    <pallet_assets::Pallet<T>>::total_supply(lp_asset_id).into();
 
                 minted_liquidity = u128::min(
                     native_amount * total_supply / pair.native_reserve,
@@ -342,7 +341,7 @@ pub mod pallet {
             // sender asset amount check
             {
                 let sender_asset_balance: T::SwapAssetBalance = T::SwapAssetBalance::from(
-                    <parami_assets::Pallet<T>>::balance(asset_id, &sender),
+                    <pallet_assets::Pallet<T>>::balance(asset_id, &sender),
                 );
                 ensure!(
                     sender_asset_balance > asset_amount.into(),
@@ -360,7 +359,7 @@ pub mod pallet {
                 ExistenceRequirement::KeepAlive,
             )?;
             // asset token inject
-            <parami_assets::Pallet<T>>::transfer(
+            <pallet_assets::Pallet<T>>::transfer(
                 asset_id,
                 &sender,
                 &pool_account_id,
@@ -382,7 +381,7 @@ pub mod pallet {
                 },
             )?;
             // mint LP token, won't trigger event
-            <parami_assets::Pallet<T>>::mint_into(lp_asset_id, &sender, minted_liquidity.into())?;
+            <pallet_assets::Pallet<T>>::mint_into(lp_asset_id, &sender, minted_liquidity.into())?;
 
             pair.native_reserve = Self::native_pool(asset_id).1.into();
             pair.asset_reserve = Self::asset_pool(asset_id).1.into();
@@ -400,7 +399,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub(super) fn remove_liquidity(
+        pub fn remove_liquidity(
             origin: OriginFor<T>,
             #[pallet::compact] asset_id: T::AssetId,
             #[pallet::compact] liquidity: T::SwapAssetBalance,
@@ -413,7 +412,7 @@ pub mod pallet {
 
             let lp_asset_id = asset_id + T::AssetId::from(1_000_000_u32);
             // total liquidity
-            let total_supply: u128 = <parami_assets::Pallet<T>>::total_supply(lp_asset_id).into();
+            let total_supply: u128 = <pallet_assets::Pallet<T>>::total_supply(lp_asset_id).into();
 
             ensure!(liquidity <= total_supply, Error::<T>::InsufficientLiquidity);
             // FIXME: the error might be inarguments, or pair info
@@ -472,7 +471,7 @@ pub mod pallet {
                 native_amount.into(),
                 ExistenceRequirement::AllowDeath,
             )?;
-            <parami_assets::Pallet<T>>::transfer(
+            <pallet_assets::Pallet<T>>::transfer(
                 asset_id,
                 &pool_account_id,
                 &sender,
@@ -494,7 +493,7 @@ pub mod pallet {
                 },
             )?;
             // burn LP token
-            <parami_assets::Pallet<T>>::burn_from(lp_asset_id, &sender, liquidity.into())?;
+            <pallet_assets::Pallet<T>>::burn_from(lp_asset_id, &sender, liquidity.into())?;
 
             // _update
             pair.native_reserve = Self::native_pool(asset_id).1.into();
@@ -514,7 +513,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub(super) fn swap_native(
+        pub fn swap_native(
             origin: OriginFor<T>,
             #[pallet::compact] asset_id: T::AssetId,
             #[pallet::compact] native_amount_in: T::NativeBalance,
@@ -570,7 +569,7 @@ pub mod pallet {
                 native_amount_in.into(),
                 ExistenceRequirement::KeepAlive,
             )?;
-            <parami_assets::Pallet<T>>::transfer(
+            <pallet_assets::Pallet<T>>::transfer(
                 asset_id,
                 &pool_account_id,
                 &sender,
@@ -593,7 +592,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(0)]
-        pub(super) fn swap_asset(
+        pub fn swap_asset(
             origin: OriginFor<T>,
             #[pallet::compact] asset_id: T::AssetId,
             #[pallet::compact] asset_amount_in: T::SwapAssetBalance,
@@ -631,7 +630,7 @@ pub mod pallet {
             // check balance
             {
                 let sender_asset_balance: T::SwapAssetBalance = T::SwapAssetBalance::from(
-                    <parami_assets::Pallet<T>>::balance(asset_id, &sender),
+                    <pallet_assets::Pallet<T>>::balance(asset_id, &sender),
                 );
                 ensure!(
                     sender_asset_balance > asset_amount_in.into(),
@@ -647,7 +646,7 @@ pub mod pallet {
             );
 
             // do transfer
-            <parami_assets::Pallet<T>>::transfer(
+            <pallet_assets::Pallet<T>>::transfer(
                 asset_id,
                 &sender,
                 &pool_account_id,
@@ -703,8 +702,8 @@ pub mod pallet {
         fn asset_pool(asset_id: T::AssetId) -> (T::AccountId, T::SwapAssetBalance) {
             let account_id = Self::asset_account_id(asset_id);
 
-            let asset_balance = <parami_assets::Pallet<T>>::balance(asset_id, &account_id)
-                - <parami_assets::Pallet<T>>::minimum_balance(asset_id);
+            let asset_balance = <pallet_assets::Pallet<T>>::balance(asset_id, &account_id)
+                - <pallet_assets::Pallet<T>>::minimum_balance(asset_id);
             (account_id, T::SwapAssetBalance::from(asset_balance))
         }
 
@@ -722,7 +721,7 @@ pub mod pallet {
         <<T as pallet::Config>::Currency as frame_support::traits::Currency<
             <T as frame_system::Config>::AccountId,
         >>::Balance: From<u128> + Into<u128>,
-        <T as parami_assets::Config>::Balance: From<u128>,
+        <T as pallet_assets::Config>::Balance: From<u128>,
     {
     }
 }

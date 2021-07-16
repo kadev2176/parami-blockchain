@@ -243,14 +243,18 @@ pub mod pallet {
     #[pallet::storage]
     /// Approved balance transfers. First balance is the amount approved for transfer. Second
     /// is the amount of `T::Currency` reserved for storing this.
-    pub(super) type Approvals<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
+    /// First key is the asset ID, second key is the owner and third key is the delegate.
+    pub(super) type Approvals<T: Config<I>, I: 'static = ()> = StorageNMap<
         _,
-        Blake2_128Concat,
-        T::AssetId,
-        Blake2_128Concat,
-        ApprovalKey<T::AccountId>,
+        (
+            NMapKey<Blake2_128Concat, T::AssetId>,
+            NMapKey<Blake2_128Concat, T::AccountId>, // owner
+            NMapKey<Blake2_128Concat, T::AccountId>, // delegate
+        ),
         Approval<T::Balance, DepositBalanceOf<T, I>>,
         OptionQuery,
+        GetDefault,
+        ConstU32<300_000>,
     >;
 
     #[pallet::storage]
@@ -446,7 +450,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::force_create())]
-        pub(super) fn force_create(
+        pub fn force_create(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             owner: <T::Lookup as StaticLookup>::Source,
@@ -499,7 +503,7 @@ pub mod pallet {
             witness.sufficients,
             witness.approvals,
         ))]
-        pub(super) fn destroy(
+        pub fn destroy(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             witness: DestroyWitness,
@@ -538,7 +542,9 @@ pub mod pallet {
                     details.deposit.saturating_add(metadata.deposit),
                 );
 
-                Approvals::<T, I>::remove_prefix(&id);
+                for ((owner, _), approval) in Approvals::<T, I>::drain_prefix((&id,)) {
+                    T::Currency::unreserve(&owner, approval.deposit);
+                }
                 Self::deposit_event(Event::Destroyed(id));
 
                 // NOTE: could use postinfo to reflect the actual number of accounts/sufficient/approvals
@@ -663,7 +669,7 @@ pub mod pallet {
         /// Weight: `O(1)`
         /// Modes: Post-existence of `who`; Pre & post Zombie-status of `who`.
         #[pallet::weight(T::WeightInfo::burn())]
-        pub(super) fn burn(
+        pub fn burn(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             who: <T::Lookup as StaticLookup>::Source,
@@ -700,7 +706,7 @@ pub mod pallet {
         /// Modes: Pre-existence of `target`; Post-existence of sender; Prior & post zombie-status
         /// of sender; Account pre-existence of `target`.
         #[pallet::weight(T::WeightInfo::transfer())]
-        pub(super) fn transfer(
+        pub fn transfer(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             target: <T::Lookup as StaticLookup>::Source,
@@ -736,7 +742,7 @@ pub mod pallet {
         /// Modes: Pre-existence of `target`; Post-existence of sender; Prior & post zombie-status
         /// of sender; Account pre-existence of `target`.
         #[pallet::weight(T::WeightInfo::transfer_keep_alive())]
-        pub(super) fn transfer_keep_alive(
+        pub fn transfer_keep_alive(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             target: <T::Lookup as StaticLookup>::Source,
@@ -773,7 +779,7 @@ pub mod pallet {
         /// Modes: Pre-existence of `dest`; Post-existence of `source`; Prior & post zombie-status
         /// of `source`; Account pre-existence of `dest`.
         #[pallet::weight(T::WeightInfo::force_transfer())]
-        pub(super) fn force_transfer(
+        pub fn force_transfer(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             source: <T::Lookup as StaticLookup>::Source,
@@ -803,7 +809,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::freeze())]
-        pub(super) fn freeze(
+        pub fn freeze(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             who: <T::Lookup as StaticLookup>::Source,
@@ -835,7 +841,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::thaw())]
-        pub(super) fn thaw(
+        pub fn thaw(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             who: <T::Lookup as StaticLookup>::Source,
@@ -866,7 +872,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::freeze_asset())]
-        pub(super) fn freeze_asset(
+        pub fn freeze_asset(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
         ) -> DispatchResult {
@@ -893,7 +899,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::thaw_asset())]
-        pub(super) fn thaw_asset(
+        pub fn thaw_asset(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
         ) -> DispatchResult {
@@ -962,7 +968,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::set_team())]
-        pub(super) fn set_team(
+        pub fn set_team(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             issuer: <T::Lookup as StaticLookup>::Source,
@@ -1067,7 +1073,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::clear_metadata())]
-        pub(super) fn clear_metadata(
+        pub fn clear_metadata(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
         ) -> DispatchResult {
@@ -1104,7 +1110,7 @@ pub mod pallet {
         ///
         /// Weight: `O(N + S)` where N and S are the length of the name and symbol respectively.
         #[pallet::weight(T::WeightInfo::force_set_metadata(name.len() as u32, symbol.len() as u32))]
-        pub(super) fn force_set_metadata(
+        pub fn force_set_metadata(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             name: Vec<u8>,
@@ -1151,7 +1157,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::force_clear_metadata())]
-        pub(super) fn force_clear_metadata(
+        pub fn force_clear_metadata(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
         ) -> DispatchResult {
@@ -1189,7 +1195,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::force_asset_status())]
-        pub(super) fn force_asset_status(
+        pub fn force_asset_status(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             owner: <T::Lookup as StaticLookup>::Source,
@@ -1239,7 +1245,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::approve_transfer())]
-        pub(super) fn approve_transfer(
+        pub fn approve_transfer(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             delegate: <T::Lookup as StaticLookup>::Source,
@@ -1279,18 +1285,22 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::cancel_approval())]
-        pub(super) fn cancel_approval(
+        pub fn cancel_approval(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             delegate: <T::Lookup as StaticLookup>::Source,
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let delegate = T::Lookup::lookup(delegate)?;
-            let key = ApprovalKey { owner, delegate };
-            let approval = Approvals::<T, I>::take(id, &key).ok_or(Error::<T, I>::Unknown)?;
-            T::Currency::unreserve(&key.owner, approval.deposit);
+            let mut d = Asset::<T, I>::get(id).ok_or(Error::<T, I>::Unknown)?;
+            let approval =
+                Approvals::<T, I>::take((id, &owner, &delegate)).ok_or(Error::<T, I>::Unknown)?;
+            T::Currency::unreserve(&owner, approval.deposit);
 
-            Self::deposit_event(Event::ApprovalCancelled(id, key.owner, key.delegate));
+            d.approvals.saturating_dec();
+            Asset::<T, I>::insert(id, d);
+
+            Self::deposit_event(Event::ApprovalCancelled(id, owner, delegate));
             Ok(())
         }
 
@@ -1308,7 +1318,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::force_cancel_approval())]
-        pub(super) fn force_cancel_approval(
+        pub fn force_cancel_approval(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             owner: <T::Lookup as StaticLookup>::Source,
@@ -1353,7 +1363,7 @@ pub mod pallet {
         ///
         /// Weight: `O(1)`
         #[pallet::weight(T::WeightInfo::transfer_approved())]
-        pub(super) fn transfer_approved(
+        pub fn transfer_approved(
             origin: OriginFor<T>,
             #[pallet::compact] id: T::AssetId,
             owner: <T::Lookup as StaticLookup>::Source,

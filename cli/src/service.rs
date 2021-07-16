@@ -91,7 +91,7 @@ pub fn new_partial(
         config.transaction_pool.clone(),
         config.role.is_authority().into(),
         config.prometheus_registry(),
-        task_manager.spawn_handle(),
+        task_manager.spawn_essential_handle(),
         client.clone(),
     );
 
@@ -265,11 +265,8 @@ pub fn new_full_base(
 
     let role = config.role.clone();
     let force_authoring = config.force_authoring;
-    let mut strategy = sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default();
-    strategy.max_interval = 10;
-    let mut backoff_authoring_blocks = Some(strategy);
-    let _ = backoff_authoring_blocks.take();
-
+    let backoff_authoring_blocks =
+        Some(sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging::default());
     let name = config.network.node_name.clone();
     let enable_grandpa = !config.disable_grandpa;
     let prometheus_registry = config.prometheus_registry().cloned();
@@ -339,6 +336,7 @@ pub fn new_full_base(
             babe_link,
             can_author_with,
             block_proposal_slot_portion: SlotProportion::new(0.5),
+            max_block_proposal_slot_portion: None,
             telemetry: telemetry.as_ref().map(|x| x.handle()),
         };
 
@@ -490,7 +488,7 @@ pub fn new_light_base(
     let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_light(
         config.transaction_pool.clone(),
         config.prometheus_registry(),
-        task_manager.spawn_handle(),
+        task_manager.spawn_essential_handle(),
         client.clone(),
         on_demand.clone(),
     ));
@@ -627,6 +625,7 @@ mod tests {
     use sc_consensus_epochs::descendent_query;
     use sc_keystore::LocalKeystore;
     use sc_service_test::TestNetNode;
+    use sc_transaction_pool_api::{ChainEvent, MaintainedTransactionPool};
     use sp_consensus::{
         BlockImport, BlockImportParams, BlockOrigin, Environment, ForkChoiceStrategy, Proposer,
     };
@@ -641,7 +640,6 @@ mod tests {
     };
     use sp_runtime::{key_types::BABE, traits::IdentifyAccount, RuntimeAppPublic};
     use sp_timestamp;
-    use sp_transaction_pool::{ChainEvent, MaintainedTransactionPool};
     use std::{borrow::Cow, convert::TryInto, sync::Arc};
 
     type AccountPublic = <Signature as Verify>::Signer;
