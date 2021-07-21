@@ -84,12 +84,51 @@ fn session_keys(
     }
 }
 
+#[derive(Serialize, Deserialize)]
+struct Allocation {
+    balances: Vec<(String, String)>,
+}
+
+
+// Give each initial participant the allocation,
+fn get_initial_allocation() -> Result<(Vec<(AccountId, Balance)>, Balance), String> {
+    use std::fs::File;
+    use std::io::Read;
+    // use hex::FromHex;
+
+    let mut file = File::open("initial_drop.json").expect("Unable to open");
+    let mut data = String::new();
+    file.read_to_string(&mut data).unwrap();
+
+    let json: Allocation = serde_json::from_str(&data).unwrap();
+    let balances_json = json.balances;
+
+    let balances: Vec<(AccountId, Balance)> = balances_json
+        .clone()
+        .into_iter()
+        .map(|elem| {
+            return (
+                elem.0.parse().unwrap(),
+                elem.1.to_string().parse::<Balance>().unwrap(),
+            );
+        })
+        .collect();
+
+    let total: Balance = balances_json
+        .into_iter()
+        .map(|e| e.1.to_string().parse::<Balance>().unwrap())
+        .sum();
+    Ok((balances, total))
+}
+
 fn staging_testnet_config_genesis() -> GenesisConfig {
     // stash, controller, session-key
     // generated with secret:
     // for i in 1 2 3 4 ; do for j in stash controller; do subkey inspect "$secret"/fir/$j/$i; done; done
     // and
     // for i in 1 2 3 4 ; do for j in session; do subkey --ed25519 inspect "$secret"//fir//$j//$i; done; done
+
+    let (initial_alloc, _initial_total) =  get_initial_allocation().expect("can not get initial allocation");
 
     let initial_authorities: Vec<(
         AccountId,
@@ -244,7 +283,10 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
             .unwrap(),
     ];
 
-    testnet_genesis(initial_authorities, root_key, Some(endowed_accounts))
+    let mut genesis = testnet_genesis(initial_authorities, root_key, Some(endowed_accounts));
+
+    genesis.balances.balances.extend_from_slice(&initial_alloc[..]);
+    genesis
 }
 
 /// Staging testnet config.
