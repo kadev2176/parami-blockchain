@@ -285,7 +285,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
 
     let mut genesis = testnet_genesis(initial_authorities, root_key, Some(endowed_accounts));
 
-    genesis.balances.balances.extend_from_slice(&initial_alloc[..]);
+    genesis.balances.balances = initial_alloc;
     genesis
 }
 
