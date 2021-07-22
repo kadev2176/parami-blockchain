@@ -145,7 +145,7 @@ fn staging_testnet_config_genesis() -> GenesisConfig {
             "5FmkZKr2b5euYc4szf3QKREHDh9b47ihwaLsbiku8TKkkb7W"
                 .parse()
                 .unwrap(),
-            "5Fb9ayurnxnaXj56CjmyQLBiadfRCqUbL2VWNbbe1nZU6wiC"
+            "5EZbXLZb18WXh6DERzXYJrh1YuK3AVockvk5oernG9eZJz5b"
                 .parse::<ed25519::Public>()
                 .unwrap()
                 .into(),
