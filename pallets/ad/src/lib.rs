@@ -6,11 +6,13 @@ use frame_support::{
     traits::{Currency, ReservableCurrency}
 };
 use frame_system::pallet_prelude::*;
+use parami_did::DidMethodSpecId;
 
 mod mock;
 mod tests;
 
 pub type BalanceOf<T> = <<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type ResultPost<T> = sp_std::result::Result<T, sp_runtime::DispatchErrorWithPostInfo<frame_support::weights::PostDispatchInfo>>;
 
 pub use self::pallet::*;
 #[frame_support::pallet]
@@ -39,8 +41,8 @@ pub mod pallet {
 
     #[pallet::error]
     pub enum Error<T> {
-        /// AAAA
-        AAAA,
+        /// The DID does not exist.
+        DIDNotExists,
     }
 
     #[pallet::hooks]
@@ -57,15 +59,21 @@ pub mod pallet {
 
         #[pallet::weight(100_000)]
         #[transactional]
-        pub fn create_ad_publisher(
+        pub fn create_advertiser(
             origin: OriginFor<T>,
         ) -> DispatchResultWithPostInfo {
-            let _who = ensure_signed(origin)?;
+            let who: T::AccountId = ensure_signed(origin)?;
+            let did: DidMethodSpecId = Self::ensure_did(&who)?;
+
             Ok(().into())
         }
     }
 }
 
 impl<T: Config> Pallet<T> {
-
+    fn ensure_did(who: &T::AccountId) -> ResultPost<DidMethodSpecId> {
+        let did: Option<DidMethodSpecId> = parami_did::Pallet::<T>::lookup_account(who.clone());
+        ensure!(did.is_some(), Error::<T>::DIDNotExists);
+        Ok(did.expect("Must be Some"))
+    }
 }

@@ -13,7 +13,7 @@ use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-use parami_primitives::{AccountId, Balance};
+pub use parami_primitives::{AccountId, Balance};
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
