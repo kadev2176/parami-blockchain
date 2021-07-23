@@ -22,6 +22,8 @@ pallet-balances = { git = "https://github.com/paritytech/substrate", version = "
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false, optional = true }
 
+parami-did = { path = "../did", default-features = false }
+
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev" }
 pallet-utility = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
@@ -39,6 +41,7 @@ std = [
     "frame-support/std",
     "frame-system/std",
     "pallet-timestamp/std",
+    "parami-did/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

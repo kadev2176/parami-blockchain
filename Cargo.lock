@@ -4737,6 +4737,7 @@ dependencies = [
  "pallet-proxy",
  "pallet-timestamp",
  "pallet-utility",
+ "parami-did",
  "parami-primitives",
  "parity-scale-codec",
  "serde",

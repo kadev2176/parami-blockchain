@@ -121,6 +121,32 @@ impl pallet_proxy::Config for Runtime {
 	type AnnouncementDepositFactor = AnnouncementDepositFactor;
 }
 
+parameter_types! {
+    pub const MinimumPeriod: u64 = 5;
+}
+
+impl pallet_timestamp::Config for Runtime {
+    type Moment = u64;
+    type OnTimestampSet = ();
+    type MinimumPeriod = MinimumPeriod;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const DidDeposit: Balance = 1;
+}
+
+impl parami_did::Config for Runtime {
+    type Currency = Balances;
+    type Deposit = DidDeposit;
+    type Event = Event;
+    type Public = sp_runtime::MultiSigner;
+    type Signature = sp_runtime::MultiSignature;
+    type Call = Call;
+    type Time = Timestamp;
+    type WeightInfo = ();
+}
+
 impl parami_ad::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
@@ -138,9 +164,11 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
+        Did: parami_did::{Pallet, Call, Storage, Event<T>},
 		Ad: parami_ad::{Pallet, Call, Event<T>},
 	}
 );
