@@ -1,0 +1,32 @@
+use crate::*;
+
+#[cfg(feature = "std")]
+use serde::{Serialize, Deserialize};
+use parami_primitives::{Balance};
+use parami_did::DidMethodSpecId;
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct Advertiser<Moment, AccountId> {
+    /// DID
+    pub did: DidMethodSpecId,
+    /// creation time.
+    #[codec(compact)]
+    pub created_time: Moment,
+    /// advertiser id
+    #[codec(compact)]
+    pub advertiser_id: AdvertiserId,
+    /// The minimum balances to create an advertiser account.
+    #[codec(compact)]
+    pub deposit: Balance,
+    /// an account to keep the deposit of an advertiser.
+    pub deposit_account: AccountId,
+    /// an account to keep the reward pool balances of an advertiser.
+    pub reward_pool_account: AccountId,
+}
+
+pub type AdvertiserOf<T> = Advertiser<<T as pallet_timestamp::Config>::Moment, <T as frame_system::Config>::AccountId>;
+pub type BalanceOf<T> = <<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type ResultPost<T> = sp_std::result::Result<T, DispatchErrorWithPostInfo<PostDispatchInfo>>;
+pub type GlobalId = u64;
+pub type AdvertiserId = GlobalId;
