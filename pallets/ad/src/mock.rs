@@ -174,13 +174,13 @@ construct_runtime!(
 );
 
 pub const ALICE: AccountId = AccountId::new([1u8; 32]);
-pub const ALICE_INIT: BalanceOf<Runtime> = 200;
+pub const ALICE_INIT: BalanceOf<Runtime> = 60000 * UNIT;
 pub const BOB: AccountId = AccountId::new([2u8; 32]);
-pub const BOB_INIT: BalanceOf<Runtime> = 100;
+pub const BOB_INIT: BalanceOf<Runtime> = 60000 * UNIT;
 pub const CHARLIE: AccountId = AccountId::new([3u8; 32]);
-pub const CHARLIE_INIT: BalanceOf<Runtime> = 60000;
+pub const CHARLIE_INIT: BalanceOf<Runtime> = 60000 * UNIT;
 pub const DAVE: AccountId = AccountId::new([4u8; 32]);
-pub const DAVE_INIT: BalanceOf<Runtime> = 60000;
+pub const DAVE_INIT: BalanceOf<Runtime> = 60000 * UNIT;
 
 pub struct ExtBuilder;
 impl Default for ExtBuilder {
@@ -202,6 +202,8 @@ impl ExtBuilder {
 				(DAVE, DAVE_INIT),
 			],
 		}.assimilate_storage(&mut t).unwrap();
+
+        crate::GenesisConfig::<Runtime>::default().assimilate_storage(&mut t).unwrap();
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| {

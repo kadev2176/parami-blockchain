@@ -3,13 +3,11 @@ use crate::*;
 #[cfg(feature = "std")]
 use serde::{Serialize, Deserialize};
 use parami_primitives::{Balance};
-use parami_did::DidMethodSpecId;
+use sp_std::vec::Vec;
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct Advertiser<Moment, AccountId> {
-    /// DID
-    pub did: DidMethodSpecId,
     /// creation time.
     #[codec(compact)]
     pub created_time: Moment,
@@ -25,8 +23,26 @@ pub struct Advertiser<Moment, AccountId> {
     pub reward_pool_account: AccountId,
 }
 
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct Advertisement<Moment, AccountId> {
+    /// creation time.
+    #[codec(compact)]
+    pub created_time: Moment,
+    /// The minimum balances to create an advertiser account.
+    #[codec(compact)]
+    pub deposit: Balance,
+    /// coefficients for calculating ad rewards.
+    pub tag_coefficients: Vec<TagCoefficient>,
+    /// should be used to sign an ad.
+    pub signer: AccountId,
+}
+
 pub type AdvertiserOf<T> = Advertiser<<T as pallet_timestamp::Config>::Moment, <T as frame_system::Config>::AccountId>;
+pub type AdvertisementOf<T> = Advertisement<<T as pallet_timestamp::Config>::Moment, <T as frame_system::Config>::AccountId>;
 pub type BalanceOf<T> = <<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 pub type ResultPost<T> = sp_std::result::Result<T, DispatchErrorWithPostInfo<PostDispatchInfo>>;
+pub type TagCoefficient = u16;
 pub type GlobalId = u64;
 pub type AdvertiserId = GlobalId;
+pub type AdId = GlobalId;

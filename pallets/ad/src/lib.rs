@@ -18,6 +18,8 @@ mod types;
 pub use types::*;
 
 pub const UNIT: Balance = 1_000_000_000_000_000;
+pub const MAX_TAG_COUNT: usize = 3;
+pub const TAG_DENOMINATOR: TagCoefficient = 100;
 
 pub use self::pallet::*;
 #[frame_support::pallet]
@@ -42,16 +44,22 @@ pub mod pallet {
     #[pallet::metadata(T::AccountId = "AccountId")]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// an advertiser was created. \[who, did, advertiser id\]
+        /// an advertiser was created. \[who, did, advertiserId\]
         CreatedAdvertiser(T::AccountId, DidMethodSpecId, AdvertiserId),
+        /// an advertisement was created. \[did, advertiserId, adId\]
+        CreatedAd(DidMethodSpecId, AdvertiserId, AdId),
     }
 
     #[pallet::error]
     pub enum Error<T> {
         /// The DID does not exist.
         DIDNotExists,
-        /// id overflow.
+        /// Id overflow.
         NoAvailableId,
+        /// Cannot find the advertiser.
+        AdvertiserNotExists,
+        /// Invalid Tag Coefficient Count
+        InvalidTagCoefficientCount,
     }
 
     #[pallet::hooks]
@@ -102,6 +110,10 @@ pub mod pallet {
     #[pallet::storage]
     pub type Advertisers<T: Config> = StorageMap<_, Blake2_128Concat, DidMethodSpecId, AdvertiserOf<T>>;
 
+    /// an index for advertisements
+    #[pallet::storage]
+    pub type Advertisements<T: Config> = StorageDoubleMap<_, Twox64Concat, AdvertiserId, Twox64Concat, AdId, AdvertisementOf<T>>;
+
     #[pallet::call]
     impl<T: Config> Pallet<T> {
 
@@ -122,15 +134,45 @@ pub mod pallet {
             <T as Config>::Currency::transfer(&who, &reward_pool_account, s!(reward_pool), KeepAlive)?;
 
             let a = Advertiser {
-                did,
                 created_time: Self::now(),
                 advertiser_id,
                 deposit,
                 deposit_account,
                 reward_pool_account,
             };
-            Advertisers::<T>::insert(did, a);
+            Advertisers::<T>::insert(&did, a);
             Self::deposit_event(Event::CreatedAdvertiser(who, did, advertiser_id));
+            Ok(().into())
+        }
+
+        #[pallet::weight(1_000_000_000)]
+        #[transactional]
+        pub fn create_ad(
+            origin: OriginFor<T>,
+            signer: T::AccountId,
+            tag_coefficients: Vec<TagCoefficient>,
+        ) -> DispatchResultWithPostInfo {
+            let who: T::AccountId = ensure_signed(origin)?;
+
+            ensure!(tag_coefficients.len() <= MAX_TAG_COUNT, Error::<T>::InvalidTagCoefficientCount);
+            ensure!(tag_coefficients.len() > 0, Error::<T>::InvalidTagCoefficientCount);
+
+            let did: DidMethodSpecId = Self::ensure_did(&who)?;
+            let ad_id = Self::inc_id()?;
+            let advertiser = Advertisers::<T>::get(&did).ok_or(Error::<T>::AdvertiserNotExists)?;
+            let deposit = AdDeposit::<T>::get();
+
+            <T as Config>::Currency::transfer(&who, &advertiser.deposit_account, s!(deposit), KeepAlive)?;
+            <T as Config>::Currency::reserve(&advertiser.deposit_account, s!(deposit))?;
+
+            let ad = Advertisement {
+                created_time: Self::now(),
+                deposit,
+                tag_coefficients,
+                signer,
+            };
+            Advertisements::<T>::insert(advertiser.advertiser_id, ad_id, ad);
+            Self::deposit_event(Event::CreatedAd(did, advertiser.advertiser_id, ad_id));
             Ok(().into())
         }
     }
