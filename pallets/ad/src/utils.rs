@@ -1,3 +1,7 @@
+use sp_std::convert::TryFrom;
+use sp_runtime::{DispatchError};
+use parami_primitives::Signature;
+
 #[macro_export]
 macro_rules! s {
 	($e: expr) => {
@@ -5,9 +9,21 @@ macro_rules! s {
 	}
 }
 
+pub fn sr25519_signature(sign: &[u8]) -> Result<Signature, DispatchError> {
+    if let Ok(signature) = sp_core::sr25519::Signature::try_from(sign) {
+        Ok(signature.into())
+    } else {
+        Err(DispatchError::Other("Not a sr25519 signature"))
+    }
+}
+
 #[cfg(any(test, feature = "runtime-benchmarks"))]
 pub mod test_helper {
     use crate::*;
+    use std::iter::FromIterator;
+    use sp_std::vec::Vec;
+    use sp_core::sr25519::Pair as SrPair;
+    use sp_core::Pair;
 
     #[macro_export]
     macro_rules! d {
@@ -38,4 +54,15 @@ pub mod test_helper {
         <T as Config>::Currency::free_balance(who)
     }
 
+    pub fn sign<Runtime: Config>(
+        signer_pair: SrPair, user: Runtime::AccountId,
+        media: Runtime::AccountId, advertiser_id: AdvertiserId, ad_id: AdId,
+    ) -> (Vec<u8>, Vec<u8>) {
+        let user_did = d!(user);
+        let media_did = d!(media);
+        let now = crate::Pallet::<Runtime>::now();
+        let data = codec::Encode::encode(&(user_did, media_did, advertiser_id, now, ad_id));
+        let data_sign = Vec::from_iter(signer_pair.sign(data.as_slice()).0);
+        (data, data_sign)
+    }
 }

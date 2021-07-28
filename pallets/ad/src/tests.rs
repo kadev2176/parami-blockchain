@@ -4,6 +4,7 @@ use super::{Event as AdEvent, *};
 use frame_support::{assert_noop, assert_ok};
 use crate::mock::{Event as MEvent, *};
 use utils::test_helper::*;
+use sp_core::Pair;
 
 #[test]
 fn create_advertiser_should_work() {
@@ -70,5 +71,29 @@ fn create_ad_should_fail() {
 
         assert_ok!(Did::register(Origin::signed(ALICE), signer::<Runtime>(ALICE), None));
         assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)]), Error::<Runtime>::AdvertiserNotExists);
+    });
+}
+
+#[test]
+fn ad_payment_should_work() {
+    ExtBuilder::default().build().execute_with(|| {
+        // advertiser Alice
+        assert_ok!(Did::register(Origin::signed(ALICE), signer::<Runtime>(ALICE), None));
+        // user Charlie
+        assert_ok!(Did::register(Origin::signed(CHARLIE), signer::<Runtime>(CHARLIE), None));
+        // media Bob
+        assert_ok!(Did::register(Origin::signed(BOB), signer::<Runtime>(BOB), None));
+
+        let advertiser_id = NextId::<Runtime>::get();
+        assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 0));
+
+        let (signer_pair, _) = sp_core::sr25519::Pair::generate();
+        let signer: AccountId = signer_pair.public().0.clone().into();
+
+        let ad_id = NextId::<Runtime>::get();
+        assert_ok!(Ad::create_ad(Origin::signed(ALICE), signer.clone(), vec![(0,1), (1, 2),(2,3)]));
+        let (_, data_sign) = sign::<Runtime>(signer_pair, CHARLIE, BOB, advertiser_id, ad_id);
+
+        assert_ok!(Ad::ad_payment(Origin::signed(ALICE), data_sign, ad_id, d!(CHARLIE), d!(BOB), Ad::now()));
     });
 }

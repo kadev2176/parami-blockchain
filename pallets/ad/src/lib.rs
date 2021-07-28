@@ -6,7 +6,7 @@ use frame_support::{
     traits::{Currency, ReservableCurrency, ExistenceRequirement::KeepAlive},
     weights::PostDispatchInfo
 };
-use sp_runtime::{traits::{AccountIdConversion, One}, DispatchErrorWithPostInfo};
+use sp_runtime::{traits::{AccountIdConversion, One, Verify}, DispatchErrorWithPostInfo};
 use frame_system::pallet_prelude::*;
 use parami_did::DidMethodSpecId;
 use parami_primitives::{Balance};
@@ -14,6 +14,7 @@ use parami_primitives::{Balance};
 mod mock;
 mod tests;
 mod utils;
+pub use utils::*;
 mod types;
 pub use types::*;
 
@@ -33,7 +34,7 @@ pub mod pallet {
 
     #[pallet::config]
     #[pallet::disable_frame_system_supertrait_check]
-    pub trait Config: pallet_timestamp::Config + parami_did::Config {
+    pub trait Config: pallet_timestamp::Config<AccountId = parami_primitives::AccountId> + parami_did::Config {
         /// The overarching event type.
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -65,6 +66,8 @@ pub mod pallet {
         InvalidTagType,
         /// Duplicated Tag Type
         DuplicatedTagType,
+        AdvertisementNotExists,
+        NoPermission,
     }
 
     #[pallet::hooks]
@@ -189,6 +192,35 @@ pub mod pallet {
             };
             Advertisements::<T>::insert(advertiser.advertiser_id, ad_id, ad);
             Self::deposit_event(Event::CreatedAd(did, advertiser.advertiser_id, ad_id));
+            Ok(().into())
+        }
+
+        /// advertiser pays some AD3 to user.
+        #[pallet::weight(1_000_000_000)]
+        #[transactional]
+        pub fn ad_payment(
+            origin: OriginFor<T>,
+            signature: Vec<u8>,
+            ad_id: AdId,
+            user_did: DidMethodSpecId,
+            media_did: DidMethodSpecId,
+            timestamp: T::Moment,
+        ) -> DispatchResultWithPostInfo {
+            let who: T::AccountId = ensure_signed(origin)?;
+            let did: DidMethodSpecId = Self::ensure_did(&who)?;
+            let advertiser = Advertisers::<T>::get(&did).ok_or(Error::<T>::AdvertiserNotExists)?;
+            let ad = Advertisements::<T>::get(advertiser.advertiser_id, ad_id).ok_or(Error::<T>::AdvertisementNotExists)?;
+            let signature= sr25519_signature(&signature)?;
+
+            // TODO: check timestamp
+
+            let data = codec::Encode::encode(&(user_did, media_did, advertiser.advertiser_id, timestamp, ad_id));
+            ensure!(signature.verify(&data[..], &ad.signer), Error::<T>::NoPermission);
+
+            // TODO: calc & pay
+
+            // TODO: update advertiser & ad
+
             Ok(().into())
         }
     }
