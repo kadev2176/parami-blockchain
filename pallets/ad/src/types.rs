@@ -33,7 +33,7 @@ pub struct Advertisement<Moment, AccountId> {
     #[codec(compact)]
     pub deposit: Balance,
     /// coefficients for calculating ad rewards.
-    pub tag_coefficients: Vec<TagCoefficient>,
+    pub tag_coefficients: Vec<(TagType, TagCoefficient)>,
     /// should be used to sign an ad.
     pub signer: AccountId,
 }
@@ -42,6 +42,7 @@ pub type AdvertiserOf<T> = Advertiser<<T as pallet_timestamp::Config>::Moment, <
 pub type AdvertisementOf<T> = Advertisement<<T as pallet_timestamp::Config>::Moment, <T as frame_system::Config>::AccountId>;
 pub type BalanceOf<T> = <<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
 pub type ResultPost<T> = sp_std::result::Result<T, DispatchErrorWithPostInfo<PostDispatchInfo>>;
+pub type TagType = u8;
 pub type TagCoefficient = u16;
 pub type GlobalId = u64;
 pub type AdvertiserId = GlobalId;

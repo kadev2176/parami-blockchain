@@ -44,7 +44,7 @@ fn create_ad_should_work() {
         assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 0));
 
         let ad_id = NextId::<Runtime>::get();
-        assert_ok!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![1, 2, 3]));
+        assert_ok!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)]));
 
         let advertiser = Advertisers::<Runtime>::get(d!(ALICE)).unwrap();
 
@@ -62,11 +62,13 @@ fn create_ad_should_work() {
 #[test]
 fn create_ad_should_fail() {
     ExtBuilder::default().build().execute_with(|| {
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![1, 2, 3, 4]), Error::<Runtime>::InvalidTagCoefficientCount);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3),(4,4)]), Error::<Runtime>::InvalidTagCoefficientCount);
         assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![]), Error::<Runtime>::InvalidTagCoefficientCount);
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![1, 2, 3]), Error::<Runtime>::DIDNotExists);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)]), Error::<Runtime>::DIDNotExists);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (200, 2),(2,3)]), Error::<Runtime>::InvalidTagType);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(1,3)]), Error::<Runtime>::DuplicatedTagType);
 
         assert_ok!(Did::register(Origin::signed(ALICE), signer::<Runtime>(ALICE), None));
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![1, 2, 3]), Error::<Runtime>::AdvertiserNotExists);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)]), Error::<Runtime>::AdvertiserNotExists);
     });
 }

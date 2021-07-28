@@ -18,6 +18,7 @@ mod types;
 pub use types::*;
 
 pub const UNIT: Balance = 1_000_000_000_000_000;
+pub const MAX_TAG_TYPE_COUNT: u8 = 10;
 pub const MAX_TAG_COUNT: usize = 3;
 pub const TAG_DENOMINATOR: TagCoefficient = 100;
 
@@ -60,6 +61,10 @@ pub mod pallet {
         AdvertiserNotExists,
         /// Invalid Tag Coefficient Count
         InvalidTagCoefficientCount,
+        /// Invalid Tag Type
+        InvalidTagType,
+        /// Duplicated Tag Type
+        DuplicatedTagType,
     }
 
     #[pallet::hooks]
@@ -150,12 +155,23 @@ pub mod pallet {
         pub fn create_ad(
             origin: OriginFor<T>,
             signer: T::AccountId,
-            tag_coefficients: Vec<TagCoefficient>,
+            tag_coefficients: Vec<(TagType, TagCoefficient)>,
         ) -> DispatchResultWithPostInfo {
             let who: T::AccountId = ensure_signed(origin)?;
 
             ensure!(tag_coefficients.len() <= MAX_TAG_COUNT, Error::<T>::InvalidTagCoefficientCount);
             ensure!(tag_coefficients.len() > 0, Error::<T>::InvalidTagCoefficientCount);
+
+            for (tag_type, _) in &tag_coefficients {
+                ensure!(*tag_type < MAX_TAG_TYPE_COUNT, Error::<T>::InvalidTagType);
+                let mut count = 0;
+                tag_coefficients.iter().for_each(|(t,_)| {
+                    if tag_type == t {
+                        count += 1;
+                    }
+                });
+                ensure!(count == 1, Error::<T>::DuplicatedTagType);
+            }
 
             let did: DidMethodSpecId = Self::ensure_did(&who)?;
             let ad_id = Self::inc_id()?;
