@@ -1,6 +1,7 @@
 use sp_std::convert::TryFrom;
 use sp_runtime::{DispatchError};
 use parami_primitives::Signature;
+use crate::TagScore;
 
 #[macro_export]
 macro_rules! s {
@@ -14,6 +15,16 @@ pub fn sr25519_signature(sign: &[u8]) -> Result<Signature, DispatchError> {
         Ok(signature.into())
     } else {
         Err(DispatchError::Other("Not a sr25519 signature"))
+    }
+}
+
+pub fn saturate_score (score: i64) -> i64 {
+    if score < 0 {
+        0
+    } else if score > 100 {
+        100
+    } else {
+        score
     }
 }
 

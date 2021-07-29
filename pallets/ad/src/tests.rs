@@ -45,7 +45,7 @@ fn create_ad_should_work() {
         assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 0));
 
         let ad_id = NextId::<Runtime>::get();
-        assert_ok!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)]));
+        assert_ok!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)));
 
         let advertiser = Advertisers::<Runtime>::get(d!(ALICE)).unwrap();
 
@@ -63,14 +63,14 @@ fn create_ad_should_work() {
 #[test]
 fn create_ad_should_fail() {
     ExtBuilder::default().build().execute_with(|| {
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3),(4,4)]), Error::<Runtime>::InvalidTagCoefficientCount);
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![]), Error::<Runtime>::InvalidTagCoefficientCount);
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)]), Error::<Runtime>::DIDNotExists);
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (200, 2),(2,3)]), Error::<Runtime>::InvalidTagType);
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(1,3)]), Error::<Runtime>::DuplicatedTagType);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3),(4,4)], PerU16::from_percent(50)), Error::<Runtime>::InvalidTagCoefficientCount);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![], PerU16::from_percent(50)), Error::<Runtime>::InvalidTagCoefficientCount);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)), Error::<Runtime>::DIDNotExists);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (200, 2),(2,3)], PerU16::from_percent(50)), Error::<Runtime>::InvalidTagType);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(1,3)], PerU16::from_percent(50)), Error::<Runtime>::DuplicatedTagType);
 
         assert_ok!(Did::register(Origin::signed(ALICE), signer::<Runtime>(ALICE), None));
-        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)]), Error::<Runtime>::AdvertiserNotExists);
+        assert_noop!(Ad::create_ad(Origin::signed(ALICE), ALICE, vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)), Error::<Runtime>::AdvertiserNotExists);
     });
 }
 
@@ -85,15 +85,18 @@ fn ad_payment_should_work() {
         assert_ok!(Did::register(Origin::signed(BOB), signer::<Runtime>(BOB), None));
 
         let advertiser_id = NextId::<Runtime>::get();
-        assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 0));
+        assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 10000 * UNIT));
 
         let (signer_pair, _) = sp_core::sr25519::Pair::generate();
         let signer: AccountId = signer_pair.public().0.clone().into();
 
         let ad_id = NextId::<Runtime>::get();
-        assert_ok!(Ad::create_ad(Origin::signed(ALICE), signer.clone(), vec![(0,1), (1, 2),(2,3)]));
+        assert_ok!(Ad::create_ad(Origin::signed(ALICE), signer.clone(), vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)));
         let (_, data_sign) = sign::<Runtime>(signer_pair, CHARLIE, BOB, advertiser_id, ad_id);
 
-        assert_ok!(Ad::ad_payment(Origin::signed(ALICE), data_sign, ad_id, d!(CHARLIE), d!(BOB), Ad::now()));
+        assert_ok!(Ad::ad_payout(Origin::signed(ALICE), data_sign, ad_id, d!(CHARLIE), d!(BOB), Ad::now(), vec![1, 2, 3]));
+        assert_last_event::<Runtime>(MEvent::Ad(
+            AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT)
+        ));
     });
 }
