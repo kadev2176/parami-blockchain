@@ -5,6 +5,7 @@ use frame_support::{assert_noop, assert_ok};
 use crate::mock::{Event as MEvent, *};
 use utils::test_helper::*;
 use sp_core::Pair;
+use sp_core::offchain::Timestamp;
 
 #[test]
 fn create_advertiser_should_work() {
@@ -75,7 +76,7 @@ fn create_ad_should_fail() {
 }
 
 #[test]
-fn ad_payment_should_work() {
+fn ad_payout_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         // advertiser Alice
         assert_ok!(Did::register(Origin::signed(ALICE), signer::<Runtime>(ALICE), None));
@@ -92,9 +93,36 @@ fn ad_payment_should_work() {
 
         let ad_id = NextId::<Runtime>::get();
         assert_ok!(Ad::create_ad(Origin::signed(ALICE), signer.clone(), vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)));
-        let (_, data_sign) = sign::<Runtime>(signer_pair, CHARLIE, BOB, advertiser_id, ad_id);
 
-        assert_ok!(Ad::ad_payout(Origin::signed(ALICE), data_sign, ad_id, d!(CHARLIE), d!(BOB), Ad::now(), vec![1, 2, 3]));
+        assert_ok!(Ad::ad_payout(Origin::signed(ALICE), ad_id, d!(CHARLIE), d!(BOB), Ad::now(), vec![1, 2, 3]));
+        assert_last_event::<Runtime>(MEvent::Ad(
+            AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT)
+        ));
+    });
+}
+
+#[test]
+fn payout_should_work() {
+    ExtBuilder::default().build().execute_with(|| {
+        // advertiser Alice
+        assert_ok!(Did::register(Origin::signed(ALICE), signer::<Runtime>(ALICE), None));
+        // user Charlie
+        assert_ok!(Did::register(Origin::signed(CHARLIE), signer::<Runtime>(CHARLIE), None));
+        // media Bob
+        assert_ok!(Did::register(Origin::signed(BOB), signer::<Runtime>(BOB), None));
+
+        let advertiser_id = NextId::<Runtime>::get();
+        assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 10000 * UNIT));
+
+        let (signer_pair, _) = sp_core::sr25519::Pair::generate();
+        let signer: AccountId = signer_pair.public().0.clone().into();
+
+        let ad_id = NextId::<Runtime>::get();
+        assert_ok!(Ad::create_ad(Origin::signed(ALICE), signer.clone(), vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)));
+
+        // Timestamp::Now::<T>::put(now);
+        let (_, data_sign) = sign::<Runtime>(signer_pair, CHARLIE, BOB, ALICE, ad_id);
+        assert_ok!(Ad::payout(Origin::signed(DAVE), data_sign, d!(ALICE), ad_id, d!(CHARLIE), d!(BOB), Ad::now()));
         assert_last_event::<Runtime>(MEvent::Ad(
             AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT)
         ));

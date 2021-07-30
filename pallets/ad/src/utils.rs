@@ -67,12 +67,13 @@ pub mod test_helper {
 
     pub fn sign<Runtime: Config>(
         signer_pair: SrPair, user: Runtime::AccountId,
-        media: Runtime::AccountId, advertiser_id: AdvertiserId, ad_id: AdId,
+        media: Runtime::AccountId, advertiser: Runtime::AccountId, ad_id: AdId,
     ) -> (Vec<u8>, Vec<u8>) {
         let user_did = d!(user);
         let media_did = d!(media);
+        let advertiser_did = d!(advertiser);
         let now = crate::Pallet::<Runtime>::now();
-        let data = codec::Encode::encode(&(user_did, media_did, advertiser_id, now, ad_id));
+        let data = codec::Encode::encode(&(user_did, media_did, advertiser_did, now, ad_id));
         let data_sign = Vec::from_iter(signer_pair.sign(data.as_slice()).0);
         (data, data_sign)
     }
