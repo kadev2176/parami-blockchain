@@ -1,7 +1,9 @@
 use sp_std::convert::TryFrom;
 use sp_runtime::{DispatchError};
-use parami_primitives::Signature;
-use crate::TagScore;
+use sp_runtime::FixedI64;
+
+use crate::*;
+use parami_primitives::{Signature};
 
 #[macro_export]
 macro_rules! s {
@@ -14,7 +16,7 @@ pub fn sr25519_signature(sign: &[u8]) -> Result<Signature, DispatchError> {
     if let Ok(signature) = sp_core::sr25519::Signature::try_from(sign) {
         Ok(signature.into())
     } else {
-        Err(DispatchError::Other("Not a sr25519 signature"))
+        Err(DispatchError::Other("Not a sr25519 signature."))
     }
 }
 
@@ -26,6 +28,36 @@ pub fn saturate_score (score: i64) -> i64 {
     } else {
         score
     }
+}
+
+pub fn calc_reward<T: Config>(
+    ad: &Advertisement<T::Moment, T::AccountId>,
+    user_did: &DidMethodSpecId,
+    tag_score_delta: Option<&[TagScore]>,
+) -> ResultPost<(Balance, Balance, Balance)> {
+    let mut score: FixedI64 = (0, 1).into();
+    for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
+        let c: FixedI64 = (c, TAG_DENOMINATOR).into();
+
+        let old_s = UserTagScores::<T>::get(user_did, t);
+        let s: FixedI64 = (old_s, 1).into();
+        score = score.saturating_add(c.saturating_mul(s));
+
+        if let Some(tag_score_delta) = tag_score_delta {
+            ensure!(tag_score_delta[i] <= MAX_TAG_SCORE_DELTA, Error::<T>::TagScoreDeltaOutOfRange);
+            ensure!(tag_score_delta[i] >= MIN_TAG_SCORE_DELTA, Error::<T>::TagScoreDeltaOutOfRange);
+            let old_s: i64 = old_s as i64;
+            let delta: i64 = tag_score_delta[i] as i64;
+            let s = saturate_score(old_s + delta) as TagScore;
+            UserTagScores::<T>::insert(&user_did, t, s);
+        }
+    }
+
+    let reward: Balance = score.saturating_mul_int(UNIT);
+    let reward_media = ad.media_reward_rate.mul_ceil(reward);
+    let reward_user = reward.saturating_sub(reward_media);
+
+    Ok((reward, reward_media, reward_user))
 }
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]

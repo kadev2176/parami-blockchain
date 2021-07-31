@@ -8,20 +8,18 @@ use frame_support::{
 };
 use sp_runtime::{traits::{AccountIdConversion, One, Verify, Saturating}, PerU16, DispatchErrorWithPostInfo, FixedPointNumber, FixedI64};
 use frame_system::pallet_prelude::*;
-use parami_did::DidMethodSpecId;
-use parami_primitives::{Balance};
 
 mod mock;
 mod tests;
+
+pub use parami_did::DidMethodSpecId;
+pub use parami_primitives::{Balance};
 mod utils;
 pub use utils::*;
 mod types;
 pub use types::*;
-
-pub const UNIT: Balance = 1_000_000_000_000_000;
-pub const MAX_TAG_TYPE_COUNT: u8 = 30;
-pub const MAX_TAG_COUNT: usize = 3;
-pub const TAG_DENOMINATOR: TagCoefficient = 10;
+mod constants;
+pub use constants::*;
 
 pub use self::pallet::*;
 #[frame_support::pallet]
@@ -70,6 +68,9 @@ pub mod pallet {
         AdvertisementNotExists,
         NoPermission,
         ObsoletedDID,
+        InvalidTagScoreDeltaLen,
+        AdPaymentExpired,
+        TagScoreDeltaOutOfRange,
     }
 
     #[pallet::hooks]
@@ -128,9 +129,9 @@ pub mod pallet {
     #[pallet::storage]
     pub type UserTagScores<T: Config> = StorageDoubleMap<_, Blake2_128Concat, DidMethodSpecId, Identity, TagType, TagScore, ValueQuery, TagScoreDefault>;
 
-    /// an index for rewards.
+    /// an index for rewards. `(user_did, ad_id)` maps to `media_did`.
     #[pallet::storage]
-    pub type Rewards<T: Config> = StorageMap<_, Blake2_128Concat, (DidMethodSpecId, DidMethodSpecId, AdvertiserId, AdId), ()>;
+    pub type Rewards<T: Config> = StorageMap<_, Blake2_128Concat, (DidMethodSpecId, AdId), DidMethodSpecId>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -218,46 +219,25 @@ pub mod pallet {
             timestamp: T::Moment,
             tag_score_delta: Vec<TagScore>,
         ) -> DispatchResultWithPostInfo {
-            let who: T::AccountId = ensure_signed(origin)?;
-            let advertiser_did: DidMethodSpecId = Self::ensure_did(&who)?;
+            let advertiser: T::AccountId = ensure_signed(origin)?;
+            let advertiser_did: DidMethodSpecId = Self::ensure_did(&advertiser)?;
             let advertiser = Advertisers::<T>::get(&advertiser_did).ok_or(Error::<T>::AdvertiserNotExists)?;
             let ad = Advertisements::<T>::get(advertiser.advertiser_id, ad_id).ok_or(Error::<T>::AdvertisementNotExists)?;
             let user = Self::lookup_index(user_did)?;
             let media = Self::lookup_index(media_did)?;
 
-            ensure!(tag_score_delta.len() == ad.tag_coefficients.len(), "xx");
+            ensure!(tag_score_delta.len() == ad.tag_coefficients.len(), Error::<T>::InvalidTagScoreDeltaLen);
 
-            let advertiser_payment_window: T::Moment = s!(60*60*24*1u32);
-            let user_payment_window: T::Moment = s!(60*60*24*1u32);
-            let deadline = timestamp.saturating_add(advertiser_payment_window).saturating_add(user_payment_window);
+            let deadline = timestamp.saturating_add(s!(ADVERTISER_PAYMENT_WINDOW+USER_PAYMENT_WINDOW));
             // check timestamp
-            ensure!(Self::now() <= deadline, "xx");
+            ensure!(Self::now() <= deadline, Error::<T>::AdPaymentExpired);
 
-            let mut score: FixedI64 = (0, 1).into();
-            for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
-                let c: FixedI64 = (c, TAG_DENOMINATOR).into();
-
-                let old_s = UserTagScores::<T>::get(&user_did, t);
-                let s: FixedI64 = (old_s, 1).into();
-                score = score.saturating_add(c.saturating_mul(s));
-
-                ensure!(tag_score_delta[i] <= 5, "xx");
-                ensure!(tag_score_delta[i] >= -5, "xx");
-
-                let old_s: i64 = old_s as i64;
-                let delta: i64 = tag_score_delta[i] as i64;
-                let s = saturate_score(old_s + delta) as TagScore;
-                UserTagScores::<T>::insert(&user_did, t, s);
-            }
-
-            let reward: Balance = score.saturating_mul_int(UNIT);
-            let reward_media = ad.media_reward_rate.mul_ceil(reward);
-            let reward_user = reward.saturating_sub(reward_media);
+            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, Some(&tag_score_delta))?;
 
             <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &user, s!(reward_user), KeepAlive)?;
             <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &media, s!(reward_media), KeepAlive)?;
 
-            Rewards::<T>::insert((user_did, media_did, advertiser.advertiser_id, ad_id),());
+            Rewards::<T>::insert((user_did, ad_id),media_did);
 
             Self::deposit_event(Event::AdReward(advertiser.advertiser_id, ad_id, reward));
             Ok(().into())
@@ -281,10 +261,8 @@ pub mod pallet {
             let user = Self::lookup_index(user_did)?;
             let media = Self::lookup_index(media_did)?;
 
-            let advertiser_payment_window: T::Moment = s!(60*60*24*1u32);
-            let user_payment_window: T::Moment = s!(60*60*24*1u32);
-            let deadline = timestamp.saturating_add(advertiser_payment_window).saturating_add(user_payment_window);
-            let advertiser_payment_deadline = timestamp.saturating_add(advertiser_payment_window);
+            let deadline = timestamp.saturating_add(s!(ADVERTISER_PAYMENT_WINDOW+USER_PAYMENT_WINDOW));
+            let advertiser_payment_deadline = timestamp.saturating_add(s!(ADVERTISER_PAYMENT_WINDOW));
             // check timestamp
             ensure!(Self::now() <= deadline, "111");
             // ensure!(Self::now() > advertiser_payment_deadline, "2222"); todo: xxx
