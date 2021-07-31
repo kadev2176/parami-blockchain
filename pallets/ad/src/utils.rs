@@ -1,6 +1,5 @@
 use sp_std::convert::TryFrom;
-use sp_runtime::{DispatchError};
-use sp_runtime::FixedI64;
+use sp_runtime::{FixedI64, DispatchError};
 
 use crate::*;
 use parami_primitives::{Signature};
@@ -31,9 +30,10 @@ pub fn saturate_score (score: i64) -> i64 {
 }
 
 pub fn calc_reward<T: Config>(
-    ad: &Advertisement<T::Moment, T::AccountId>,
+    ad: &AdvertisementOf<T>,
     user_did: &DidMethodSpecId,
     tag_score_delta: Option<&[TagScore]>,
+    extra_redeem: Option<Balance>,
 ) -> ResultPost<(Balance, Balance, Balance)> {
     let mut score: FixedI64 = (0, 1).into();
     for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
@@ -53,11 +53,15 @@ pub fn calc_reward<T: Config>(
         }
     }
 
-    let reward: Balance = score.saturating_mul_int(UNIT);
+    let reward: Balance = score.saturating_mul_int(UNIT).saturating_add(extra_redeem.unwrap_or_default());
     let reward_media = ad.media_reward_rate.mul_ceil(reward);
     let reward_user = reward.saturating_sub(reward_media);
 
     Ok((reward, reward_media, reward_user))
+}
+
+pub fn free_balance<T: Config>(who: &T::AccountId) -> BalanceOf<T> {
+    <T as Config>::Currency::free_balance(who)
 }
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]
@@ -93,18 +97,14 @@ pub mod test_helper {
         <T as Config>::Currency::reserved_balance(who)
     }
 
-    pub fn free_balance<T: Config>(who: &T::AccountId) -> BalanceOf<T> {
-        <T as Config>::Currency::free_balance(who)
-    }
-
     pub fn sign<Runtime: Config>(
         signer_pair: SrPair, user: Runtime::AccountId,
         media: Runtime::AccountId, advertiser: Runtime::AccountId, ad_id: AdId,
+        now: Runtime::Moment,
     ) -> (Vec<u8>, Vec<u8>) {
         let user_did = d!(user);
         let media_did = d!(media);
         let advertiser_did = d!(advertiser);
-        let now = crate::Pallet::<Runtime>::now();
         let data = codec::Encode::encode(&(user_did, media_did, advertiser_did, now, ad_id));
         let data_sign = Vec::from_iter(signer_pair.sign(data.as_slice()).0);
         (data, data_sign)

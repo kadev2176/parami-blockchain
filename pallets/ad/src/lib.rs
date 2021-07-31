@@ -6,7 +6,7 @@ use frame_support::{
     traits::{Currency, ReservableCurrency, ExistenceRequirement::KeepAlive},
     weights::PostDispatchInfo
 };
-use sp_runtime::{traits::{AccountIdConversion, One, Verify, Saturating}, PerU16, DispatchErrorWithPostInfo, FixedPointNumber, FixedI64};
+use sp_runtime::{traits::{AccountIdConversion, One, Verify, Saturating}, PerU16, DispatchErrorWithPostInfo, FixedPointNumber};
 use frame_system::pallet_prelude::*;
 
 mod mock;
@@ -71,6 +71,8 @@ pub mod pallet {
         InvalidTagScoreDeltaLen,
         AdPaymentExpired,
         TagScoreDeltaOutOfRange,
+        DuplicatedReward,
+        TooEarlyToRedeem,
     }
 
     #[pallet::hooks]
@@ -129,9 +131,9 @@ pub mod pallet {
     #[pallet::storage]
     pub type UserTagScores<T: Config> = StorageDoubleMap<_, Blake2_128Concat, DidMethodSpecId, Identity, TagType, TagScore, ValueQuery, TagScoreDefault>;
 
-    /// an index for rewards. `(user_did, ad_id)` maps to `media_did`.
+    /// an index for rewards. The secondary key: `(user_did, media_did)`
     #[pallet::storage]
-    pub type Rewards<T: Config> = StorageMap<_, Blake2_128Concat, (DidMethodSpecId, AdId), DidMethodSpecId>;
+    pub type Rewards<T: Config> = StorageDoubleMap<_, Twox64Concat, AdId, Blake2_128Concat, (DidMethodSpecId, DidMethodSpecId), ()>;
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
@@ -216,33 +218,31 @@ pub mod pallet {
             ad_id: AdId,
             user_did: DidMethodSpecId,
             media_did: DidMethodSpecId,
-            timestamp: T::Moment,
             tag_score_delta: Vec<TagScore>,
         ) -> DispatchResultWithPostInfo {
             let advertiser: T::AccountId = ensure_signed(origin)?;
             let advertiser_did: DidMethodSpecId = Self::ensure_did(&advertiser)?;
+
             let advertiser = Advertisers::<T>::get(&advertiser_did).ok_or(Error::<T>::AdvertiserNotExists)?;
             let ad = Advertisements::<T>::get(advertiser.advertiser_id, ad_id).ok_or(Error::<T>::AdvertisementNotExists)?;
             let user = Self::lookup_index(user_did)?;
             let media = Self::lookup_index(media_did)?;
 
             ensure!(tag_score_delta.len() == ad.tag_coefficients.len(), Error::<T>::InvalidTagScoreDeltaLen);
+            ensure!(Rewards::<T>::get(ad_id, (user_did, media_did)).is_none(), Error::<T>::DuplicatedReward);
 
-            let deadline = timestamp.saturating_add(s!(ADVERTISER_PAYMENT_WINDOW+USER_PAYMENT_WINDOW));
-            // check timestamp
-            ensure!(Self::now() <= deadline, Error::<T>::AdPaymentExpired);
-
-            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, Some(&tag_score_delta))?;
-
+            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, Some(&tag_score_delta), None)?;
             <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &user, s!(reward_user), KeepAlive)?;
             <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &media, s!(reward_media), KeepAlive)?;
 
-            Rewards::<T>::insert((user_did, ad_id),media_did);
-
+            Rewards::<T>::insert(ad_id, (user_did, media_did),());
             Self::deposit_event(Event::AdReward(advertiser.advertiser_id, ad_id, reward));
             Ok(().into())
         }
 
+        /// If advertiser fails to pay to user and media, everyone can trigger
+        /// the process of payment.
+        /// For the sake of fairness, user and media will gain some extra AD3.
         #[pallet::weight(1_000_000_000)]
         #[transactional]
         pub fn payout(
@@ -255,37 +255,42 @@ pub mod pallet {
             timestamp: T::Moment,
         ) -> DispatchResultWithPostInfo {
             let _ = ensure_signed(origin)?;
+
             let advertiser = Advertisers::<T>::get(&advertiser_did).ok_or(Error::<T>::AdvertiserNotExists)?;
             let ad = Advertisements::<T>::get(advertiser.advertiser_id, ad_id).ok_or(Error::<T>::AdvertisementNotExists)?;
-            let signature= sr25519_signature(&signature)?;
             let user = Self::lookup_index(user_did)?;
             let media = Self::lookup_index(media_did)?;
 
+            let signature= sr25519_signature(&signature)?;
             let deadline = timestamp.saturating_add(s!(ADVERTISER_PAYMENT_WINDOW+USER_PAYMENT_WINDOW));
             let advertiser_payment_deadline = timestamp.saturating_add(s!(ADVERTISER_PAYMENT_WINDOW));
+
             // check timestamp
-            ensure!(Self::now() <= deadline, "111");
-            // ensure!(Self::now() > advertiser_payment_deadline, "2222"); todo: xxx
+            let now = Self::now();
+            ensure!(now <= deadline, Error::<T>::AdPaymentExpired);
+            ensure!(now > advertiser_payment_deadline, Error::<T>::TooEarlyToRedeem);
 
             let data = codec::Encode::encode(&(user_did, media_did, advertiser_did, timestamp, ad_id));
             ensure!(signature.verify(&data[..], &ad.signer), Error::<T>::NoPermission);
 
-            let mut score: FixedI64 = (0, 1).into();
-            for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
-                let c: FixedI64 = (c, TAG_DENOMINATOR).into();
+            ensure!(Rewards::<T>::get(ad_id, (user_did, media_did)).is_none(), Error::<T>::DuplicatedReward);
+            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, None, Some(EXTRA_REDEEM))?;
 
-                let old_s = UserTagScores::<T>::get(&user_did, t);
-                let s: FixedI64 = (old_s, 1).into();
-                score = score.saturating_add(c.saturating_mul(s));
+            let mut free: Balance = s!(free_balance::<T>(&advertiser.reward_pool_account));
+            if free > reward_user {
+                <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &user, s!(reward_user), KeepAlive)?;
+                free = free.saturating_sub(reward_user);
+            } else {
+                <T as Config>::Currency::transfer(&advertiser.deposit_account, &user, s!(reward_user), KeepAlive)?;
             }
 
-            let reward: Balance = score.saturating_mul_int(UNIT);
-            let reward_media = ad.media_reward_rate.mul_ceil(reward);
-            let reward_user = reward.saturating_sub(reward_media);
+            if free > reward_media {
+                <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &media, s!(reward_media), KeepAlive)?;
+            } else {
+                <T as Config>::Currency::transfer(&advertiser.deposit_account, &media, s!(reward_media), KeepAlive)?;
+            }
 
-            <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &user, s!(reward_user), KeepAlive)?;
-            <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &media, s!(reward_media), KeepAlive)?;
-
+            Rewards::<T>::insert(ad_id, (user_did, media_did),());
             Self::deposit_event(Event::AdReward(advertiser.advertiser_id, ad_id, reward));
             Ok(().into())
         }

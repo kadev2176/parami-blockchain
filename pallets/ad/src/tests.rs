@@ -5,7 +5,6 @@ use frame_support::{assert_noop, assert_ok};
 use crate::mock::{Event as MEvent, *};
 use utils::test_helper::*;
 use sp_core::Pair;
-use sp_core::offchain::Timestamp;
 
 #[test]
 fn create_advertiser_should_work() {
@@ -94,7 +93,7 @@ fn ad_payout_should_work() {
         let ad_id = NextId::<Runtime>::get();
         assert_ok!(Ad::create_ad(Origin::signed(ALICE), signer.clone(), vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)));
 
-        assert_ok!(Ad::ad_payout(Origin::signed(ALICE), ad_id, d!(CHARLIE), d!(BOB), Ad::now(), vec![1, 2, 3]));
+        assert_ok!(Ad::ad_payout(Origin::signed(ALICE), ad_id, d!(CHARLIE), d!(BOB), vec![1, 2, 3]));
         assert_last_event::<Runtime>(MEvent::Ad(
             AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT)
         ));
@@ -120,11 +119,12 @@ fn payout_should_work() {
         let ad_id = NextId::<Runtime>::get();
         assert_ok!(Ad::create_ad(Origin::signed(ALICE), signer.clone(), vec![(0,1), (1, 2),(2,3)], PerU16::from_percent(50)));
 
-        // Timestamp::Now::<T>::put(now);
-        let (_, data_sign) = sign::<Runtime>(signer_pair, CHARLIE, BOB, ALICE, ad_id);
-        assert_ok!(Ad::payout(Origin::signed(DAVE), data_sign, d!(ALICE), ad_id, d!(CHARLIE), d!(BOB), Ad::now()));
+        pallet_timestamp::Now::<Runtime>::put(ADVERTISER_PAYMENT_WINDOW + 1);
+
+        let (_, data_sign) = sign::<Runtime>(signer_pair, CHARLIE, BOB, ALICE, ad_id, 0);
+        assert_ok!(Ad::payout(Origin::signed(DAVE), data_sign, d!(ALICE), ad_id, d!(CHARLIE), d!(BOB), 0));
         assert_last_event::<Runtime>(MEvent::Ad(
-            AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT)
+            AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT + EXTRA_REDEEM)
         ));
     });
 }
