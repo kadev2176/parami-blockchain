@@ -8,6 +8,7 @@ use frame_support::{
 };
 use sp_runtime::{traits::{AccountIdConversion, One, Verify, Saturating}, PerU16, DispatchErrorWithPostInfo, FixedPointNumber};
 use frame_system::pallet_prelude::*;
+use sp_std::vec::Vec;
 
 mod mock;
 mod tests;
