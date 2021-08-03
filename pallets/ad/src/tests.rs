@@ -124,7 +124,9 @@ fn payout_should_work() {
         let (_, data_sign) = sign::<Runtime>(signer_pair, CHARLIE, BOB, ALICE, ad_id, 0);
         assert_ok!(Ad::payout(Origin::signed(DAVE), data_sign, d!(ALICE), ad_id, d!(CHARLIE), d!(BOB), 0));
         assert_last_event::<Runtime>(MEvent::Ad(
-            AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT + EXTRA_REDEEM)
+            AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT)
         ));
+
+        assert_eq!(free_balance::<Runtime>(&DAVE), DAVE_INIT + EXTRA_REDEEM);
     });
 }

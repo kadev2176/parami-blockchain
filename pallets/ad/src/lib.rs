@@ -231,7 +231,7 @@ pub mod pallet {
             ensure!(tag_score_delta.len() == ad.tag_coefficients.len(), Error::<T>::InvalidTagScoreDeltaLen);
             ensure!(Rewards::<T>::get(ad_id, (user_did, media_did)).is_none(), Error::<T>::DuplicatedReward);
 
-            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, Some(&tag_score_delta), None)?;
+            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, Some(&tag_score_delta))?;
             <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &user, s!(reward_user), KeepAlive)?;
             <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &media, s!(reward_media), KeepAlive)?;
 
@@ -242,7 +242,7 @@ pub mod pallet {
 
         /// If advertiser fails to pay to user and media, everyone can trigger
         /// the process of payment.
-        /// For the sake of fairness, user and media will gain some extra AD3.
+        /// For the sake of fairness, the extrinsic sender will gain some extra AD3.
         #[pallet::weight(1_000_000_000)]
         #[transactional]
         pub fn payout(
@@ -254,7 +254,7 @@ pub mod pallet {
             media_did: DidMethodSpecId,
             timestamp: T::Moment,
         ) -> DispatchResultWithPostInfo {
-            let _ = ensure_signed(origin)?;
+            let sender = ensure_signed(origin)?;
 
             let advertiser = Advertisers::<T>::get(&advertiser_did).ok_or(Error::<T>::AdvertiserNotExists)?;
             let ad = Advertisements::<T>::get(advertiser.advertiser_id, ad_id).ok_or(Error::<T>::AdvertisementNotExists)?;
@@ -274,7 +274,7 @@ pub mod pallet {
             ensure!(signature.verify(&data[..], &ad.signer), Error::<T>::NoPermission);
 
             ensure!(Rewards::<T>::get(ad_id, (user_did, media_did)).is_none(), Error::<T>::DuplicatedReward);
-            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, None, Some(EXTRA_REDEEM))?;
+            let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, None)?;
 
             let mut free: Balance = s!(free_balance::<T>(&advertiser.reward_pool_account));
             if free > reward_user {
@@ -286,8 +286,15 @@ pub mod pallet {
 
             if free > reward_media {
                 <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &media, s!(reward_media), KeepAlive)?;
+                free = free.saturating_sub(reward_media);
             } else {
                 <T as Config>::Currency::transfer(&advertiser.deposit_account, &media, s!(reward_media), KeepAlive)?;
+            }
+
+            if free > EXTRA_REDEEM {
+                <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &sender, s!(EXTRA_REDEEM), KeepAlive)?;
+            } else {
+                <T as Config>::Currency::transfer(&advertiser.deposit_account, &sender, s!(EXTRA_REDEEM), KeepAlive)?;
             }
 
             Rewards::<T>::insert(ad_id, (user_did, media_did),());

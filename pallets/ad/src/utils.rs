@@ -33,7 +33,6 @@ pub fn calc_reward<T: Config>(
     ad: &AdvertisementOf<T>,
     user_did: &DidMethodSpecId,
     tag_score_delta: Option<&[TagScore]>,
-    extra_redeem: Option<Balance>,
 ) -> ResultPost<(Balance, Balance, Balance)> {
     let mut score: FixedI64 = (0, 1).into();
     for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
@@ -53,7 +52,7 @@ pub fn calc_reward<T: Config>(
         }
     }
 
-    let reward: Balance = score.saturating_mul_int(UNIT).saturating_add(extra_redeem.unwrap_or_default());
+    let reward: Balance = score.saturating_mul_int(UNIT);
     let reward_media = ad.media_reward_rate.mul_ceil(reward);
     let reward_user = reward.saturating_sub(reward_media);
 
