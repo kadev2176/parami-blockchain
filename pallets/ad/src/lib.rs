@@ -74,6 +74,7 @@ pub mod pallet {
         TagScoreDeltaOutOfRange,
         DuplicatedReward,
         TooEarlyToRedeem,
+        AdvertiserExists,
     }
 
     #[pallet::hooks]
@@ -124,6 +125,10 @@ pub mod pallet {
     #[pallet::storage]
     pub type Advertisers<T: Config> = StorageMap<_, Blake2_128Concat, DidMethodSpecId, AdvertiserOf<T>>;
 
+    /// an index for querying did by AdvertiserId
+    #[pallet::storage]
+    pub type AdvertiserById<T: Config> = StorageMap<_, Twox64Concat, AdvertiserId, DidMethodSpecId>;
+
     /// an index for advertisements
     #[pallet::storage]
     pub type Advertisements<T: Config> = StorageDoubleMap<_, Twox64Concat, AdvertiserId, Twox64Concat, AdId, AdvertisementOf<T>>;
@@ -147,6 +152,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             let who: T::AccountId = ensure_signed(origin)?;
             let did: DidMethodSpecId = Self::ensure_did(&who)?;
+            ensure!(Advertisers::<T>::get(&did).is_none(), Error::<T>::AdvertiserExists);
 
             let advertiser_id = Self::inc_id()?;
             let (deposit_account, reward_pool_account) = Self::ad_accounts(advertiser_id);
@@ -162,7 +168,8 @@ pub mod pallet {
                 deposit_account,
                 reward_pool_account,
             };
-            Advertisers::<T>::insert(&did, a);
+            Advertisers::<T>::insert(did, a);
+            AdvertiserById::<T>::insert(advertiser_id, did);
             Self::deposit_event(Event::CreatedAdvertiser(who, did, advertiser_id));
             Ok(().into())
         }

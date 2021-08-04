@@ -13,6 +13,7 @@ fn create_advertiser_should_work() {
 
         let advertiser_id = NextId::<Runtime>::get();
         assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 0));
+        assert_noop!(Ad::create_advertiser(Origin::signed(ALICE), 0), Error::<Runtime>::AdvertiserExists);
         let advertiser = Advertisers::<Runtime>::get(d!(ALICE)).unwrap();
 
         let deposit = AdvertiserDeposit::<Runtime>::get();

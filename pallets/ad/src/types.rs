@@ -38,6 +38,7 @@ pub struct Advertisement<Moment, AccountId> {
     /// should be used to sign an ad.
     pub signer: AccountId,
     /// a part of ad reward will be sent to media DID.
+    #[codec(compact)]
     pub media_reward_rate: PerU16,
 }
 
