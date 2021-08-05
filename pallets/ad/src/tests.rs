@@ -114,7 +114,7 @@ fn payout_should_work() {
         let advertiser_id = NextId::<Runtime>::get();
         assert_ok!(Ad::create_advertiser(Origin::signed(ALICE), 10000 * UNIT));
 
-        let (signer_pair, _) = sp_core::sr25519::Pair::generate();
+        let signer_pair = sp_core::sr25519::Pair::from_string("//AliceSigner", None).unwrap();
         let signer: AccountId = signer_pair.public().0.clone().into();
 
         let ad_id = NextId::<Runtime>::get();

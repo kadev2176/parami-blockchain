@@ -325,6 +325,7 @@ impl<T: Config> Pallet<T> {
         Ok(who.expect("Must be Some"))
     }
 
+    /// now is duration since unix epoch in millisecond
     fn now() -> T::Moment {
         pallet_timestamp::Pallet::<T>::now()
     }
