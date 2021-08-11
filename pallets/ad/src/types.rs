@@ -45,7 +45,7 @@ pub struct Advertisement<Moment, AccountId> {
 pub struct TagScoreDefault;
 impl frame_support::traits::Get<TagScore> for TagScoreDefault {
     fn get() -> TagScore {
-        50
+        0 // 50
     }
 }
 
