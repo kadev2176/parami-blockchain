@@ -185,7 +185,7 @@ pub mod pallet {
             let who: T::AccountId = ensure_signed(origin)?;
 
             ensure!(tag_coefficients.len() <= MAX_TAG_COUNT, Error::<T>::InvalidTagCoefficientCount);
-            ensure!(tag_coefficients.len() > 0, Error::<T>::InvalidTagCoefficientCount);
+            ensure!(!tag_coefficients.is_empty(), Error::<T>::InvalidTagCoefficientCount);
 
             for (tag_type, _) in &tag_coefficients {
                 ensure!(*tag_type < MAX_TAG_TYPE_COUNT, Error::<T>::InvalidTagType);
