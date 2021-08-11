@@ -135,7 +135,7 @@ pub mod pallet {
 
     /// an index to tag score by tag type for every user.
     #[pallet::storage]
-    pub type UserTagScores<T: Config> = StorageDoubleMap<_, Blake2_128Concat, DidMethodSpecId, Identity, TagType, TagScore, ValueQuery, TagScoreDefault>;
+    pub type UserTagScores<T: Config> = StorageDoubleMap<_, Blake2_128Concat, DidMethodSpecId, Identity, TagType, (TagScore, T::Moment), ValueQuery, TagScoreDefault<T>>;
 
     /// an index for rewards. The secondary key: `(user_did, media_did)`
     #[pallet::storage]
@@ -162,7 +162,7 @@ pub mod pallet {
             <T as Config>::Currency::transfer(&who, &reward_pool_account, s!(reward_pool), KeepAlive)?;
 
             let a = Advertiser {
-                created_time: Self::now(),
+                created_time: now::<T>(),
                 advertiser_id,
                 deposit,
                 deposit_account,
@@ -207,7 +207,7 @@ pub mod pallet {
             <T as Config>::Currency::reserve(&advertiser.deposit_account, s!(deposit))?;
 
             let ad = Advertisement {
-                created_time: Self::now(),
+                created_time: now::<T>(),
                 deposit,
                 tag_coefficients,
                 signer,
@@ -274,7 +274,7 @@ pub mod pallet {
             let advertiser_payment_deadline = timestamp.saturating_add(s!(ADVERTISER_PAYMENT_WINDOW));
 
             // check timestamp
-            let now = Self::now();
+            let now = now::<T>();
             ensure!(now <= deadline, Error::<T>::AdPaymentExpired);
             ensure!(now > advertiser_payment_deadline, Error::<T>::TooEarlyToRedeem);
 
@@ -323,11 +323,6 @@ impl<T: Config> Pallet<T> {
         let who: Option<T::AccountId> = parami_did::Pallet::<T>::lookup_index(did);
         ensure!(who.is_some(), Error::<T>::ObsoletedDID);
         Ok(who.expect("Must be Some"))
-    }
-
-    /// now is duration since unix epoch in millisecond
-    fn now() -> T::Moment {
-        pallet_timestamp::Pallet::<T>::now()
     }
 
     fn ad_accounts(id: AdvertiserId) -> (T::AccountId, T::AccountId) {

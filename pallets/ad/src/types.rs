@@ -42,10 +42,15 @@ pub struct Advertisement<Moment, AccountId> {
     pub media_reward_rate: PerU16,
 }
 
-pub struct TagScoreDefault;
-impl frame_support::traits::Get<TagScore> for TagScoreDefault {
-    fn get() -> TagScore {
-        0 // 50
+pub struct TagScoreDefault<T>(PhantomData<T>);
+impl<T: Config> frame_support::traits::Get<(TagScore, T::Moment)> for TagScoreDefault<T> {
+    #[cfg(test)]
+    fn get() -> (TagScore, T::Moment) {
+        (50, Default::default())
+    }
+    #[cfg(not(test))]
+    fn get() -> (TagScore, T::Moment) {
+        (0, Default::default())
     }
 }
 

@@ -29,6 +29,11 @@ pub fn saturate_score (score: i64) -> i64 {
     }
 }
 
+/// now is duration since unix epoch in millisecond
+pub fn now<T: Config>() -> T::Moment {
+    pallet_timestamp::Pallet::<T>::now()
+}
+
 pub fn calc_reward<T: Config>(
     ad: &AdvertisementOf<T>,
     user_did: &DidMethodSpecId,
@@ -38,7 +43,7 @@ pub fn calc_reward<T: Config>(
     for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
         let c: FixedI64 = (c, TAG_DENOMINATOR).into();
 
-        let old_s = UserTagScores::<T>::get(user_did, t);
+        let (old_s, _old_time) = UserTagScores::<T>::get(user_did, t);
         let s: FixedI64 = (old_s, 1).into();
         score = score.saturating_add(c.saturating_mul(s));
 
@@ -48,7 +53,7 @@ pub fn calc_reward<T: Config>(
             let old_s: i64 = old_s as i64;
             let delta: i64 = tag_score_delta[i] as i64;
             let s = saturate_score(old_s + delta) as TagScore;
-            UserTagScores::<T>::insert(&user_did, t, s);
+            UserTagScores::<T>::insert(&user_did, t, (s, now::<T>()));
         }
     }
 
