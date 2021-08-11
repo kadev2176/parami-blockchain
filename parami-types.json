@@ -15,5 +15,27 @@
         "account": "AccountId",
         "nativeReserve": "Balance",
         "assetReserve": "TAssetBalance"
-    }
+    },
+    "TagType": "u8",
+    "TagScore": "i8",
+    "TagCoefficient": "u8",
+    "GlobalId": "u64",
+    "AdvertiserId": "GlobalId",
+    "AdId": "GlobalId",
+    "Advertiser": {
+        "createdTime": "Compact<Moment>",
+        "advertiserId": "Compact<AdvertiserId>",
+        "deposit": "Compact<Balance>",
+        "depositAccount": "AccountId",
+        "rewardPoolAccount": "AccountId"
+    },
+    "Advertisement": {
+        "createdTime": "Compact<Moment>",
+        "deposit": "Compact<Balance>",
+        "tagCoefficients": "Vec<(TagType, TagCoefficient)>",
+        "signer": "AccountId",
+        "mediaRewardRate": "Compact<PerU16>"
+    },
+    "AdvertiserOf": "Advertiser",
+    "AdvertisementOf": "Advertisement"
 }
