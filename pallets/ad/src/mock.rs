@@ -8,12 +8,12 @@ use frame_support::{
 	traits::{Filter, InstanceFilter},
 	RuntimeDebug,
 };
-use sp_core::{H256};
+pub use parami_primitives::{AccountId, Balance};
+use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
-pub use parami_primitives::{AccountId, Balance};
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -71,7 +71,9 @@ parameter_types! {
 	pub const AnnouncementDepositBase: u64 = 1;
 	pub const AnnouncementDepositFactor: u64 = 1;
 }
-#[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen)]
+#[derive(
+	Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Encode, Decode, RuntimeDebug, MaxEncodedLen,
+)]
 pub enum ProxyType {
 	Any,
 	JustTransfer,
@@ -86,7 +88,9 @@ impl InstanceFilter<Call> for ProxyType {
 	fn filter(&self, c: &Call) -> bool {
 		match self {
 			ProxyType::Any => true,
-			ProxyType::JustTransfer => matches!(c, Call::Balances(pallet_balances::Call::transfer(..))),
+			ProxyType::JustTransfer => {
+				matches!(c, Call::Balances(pallet_balances::Call::transfer(..)))
+			},
 			ProxyType::JustUtility => matches!(c, Call::Utility(..)),
 		}
 	}
@@ -122,35 +126,35 @@ impl pallet_proxy::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MinimumPeriod: u64 = 5;
+	pub const MinimumPeriod: u64 = 5;
 }
 
 impl pallet_timestamp::Config for Runtime {
-    type Moment = u64;
-    type OnTimestampSet = ();
-    type MinimumPeriod = MinimumPeriod;
-    type WeightInfo = ();
+	type Moment = u64;
+	type OnTimestampSet = ();
+	type MinimumPeriod = MinimumPeriod;
+	type WeightInfo = ();
 }
 
 parameter_types! {
-    pub const DidDeposit: Balance = 1;
+	pub const DidDeposit: Balance = 1;
 }
 
 impl parami_did::Config for Runtime {
-    type Currency = Balances;
-    type Deposit = DidDeposit;
-    type Event = Event;
-    type Public = sp_runtime::MultiSigner;
-    type Signature = sp_runtime::MultiSignature;
-    type Call = Call;
-    type Time = Timestamp;
-    type WeightInfo = ();
+	type Currency = Balances;
+	type Deposit = DidDeposit;
+	type Event = Event;
+	type Public = sp_runtime::MultiSigner;
+	type Signature = sp_runtime::MultiSignature;
+	type Call = Call;
+	type Time = Timestamp;
+	type WeightInfo = ();
 }
 
 impl parami_ad::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-    type ConfigOrigin = frame_system::EnsureRoot<AccountId>;
+	type Event = Event;
+	type Currency = Balances;
+	type ConfigOrigin = frame_system::EnsureRoot<AccountId>;
 }
 
 use frame_system::Call as SystemCall;
@@ -165,11 +169,11 @@ construct_runtime!(
 		UncheckedExtrinsic = UncheckedExtrinsic
 	{
 		System: frame_system::{Pallet, Call, Config, Storage, Event<T>},
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
+		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
 		Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 		Proxy: pallet_proxy::{Pallet, Call, Storage, Event<T>},
 		Utility: pallet_utility::{Pallet, Call, Event},
-        Did: parami_did::{Pallet, Call, Storage, Event<T>},
+		Did: parami_did::{Pallet, Call, Storage, Event<T>},
 		Ad: parami_ad::{Pallet, Call, Event<T>},
 	}
 );
@@ -192,8 +196,7 @@ impl Default for ExtBuilder {
 
 impl ExtBuilder {
 	pub fn build(self) -> sp_io::TestExternalities {
-		let mut t = frame_system::GenesisConfig::default()
-			.build_storage::<Runtime>().unwrap();
+		let mut t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
 			balances: vec![
@@ -202,9 +205,11 @@ impl ExtBuilder {
 				(CHARLIE, CHARLIE_INIT),
 				(DAVE, DAVE_INIT),
 			],
-		}.assimilate_storage(&mut t).unwrap();
+		}
+		.assimilate_storage(&mut t)
+		.unwrap();
 
-        crate::GenesisConfig::<Runtime>::default().assimilate_storage(&mut t).unwrap();
+		crate::GenesisConfig::<Runtime>::default().assimilate_storage(&mut t).unwrap();
 
 		let mut ext = sp_io::TestExternalities::new(t);
 		ext.execute_with(|| {
