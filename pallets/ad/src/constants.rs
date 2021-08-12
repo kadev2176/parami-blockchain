@@ -8,3 +8,4 @@ pub const ADVERTISER_PAYMENT_WINDOW: parami_primitives::Moment = 10 * 1000; //60
 pub const USER_PAYMENT_WINDOW: parami_primitives::Moment = 60 * 60 * 24 * 7;
 pub const MAX_TAG_SCORE_DELTA: TagScore = 5;
 pub const MIN_TAG_SCORE_DELTA: TagScore = -5;
+pub const DAY_MILLION_SECOND: u64 = 1000 * 60 * 60 * 24;

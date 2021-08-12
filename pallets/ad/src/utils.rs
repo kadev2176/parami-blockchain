@@ -1,11 +1,8 @@
-use sp_runtime::{DispatchError, FixedI64};
-use sp_std::convert::TryFrom;
-use sp_runtime::SaturatedConversion;
 use crate::*;
-use parami_primitives::Signature;
 use num_traits::pow::Pow;
-use num_traits::CheckedDiv;
-
+use parami_primitives::Signature;
+use sp_runtime::{traits::AtLeast32Bit, DispatchError, FixedI64};
+use sp_std::convert::{TryFrom, TryInto};
 #[macro_export]
 macro_rules! s {
 	($e: expr) => {
@@ -36,30 +33,39 @@ pub fn now<T: Config>() -> T::Moment {
 	pallet_timestamp::Pallet::<T>::now()
 }
 
+pub fn decayed_score<Moment: AtLeast32Bit + Copy + Default>(
+	old_s: TagScore,
+	old_time: Moment,
+	now: Moment,
+	coefficient: PerU16,
+) -> TagScore {
+	let days = now
+		.saturating_sub(old_time)
+		.checked_div(&s!(DAY_MILLION_SECOND))
+		.unwrap_or_default();
+	let coefficient = coefficient.pow(s!(days));
+	let old_s: u16 = old_s.try_into().expect("TagScore must greater than or equal to zero.");
+	coefficient.mul_ceil(old_s) as TagScore
+}
+
 pub fn calc_reward<T: Config>(
 	ad: &AdvertisementOf<T>,
 	user_did: &DidMethodSpecId,
 	tag_score_delta: Option<&[TagScore]>,
 ) -> ResultPost<(Balance, Balance, Balance)> {
 	let mut score: FixedI64 = (0, 1).into();
-    let now = now::<T>();
+	let now = now::<T>();
 	for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
-		let c: FixedI64 = (c, TAG_DENOMINATOR).into();
-		let (old_s, old_time) = UserTagScores::<T>::get(user_did, t);
+		let old_s = {
+			let (old_s, old_time) = UserTagScores::<T>::get(user_did, t);
+			decayed_score::<T::Moment>(old_s, old_time, now, TimeDecayCoefficient::<T>::get())
+		};
 
-        let s: FixedI64 = (old_s, 1).into();
-
-        let old_s = {
-            let c: PerU16 = TimeDecayCoefficient::<T>::get();
-            let day_duration: T::Moment = s!(1000 * 60 * 60 * 24u64);
-            let days = now.saturating_sub(old_time).checked_div(&day_duration).unwrap_or_default();
-            // old_s.saturating_mul(c.pow(delta))
-
-            1
-        };
-
-
-		score = score.saturating_add(c.saturating_mul(s));
+		{
+			let c: FixedI64 = (c, TAG_DENOMINATOR).into();
+			let s: FixedI64 = (old_s, 1).into();
+			score = score.saturating_add(c.saturating_mul(s));
+		}
 
 		if let Some(tag_score_delta) = tag_score_delta {
 			ensure!(tag_score_delta[i] <= MAX_TAG_SCORE_DELTA, Error::<T>::TagScoreDeltaOutOfRange);
@@ -67,6 +73,7 @@ pub fn calc_reward<T: Config>(
 			let old_s: i64 = old_s as i64;
 			let delta: i64 = tag_score_delta[i] as i64;
 			let s = saturate_score(old_s + delta) as TagScore;
+			ensure!(s >= 0, Error::<T>::SomethingTerribleHappened);
 			UserTagScores::<T>::insert(&user_did, t, (s, now));
 		}
 	}
@@ -127,5 +134,21 @@ pub mod test_helper {
 		let data = codec::Encode::encode(&(user_did, media_did, advertiser_did, now, ad_id));
 		let data_sign = Vec::from_iter(signer_pair.sign(data.as_slice()).0);
 		(data, data_sign)
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn decayed_score_should_work() {
+		let a = decayed_score::<u64>(
+			100,
+			DAY_MILLION_SECOND,
+			DAY_MILLION_SECOND * 3,
+			PerU16::from_percent(50),
+		);
+		assert_eq!(a, (100.0 * 0.5 * 0.5) as i8);
 	}
 }

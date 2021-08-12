@@ -63,6 +63,7 @@ pub mod pallet {
 
 	#[pallet::error]
 	pub enum Error<T> {
+		SomethingTerribleHappened,
 		/// The DID does not exist.
 		DIDNotExists,
 		/// Id overflow.
