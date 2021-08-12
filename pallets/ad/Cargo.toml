@@ -8,6 +8,7 @@ edition = "2018"
 # third-party dependencies
 codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive", "max-encoded-len"] }
 serde = { version = "1.0.111", optional = true }
+num-traits = { version = "0.2.8", default-features = false }
 
 # primitives
 parami-primitives = { version = "2.0.0", path = "../../primitives", default-features = false }
@@ -42,6 +43,7 @@ std = [
     "frame-system/std",
     "pallet-timestamp/std",
     "parami-did/std",
+    "num-traits/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

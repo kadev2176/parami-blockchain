@@ -99,6 +99,7 @@ pub mod pallet {
 		pub advertiser_deposit: Balance,
 		pub ad_deposit: Balance,
 		pub extra_reward: Balance,
+		pub time_decay_coefficient: PerU16,
 		pub _phantom: PhantomData<T>,
 	}
 
@@ -109,6 +110,7 @@ pub mod pallet {
 				advertiser_deposit: UNIT.saturating_mul(500),
 				ad_deposit: UNIT.saturating_mul(20),
 				extra_reward: UNIT.saturating_mul(3),
+				time_decay_coefficient: PerU16::from_percent(1),
 				_phantom: Default::default(),
 			}
 		}
@@ -120,8 +122,13 @@ pub mod pallet {
 			AdvertiserDeposit::<T>::put(self.advertiser_deposit);
 			AdDeposit::<T>::put(self.ad_deposit);
 			ExtraReward::<T>::put(self.extra_reward);
+			TimeDecayCoefficient::<T>::put(self.time_decay_coefficient);
 		}
 	}
+
+	/// A Coefficient to calculate the decay of an user score
+	#[pallet::storage]
+	pub type TimeDecayCoefficient<T: Config> = StorageValue<_, PerU16, ValueQuery>;
 
 	/// the sender of `payout` will take an extra reward
 	#[pallet::storage]
@@ -179,6 +186,17 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+		#[pallet::weight((1_000, DispatchClass::Operational))]
+		#[transactional]
+		pub fn update_time_decay_coefficient(
+			origin: OriginFor<T>,
+			#[pallet::compact] coefficient: PerU16,
+		) -> DispatchResultWithPostInfo {
+			T::ConfigOrigin::ensure_origin(origin)?;
+			TimeDecayCoefficient::<T>::put(coefficient);
+			Ok(().into())
+		}
+
 		#[pallet::weight((1_000, DispatchClass::Operational))]
 		#[transactional]
 		pub fn update_extra_reward(

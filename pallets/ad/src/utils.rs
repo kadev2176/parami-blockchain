@@ -1,8 +1,10 @@
 use sp_runtime::{DispatchError, FixedI64};
 use sp_std::convert::TryFrom;
-
+use sp_runtime::SaturatedConversion;
 use crate::*;
 use parami_primitives::Signature;
+use num_traits::pow::Pow;
+use num_traits::CheckedDiv;
 
 #[macro_export]
 macro_rules! s {
@@ -40,11 +42,23 @@ pub fn calc_reward<T: Config>(
 	tag_score_delta: Option<&[TagScore]>,
 ) -> ResultPost<(Balance, Balance, Balance)> {
 	let mut score: FixedI64 = (0, 1).into();
+    let now = now::<T>();
 	for (i, &(t, c)) in ad.tag_coefficients.iter().enumerate() {
 		let c: FixedI64 = (c, TAG_DENOMINATOR).into();
+		let (old_s, old_time) = UserTagScores::<T>::get(user_did, t);
 
-		let (old_s, _old_time) = UserTagScores::<T>::get(user_did, t);
-		let s: FixedI64 = (old_s, 1).into();
+        let s: FixedI64 = (old_s, 1).into();
+
+        let old_s = {
+            let c: PerU16 = TimeDecayCoefficient::<T>::get();
+            let day_duration: T::Moment = s!(1000 * 60 * 60 * 24u64);
+            let days = now.saturating_sub(old_time).checked_div(&day_duration).unwrap_or_default();
+            // old_s.saturating_mul(c.pow(delta))
+
+            1
+        };
+
+
 		score = score.saturating_add(c.saturating_mul(s));
 
 		if let Some(tag_score_delta) = tag_score_delta {
@@ -53,7 +67,7 @@ pub fn calc_reward<T: Config>(
 			let old_s: i64 = old_s as i64;
 			let delta: i64 = tag_score_delta[i] as i64;
 			let s = saturate_score(old_s + delta) as TagScore;
-			UserTagScores::<T>::insert(&user_did, t, (s, now::<T>()));
+			UserTagScores::<T>::insert(&user_did, t, (s, now));
 		}
 	}
 
