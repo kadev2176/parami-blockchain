@@ -1207,6 +1207,7 @@ impl parami_swap::Config for Runtime {
 impl parami_ad::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type ConfigOrigin = EnsureRootOrHalfCouncil;
 }
 
 construct_runtime!(

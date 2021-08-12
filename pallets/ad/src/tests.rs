@@ -128,6 +128,6 @@ fn payout_should_work() {
             AdEvent::AdReward(advertiser_id, ad_id, 30 * UNIT)
         ));
 
-        assert_eq!(free_balance::<Runtime>(&DAVE), DAVE_INIT + EXTRA_REDEEM);
+        assert_eq!(free_balance::<Runtime>(&DAVE), DAVE_INIT + ExtraReward::<Runtime>::get());
     });
 }

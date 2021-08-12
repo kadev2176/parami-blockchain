@@ -150,6 +150,7 @@ impl parami_did::Config for Runtime {
 impl parami_ad::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type ConfigOrigin = frame_system::EnsureRoot<AccountId>;
 }
 
 use frame_system::Call as SystemCall;

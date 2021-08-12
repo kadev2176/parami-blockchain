@@ -3,7 +3,7 @@
 use frame_support::{
     pallet_prelude::*, PalletId,
     transactional,
-    traits::{Currency, ReservableCurrency, ExistenceRequirement::KeepAlive},
+    traits::{Currency, ReservableCurrency, ExistenceRequirement::KeepAlive, EnsureOrigin},
     weights::PostDispatchInfo
 };
 use sp_runtime::{traits::{AccountIdConversion, One, Verify, Saturating}, PerU16, DispatchErrorWithPostInfo, FixedPointNumber};
@@ -39,6 +39,9 @@ pub mod pallet {
 
         /// The currency mechanism.
         type Currency: ReservableCurrency<Self::AccountId>;
+
+        /// Required `origin` for updating configuration
+        type ConfigOrigin: EnsureOrigin<Self::Origin>;
     }
 
     #[pallet::event]
@@ -87,6 +90,7 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         pub advertiser_deposit: Balance,
         pub ad_deposit: Balance,
+        pub extra_reward: Balance,
         pub _phantom: PhantomData<T>,
     }
 
@@ -96,6 +100,7 @@ pub mod pallet {
             Self {
                 advertiser_deposit: UNIT.saturating_mul(500),
                 ad_deposit: UNIT.saturating_mul(20),
+                extra_reward: UNIT.saturating_mul(3),
                 _phantom: Default::default(),
             }
         }
@@ -106,8 +111,13 @@ pub mod pallet {
         fn build(&self) {
             AdvertiserDeposit::<T>::put(self.advertiser_deposit);
             AdDeposit::<T>::put(self.ad_deposit);
+            ExtraReward::<T>::put(self.extra_reward);
         }
     }
+
+    /// the sender of `payout` will take an extra reward
+    #[pallet::storage]
+    pub type ExtraReward<T: Config> = StorageValue<_, Balance, ValueQuery>;
 
     /// ad deposit
     #[pallet::storage]
@@ -143,6 +153,17 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
+
+        #[pallet::weight((1_000, DispatchClass::Operational))]
+        #[transactional]
+        pub fn update_extra_reward(
+            origin: OriginFor<T>,
+            #[pallet::compact] extra_reward: Balance,
+        ) -> DispatchResultWithPostInfo {
+            T::ConfigOrigin::ensure_origin(origin)?;
+            ExtraReward::<T>::put(extra_reward);
+            Ok(().into())
+        }
 
         #[pallet::weight(1_000_000_000)]
         #[transactional]
@@ -299,10 +320,11 @@ pub mod pallet {
                 <T as Config>::Currency::transfer(&advertiser.deposit_account, &media, s!(reward_media), KeepAlive)?;
             }
 
-            if free > EXTRA_REDEEM {
-                <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &sender, s!(EXTRA_REDEEM), KeepAlive)?;
+            let extra_reward = ExtraReward::<T>::get();
+            if free > extra_reward {
+                <T as Config>::Currency::transfer(&advertiser.reward_pool_account, &sender, s!(extra_reward), KeepAlive)?;
             } else {
-                <T as Config>::Currency::transfer(&advertiser.deposit_account, &sender, s!(EXTRA_REDEEM), KeepAlive)?;
+                <T as Config>::Currency::transfer(&advertiser.deposit_account, &sender, s!(extra_reward), KeepAlive)?;
             }
 
             Rewards::<T>::insert(ad_id, (user_did, media_did),());
