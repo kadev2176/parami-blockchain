@@ -4731,11 +4731,15 @@ name = "parami-ad"
 version = "0.2.0"
 dependencies = [
  "frame-benchmarking",
+ "frame-election-provider-support",
  "frame-support",
  "frame-system",
  "num-traits",
  "pallet-balances",
  "pallet-proxy",
+ "pallet-session",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
  "pallet-timestamp",
  "pallet-utility",
  "parami-did",

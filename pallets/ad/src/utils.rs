@@ -51,6 +51,8 @@ pub fn decayed_score<Moment: AtLeast32Bit + Copy + Default>(
 pub fn calc_reward<T: Config>(
 	ad: &AdvertisementOf<T>,
 	user_did: &DidMethodSpecId,
+	user: &T::AccountId,
+	media: &T::AccountId,
 	tag_score_delta: Option<&[TagScore]>,
 ) -> ResultPost<(Balance, Balance, Balance)> {
 	let mut score: FixedI64 = (0, 1).into();
@@ -82,11 +84,26 @@ pub fn calc_reward<T: Config>(
 	let reward_media = ad.media_reward_rate.mul_ceil(reward);
 	let reward_user = reward.saturating_sub(reward_media);
 
-	Ok((reward, reward_media, reward_user))
+	let srr = StakingRewardRate::<T>::get();
+	let reward_user = srr
+		.mul_ceil(staked_balance_by_controller::<T>(user))
+		.saturating_add(reward_user);
+	let reward_media = srr
+		.mul_ceil(staked_balance_by_controller::<T>(media))
+		.saturating_add(reward_media);
+
+	Ok((reward_media.saturating_add(reward_user), reward_media, reward_user))
 }
 
 pub fn free_balance<T: Config>(who: &T::AccountId) -> BalanceOf<T> {
 	<T as Config>::Currency::free_balance(who)
+}
+
+pub fn staked_balance_by_controller<T: Config>(controller: &T::AccountId) -> Balance {
+	// Map from all (unlocked) "controller" accounts to the info regarding the staking.
+	s!(pallet_staking::Ledger::<T>::get(controller)
+		.map(|l| l.total)
+		.unwrap_or_default())
 }
 
 #[cfg(any(test, feature = "runtime-benchmarks"))]

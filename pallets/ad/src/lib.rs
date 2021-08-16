@@ -38,7 +38,9 @@ pub mod pallet {
 	#[pallet::config]
 	#[pallet::disable_frame_system_supertrait_check]
 	pub trait Config:
-		pallet_timestamp::Config<AccountId = parami_primitives::AccountId> + parami_did::Config
+		pallet_timestamp::Config<AccountId = parami_primitives::AccountId>
+		+ pallet_staking::Config
+		+ parami_did::Config
 	{
 		/// The overarching event type.
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -102,24 +104,26 @@ pub mod pallet {
 		pub ad_deposit: Balance,
 		pub extra_reward: Balance,
 		pub time_decay_coefficient: PerU16,
-        pub tag_names: Vec<(TagType, Vec<u8>)>,
+		pub staking_reward_rate: PerU16,
+		pub tag_names: Vec<(TagType, Vec<u8>)>,
 		pub _phantom: PhantomData<T>,
 	}
 
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-            let mut tag_names = Vec::new();
-            tag_names.push((0, b"type01".as_ref().into()));
-            tag_names.push((1, b"type02".as_ref().into()));
-            tag_names.push((3, b"type03".as_ref().into()));
-            tag_names.push((4, b"type04".as_ref().into()));
+			let mut tag_names = Vec::new();
+			tag_names.push((0, b"type01".as_ref().into()));
+			tag_names.push((1, b"type02".as_ref().into()));
+			tag_names.push((3, b"type03".as_ref().into()));
+			tag_names.push((4, b"type04".as_ref().into()));
 			Self {
 				advertiser_deposit: UNIT.saturating_mul(500),
 				ad_deposit: UNIT.saturating_mul(20),
 				extra_reward: UNIT.saturating_mul(3),
+				staking_reward_rate: PerU16::from_percent(2),
 				time_decay_coefficient: PerU16::from_percent(1),
-                tag_names,
+				tag_names,
 				_phantom: Default::default(),
 			}
 		}
@@ -131,20 +135,25 @@ pub mod pallet {
 			AdvertiserDeposit::<T>::put(self.advertiser_deposit);
 			AdDeposit::<T>::put(self.ad_deposit);
 			ExtraReward::<T>::put(self.extra_reward);
+			StakingRewardRate::<T>::put(self.staking_reward_rate);
 			TimeDecayCoefficient::<T>::put(self.time_decay_coefficient);
-            for (tag, name) in &self.tag_names {
-                Tags::<T>::insert(tag, name);
-            }
+			for (tag, name) in &self.tag_names {
+				Tags::<T>::insert(tag, name);
+			}
 		}
 	}
 
-    /// Name of tag
-    #[pallet::storage]
-    pub type Tags<T: Config> = StorageMap<_, Identity, TagType, Vec<u8>>;
+	/// Name of tag
+	#[pallet::storage]
+	pub type Tags<T: Config> = StorageMap<_, Identity, TagType, Vec<u8>>;
 
 	/// A Coefficient to calculate the decay of an user score
 	#[pallet::storage]
 	pub type TimeDecayCoefficient<T: Config> = StorageValue<_, PerU16, ValueQuery>;
+
+	/// The rate of extra rewards according to staking.
+	#[pallet::storage]
+	pub type StakingRewardRate<T: Config> = StorageValue<_, PerU16, ValueQuery>;
 
 	/// the sender of `payout` will take an extra reward
 	#[pallet::storage]
@@ -202,19 +211,19 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
-        #[pallet::weight((1_000, DispatchClass::Operational))]
-        #[transactional]
-        pub fn update_tag_name(
-            origin: OriginFor<T>,
-            tag_type: TagType,
-            name: Vec<u8>,
-        ) -> DispatchResultWithPostInfo {
-            T::ConfigOrigin::ensure_origin(origin)?;
-            ensure!((tag_type as usize) < MAX_TAG_COUNT, Error::<T>::InvalidTagType);
-            ensure!(name.len() > 1000, Error::<T>::VecTooLong);
-            Tags::<T>::insert(tag_type, name);
-            Ok(().into())
-        }
+		#[pallet::weight((1_000, DispatchClass::Operational))]
+		#[transactional]
+		pub fn update_tag_name(
+			origin: OriginFor<T>,
+			tag_type: TagType,
+			name: Vec<u8>,
+		) -> DispatchResultWithPostInfo {
+			T::ConfigOrigin::ensure_origin(origin)?;
+			ensure!((tag_type as usize) < MAX_TAG_COUNT, Error::<T>::InvalidTagType);
+			ensure!(name.len() > 1000, Error::<T>::VecTooLong);
+			Tags::<T>::insert(tag_type, name);
+			Ok(().into())
+		}
 
 		#[pallet::weight((1_000, DispatchClass::Operational))]
 		#[transactional]
@@ -355,7 +364,7 @@ pub mod pallet {
 			);
 
 			let (reward, reward_media, reward_user) =
-				calc_reward::<T>(&ad, &user_did, Some(&tag_score_delta))?;
+				calc_reward::<T>(&ad, &user_did, &user, &media, Some(&tag_score_delta))?;
 			<T as Config>::Currency::transfer(
 				&advertiser.reward_pool_account,
 				&user,
@@ -416,7 +425,8 @@ pub mod pallet {
 				Rewards::<T>::get(ad_id, (user_did, media_did)).is_none(),
 				Error::<T>::DuplicatedReward
 			);
-			let (reward, reward_media, reward_user) = calc_reward::<T>(&ad, &user_did, None)?;
+			let (reward, reward_media, reward_user) =
+				calc_reward::<T>(&ad, &user_did, &user, &media, None)?;
 
 			let mut free: Balance = s!(free_balance::<T>(&advertiser.reward_pool_account));
 			if free > reward_user {

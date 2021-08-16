@@ -20,6 +20,7 @@ sp-std = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev
 frame-support = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
+pallet-staking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false, optional = true }
 
@@ -29,6 +30,9 @@ parami-did = { path = "../did", default-features = false }
 sp-io = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev" }
 pallet-utility = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
 pallet-proxy = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
+frame-election-provider-support = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
+pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
+pallet-session = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
 
 [features]
 default = ["std"]
@@ -41,6 +45,7 @@ std = [
     "sp-runtime/std",
     "frame-support/std",
     "frame-system/std",
+    "pallet-staking/std",
     "pallet-timestamp/std",
     "parami-did/std",
     "num-traits/std",
