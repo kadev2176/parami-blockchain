@@ -85,6 +85,7 @@ pub mod pallet {
 		DuplicatedReward,
 		TooEarlyToRedeem,
 		AdvertiserExists,
+		VecTooLong,
 	}
 
 	#[pallet::hooks]
@@ -101,17 +102,24 @@ pub mod pallet {
 		pub ad_deposit: Balance,
 		pub extra_reward: Balance,
 		pub time_decay_coefficient: PerU16,
+        pub tag_names: Vec<(TagType, Vec<u8>)>,
 		pub _phantom: PhantomData<T>,
 	}
 
 	#[cfg(feature = "std")]
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
+            let mut tag_names = Vec::new();
+            tag_names.push((0, b"type01".as_ref().into()));
+            tag_names.push((1, b"type02".as_ref().into()));
+            tag_names.push((3, b"type03".as_ref().into()));
+            tag_names.push((4, b"type04".as_ref().into()));
 			Self {
 				advertiser_deposit: UNIT.saturating_mul(500),
 				ad_deposit: UNIT.saturating_mul(20),
 				extra_reward: UNIT.saturating_mul(3),
 				time_decay_coefficient: PerU16::from_percent(1),
+                tag_names,
 				_phantom: Default::default(),
 			}
 		}
@@ -124,8 +132,15 @@ pub mod pallet {
 			AdDeposit::<T>::put(self.ad_deposit);
 			ExtraReward::<T>::put(self.extra_reward);
 			TimeDecayCoefficient::<T>::put(self.time_decay_coefficient);
+            for (tag, name) in &self.tag_names {
+                Tags::<T>::insert(tag, name);
+            }
 		}
 	}
+
+    /// Name of tag
+    #[pallet::storage]
+    pub type Tags<T: Config> = StorageMap<_, Identity, TagType, Vec<u8>>;
 
 	/// A Coefficient to calculate the decay of an user score
 	#[pallet::storage]
@@ -187,6 +202,20 @@ pub mod pallet {
 
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
+        #[pallet::weight((1_000, DispatchClass::Operational))]
+        #[transactional]
+        pub fn update_tag_name(
+            origin: OriginFor<T>,
+            tag_type: TagType,
+            name: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            T::ConfigOrigin::ensure_origin(origin)?;
+            ensure!((tag_type as usize) < MAX_TAG_COUNT, Error::<T>::InvalidTagType);
+            ensure!(name.len() > 1000, Error::<T>::VecTooLong);
+            Tags::<T>::insert(tag_type, name);
+            Ok(().into())
+        }
+
 		#[pallet::weight((1_000, DispatchClass::Operational))]
 		#[transactional]
 		pub fn update_time_decay_coefficient(
