@@ -12,6 +12,7 @@ pub struct StableAccount<Moment, AccountId> {
 	pub stash_account: AccountId,
 	pub controller_account: AccountId,
 	pub magic_account: AccountId,
+	pub new_controller_account: Option<AccountId>,
 }
 
 pub type GlobalId = u64;

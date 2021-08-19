@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![allow(unused_imports)]
 
 use super::{Event as AdEvent, *};
 use crate::mock::{Event as MEvent, *};

@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![allow(unused_imports)]
 
 use super::*;
 use crate as parami_ad;
@@ -140,6 +141,7 @@ impl parami_ad::Config for Runtime {
 	type Event = Event;
 	type Currency = Balances;
 	type ConfigOrigin = frame_system::EnsureRoot<AccountId>;
+	type Call = Call;
 }
 
 //----------------------------------------------
