@@ -4941,6 +4941,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-magic-link"
+version = "0.2.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "num-traits",
+ "pallet-balances",
+ "pallet-proxy",
+ "pallet-session",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
+ "pallet-timestamp",
+ "pallet-utility",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-primitives"
 version = "2.0.0"
 dependencies = [
