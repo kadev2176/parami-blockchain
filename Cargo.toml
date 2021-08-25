@@ -9,6 +9,8 @@ members = [
     "runtime",
     "testing",
     "pallets/did",
+    "pallets/ad",
+    "pallets/magic-link",
     "pallets/airdrop",
     "pallets/chainbridge",
     "pallets/cross-assets",
