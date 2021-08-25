@@ -421,7 +421,7 @@ impl parami_airdrop::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MyChainId: u8 = 233;
+    pub const MyChainId: u32 = 233;
     pub const ProposalLifetime: BlockNumber = 50;
 }
 
@@ -1167,6 +1167,12 @@ impl pallet_mmr::Config for Runtime {
     type WeightInfo = ();
 }
 
+impl parami_bridge::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type ConfigOrigin = EnsureRootOrHalfCouncil;
+}
+
 /*
 parameter_types! {
     pub const AssetDeposit: Balance = 100 * DOLLARS;
@@ -1252,6 +1258,7 @@ construct_runtime!(
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Pallet, Storage},
 
+
         // borrowed from pallet-assets
         // Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 
@@ -1262,7 +1269,8 @@ construct_runtime!(
 
         // OrmlNft: orml_nft::{Pallet, Storage} = 100,
 
-		Ad: parami_ad::{Pallet, Call, Config<T>, Storage, Event<T>},
+        Ad: parami_ad::{Pallet, Call, Config<T>, Storage, Event<T>},
+        Bridge: parami_bridge::{Pallet, Storage, Call, Event<T>}
     }
 );
 
