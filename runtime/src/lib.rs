@@ -1184,7 +1184,7 @@ parameter_types! {
 
 impl pallet_assets::Config for Runtime {
     type Event = Event;
-    type Balance = u64;
+    type Balance = u128;
     type AssetId = u32;
     type Currency = Balances;
     type ForceOrigin = EnsureRoot<AccountId>;
@@ -1197,6 +1197,22 @@ impl pallet_assets::Config for Runtime {
     type Extra = ();
     type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 }
+// impl parami_assets::Config for Runtime {
+//     type Event = Event;
+//     type Balance = u128;
+//     type AssetId = u32;
+//     type Currency = Balances;
+//     type ForceOrigin = EnsureRoot<AccountId>;
+//     type AssetDeposit = AssetDeposit;
+//     type MetadataDepositBase = MetadataDepositBase;
+//     type MetadataDepositPerByte = MetadataDepositPerByte;
+//     type ApprovalDeposit = ApprovalDeposit;
+//     type StringLimit = StringLimit;
+//     type Freezer = ();
+//     type Extra = ();
+//     type UnixTime = Timestamp; // time for lock
+//     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
+// }
 
 // impl parami_swap::Config for Runtime {
 //     type Event = Event;
@@ -1257,7 +1273,8 @@ construct_runtime!(
 
 
         // borrowed from pallet-assets
-         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+         Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
+         // Passets: parami_assets::{Pallet, Call, Storage,Event<T>},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},

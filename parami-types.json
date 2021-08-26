@@ -3,7 +3,7 @@
     "Public": "MultiSigner",
     "LookupSource": "MultiAddress",
     "Address": "MultiAddress",
-    "ChainId": "u8",
+    "ChainId": "u32",
     "ResourceId": "[u8; 32]",
     "DepositNonce": "u64",
     "ClassId": "()",

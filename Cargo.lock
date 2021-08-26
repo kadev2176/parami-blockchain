@@ -4772,6 +4772,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-assets"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parity-scale-codec",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-bridge"
 version = "3.0.0"
 dependencies = [
@@ -5097,6 +5113,7 @@ dependencies = [
  "pallet-vesting",
  "parami-ad",
  "parami-airdrop",
+ "parami-assets",
  "parami-bridge",
  "parami-cross-assets",
  "parami-did",

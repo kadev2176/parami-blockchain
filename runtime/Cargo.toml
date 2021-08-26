@@ -93,7 +93,7 @@ parami-did = { path = "../pallets/did", default-features = false }
 parami-airdrop = { path = "../pallets/airdrop", default-features = false }
 chainbridge = { path = "../pallets/chainbridge", default-features = false }
 parami-cross-assets = { path = "../pallets/cross-assets", default-features = false }
-#parami-assets = { path = "../pallets/assets", default-features = false }
+parami-assets = { path = "../pallets/assets", default-features = false }
 
 # parami-swap = { path = "../pallets/swap", default-features = false }
 
@@ -174,7 +174,7 @@ std = [
     "orml-nft/std",
     "pallet-assets/std",
     # "parami-swap/std",
-#    "parami-assets/std",
+    "parami-assets/std",
     "parami-ad/std",
     "parami-bridge/std"
 ]
