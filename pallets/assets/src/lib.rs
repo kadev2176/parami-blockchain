@@ -1255,7 +1255,7 @@ pub mod pallet {
             let delegate = T::Lookup::lookup(delegate)?;
 
             let key = ApprovalKey { owner, delegate };
-            Approvals::<T, I>::try_mutate(id, &key, |maybe_approved| -> DispatchResult {
+            Approvals::<T, I>::try_mutate((id, owner,delegate), |maybe_approved| -> DispatchResult {
                 let mut approved = maybe_approved.take().unwrap_or_default();
                 let deposit_required = T::ApprovalDeposit::get();
                 if approved.deposit < deposit_required {

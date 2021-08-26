@@ -111,14 +111,14 @@ pub fn wasm_binary_unwrap() -> &'static [u8] {
 /// Runtime version.
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-    spec_name: create_runtime_str!("node"),
-    impl_name: create_runtime_str!("substrate-node"),
+    spec_name: create_runtime_str!("parami"),
+    impl_name: create_runtime_str!("parami-node"),
     authoring_version: 10,
     // Per convention: if the runtime behavior changes, increment spec_version
     // and set impl_version to 0. If only runtime
     // implementation changes and behavior does not, then leave spec_version as
     // is and increment impl_version.
-    spec_version: 269,
+    spec_version: 270,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -1173,22 +1173,20 @@ impl parami_bridge::Config for Runtime {
     type ConfigOrigin = EnsureRootOrHalfCouncil;
 }
 
-/*
+
 parameter_types! {
-    pub const AssetDeposit: Balance = 100 * DOLLARS;
-    pub const ApprovalDeposit: Balance = 1 * DOLLARS;
-    pub const StringLimit: u32 = 50;
-    pub const MetadataDepositBase: Balance = 10 * DOLLARS;
-    pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
+	pub const AssetDeposit: Balance = 100 * DOLLARS;
+	pub const ApprovalDeposit: Balance = 1 * DOLLARS;
+	pub const StringLimit: u32 = 50;
+	pub const MetadataDepositBase: Balance = 10 * DOLLARS;
+	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
 impl pallet_assets::Config for Runtime {
     type Event = Event;
-    // asset token balance unit, for simplicity, use the same as Balances
-    type Balance = u128;
+    type Balance = u64;
     type AssetId = u32;
     type Currency = Balances;
-    // only root can do force call
     type ForceOrigin = EnsureRoot<AccountId>;
     type AssetDeposit = AssetDeposit;
     type MetadataDepositBase = MetadataDepositBase;
@@ -1197,18 +1195,17 @@ impl pallet_assets::Config for Runtime {
     type StringLimit = StringLimit;
     type Freezer = ();
     type Extra = ();
-    type UnixTime = Timestamp; // time for lock
     type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 }
 
-impl parami_swap::Config for Runtime {
-    type Event = Event;
-    type Currency = Balances;
-    type NativeBalance = Balance;
-    // avoid name confliction with AssetBalance struct
-    type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
-}
-*/
+// impl parami_swap::Config for Runtime {
+//     type Event = Event;
+//     type Currency = Balances;
+//     type NativeBalance = Balance;
+//     // avoid name confliction with AssetBalance struct
+//     type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
+// }
+
 
 impl parami_ad::Config for Runtime {
     type Event = Event;
@@ -1260,14 +1257,14 @@ construct_runtime!(
 
 
         // borrowed from pallet-assets
-        // Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
+         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
         // Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
-
-        // OrmlNft: orml_nft::{Pallet, Storage} = 100,
+       //
+       // OrmlNft: orml_nft::{Pallet, Storage} = 100,
 
         Ad: parami_ad::{Pallet, Call, Config<T>, Storage, Event<T>},
         Bridge: parami_bridge::{Pallet, Storage, Call, Event<T>}
