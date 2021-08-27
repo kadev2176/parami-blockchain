@@ -167,7 +167,7 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
 
     #[pallet::pallet]
-    #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::generate_store(pub trait Store)]
     pub struct Pallet<T, I = ()>(_);
 
     #[pallet::config]
@@ -221,7 +221,7 @@ pub mod pallet {
 
     #[pallet::storage]
     /// Details of an asset.
-    pub(super) type Asset<T: Config<I>, I: 'static = ()> = StorageMap<
+    pub type Asset<T: Config<I>, I: 'static = ()> = StorageMap<
         _,
         Blake2_128Concat,
         T::AssetId,
@@ -230,7 +230,7 @@ pub mod pallet {
 
     #[pallet::storage]
     /// The number of units of assets held by any given account.
-    pub(super) type Account<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
+    pub type Account<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
         _,
         Blake2_128Concat,
         T::AssetId,
@@ -243,23 +243,19 @@ pub mod pallet {
     #[pallet::storage]
     /// Approved balance transfers. First balance is the amount approved for transfer. Second
     /// is the amount of `T::Currency` reserved for storing this.
-    /// First key is the asset ID, second key is the owner and third key is the delegate.
-    pub(super) type Approvals<T: Config<I>, I: 'static = ()> = StorageNMap<
+    pub type Approvals<T: Config<I>, I: 'static = ()> = StorageDoubleMap<
         _,
-        (
-            NMapKey<Blake2_128Concat, T::AssetId>,
-            NMapKey<Blake2_128Concat, T::AccountId>, // owner
-            NMapKey<Blake2_128Concat, T::AccountId>, // delegate
-        ),
+        Blake2_128Concat,
+        T::AssetId,
+        Blake2_128Concat,
+        ApprovalKey<T::AccountId>,
         Approval<T::Balance, DepositBalanceOf<T, I>>,
         OptionQuery,
-        GetDefault,
-        ConstU32<300_000>,
     >;
 
     #[pallet::storage]
     /// Metadata of an asset.
-    pub(super) type Metadata<T: Config<I>, I: 'static = ()> = StorageMap<
+    pub type Metadata<T: Config<I>, I: 'static = ()> = StorageMap<
         _,
         Blake2_128Concat,
         T::AssetId,
@@ -269,11 +265,11 @@ pub mod pallet {
 
     #[pallet::storage]
     /// Linear vesting, (start, end, last, remain_amount)
-    pub(super) type Vesting<T: Config<I>, I: 'static = ()> =
+    pub type Vesting<T: Config<I>, I: 'static = ()> =
         StorageMap<_, Blake2_128Concat, T::AssetId, (u64, u64, u64, T::Balance)>;
 
     #[pallet::event]
-    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    #[pallet::generate_deposit(pub fn deposit_event)]
     #[pallet::metadata(
         T::AccountId = "AccountId",
         T::Balance = "Balance",
@@ -542,9 +538,7 @@ pub mod pallet {
                     details.deposit.saturating_add(metadata.deposit),
                 );
 
-                for ((owner, _), approval) in Approvals::<T, I>::drain_prefix((&id,)) {
-                    T::Currency::unreserve(&owner, approval.deposit);
-                }
+                Approvals::<T, I>::remove_prefix(&id,None);
                 Self::deposit_event(Event::Destroyed(id));
 
                 // NOTE: could use postinfo to reflect the actual number of accounts/sufficient/approvals
@@ -1254,18 +1248,19 @@ pub mod pallet {
             let owner = ensure_signed(origin)?;
             let delegate = T::Lookup::lookup(delegate)?;
 
-            Approvals::<T, I>::try_mutate((id, &owner, &delegate), |maybe_approved| -> DispatchResult {
+            let key = ApprovalKey { owner, delegate };
+            Approvals::<T, I>::try_mutate(id, &key, |maybe_approved| -> DispatchResult {
                 let mut approved = maybe_approved.take().unwrap_or_default();
                 let deposit_required = T::ApprovalDeposit::get();
                 if approved.deposit < deposit_required {
-                    T::Currency::reserve(&owner, deposit_required - approved.deposit)?;
+                    T::Currency::reserve(&key.owner, deposit_required - approved.deposit)?;
                     approved.deposit = deposit_required;
                 }
                 approved.amount = approved.amount.saturating_add(amount);
                 *maybe_approved = Some(approved);
                 Ok(())
             })?;
-            Self::deposit_event(Event::ApprovedTransfer(id, owner, delegate, amount));
+            Self::deposit_event(Event::ApprovedTransfer(id, key.owner, key.delegate, amount));
 
             Ok(())
         }
@@ -1291,15 +1286,11 @@ pub mod pallet {
         ) -> DispatchResult {
             let owner = ensure_signed(origin)?;
             let delegate = T::Lookup::lookup(delegate)?;
-            let mut d = Asset::<T, I>::get(id).ok_or(Error::<T, I>::Unknown)?;
-            let approval =
-                Approvals::<T, I>::take((id, &owner, &delegate)).ok_or(Error::<T, I>::Unknown)?;
-            T::Currency::unreserve(&owner, approval.deposit);
+            let key = ApprovalKey { owner, delegate };
+            let approval = Approvals::<T, I>::take(id, &key).ok_or(Error::<T, I>::Unknown)?;
+            T::Currency::unreserve(&key.owner, approval.deposit);
 
-            d.approvals.saturating_dec();
-            Asset::<T, I>::insert(id, d);
-
-            Self::deposit_event(Event::ApprovalCancelled(id, owner, delegate));
+            Self::deposit_event(Event::ApprovalCancelled(id, key.owner, key.delegate));
             Ok(())
         }
 
@@ -1335,10 +1326,11 @@ pub mod pallet {
             let owner = T::Lookup::lookup(owner)?;
             let delegate = T::Lookup::lookup(delegate)?;
 
-            let approval = Approvals::<T, I>::take((id, &owner, &delegate)).ok_or(Error::<T, I>::Unknown)?;
-            T::Currency::unreserve(&owner, approval.deposit);
+            let key = ApprovalKey { owner, delegate };
+            let approval = Approvals::<T, I>::take(id, &key).ok_or(Error::<T, I>::Unknown)?;
+            T::Currency::unreserve(&key.owner, approval.deposit);
 
-            Self::deposit_event(Event::ApprovalCancelled(id, owner,  delegate));
+            Self::deposit_event(Event::ApprovalCancelled(id, key.owner, key.delegate));
             Ok(())
         }
 
@@ -1372,7 +1364,8 @@ pub mod pallet {
             let owner = T::Lookup::lookup(owner)?;
             let destination = T::Lookup::lookup(destination)?;
 
-            Approvals::<T, I>::try_mutate_exists((id, &owner, &delegate), |maybe_approved| -> DispatchResult {
+            let key = ApprovalKey { owner, delegate };
+            Approvals::<T, I>::try_mutate_exists(id, &key, |maybe_approved| -> DispatchResult {
                 let mut approved = maybe_approved.take().ok_or(Error::<T, I>::Unapproved)?;
                 let remaining = approved
                     .amount
@@ -1384,10 +1377,10 @@ pub mod pallet {
                     best_effort: false,
                     burn_dust: false,
                 };
-                Self::do_transfer(id, &owner, &destination, amount, None, f)?;
+                Self::do_transfer(id, &key.owner, &destination, amount, None, f)?;
 
                 if remaining.is_zero() {
-                    T::Currency::unreserve(&owner, approved.deposit);
+                    T::Currency::unreserve(&key.owner, approved.deposit);
                 } else {
                     approved.amount = remaining;
                     *maybe_approved = Some(approved);

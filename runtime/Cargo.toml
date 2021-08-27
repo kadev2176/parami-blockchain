@@ -173,7 +173,8 @@ std = [
     "parami-cross-assets/std",
     "orml-nft/std",
     "pallet-assets/std",
-    "parami-swap/std",
+
+     "parami-swap/std",
     "parami-assets/std",
     "parami-ad/std",
     "parami-bridge/std"
