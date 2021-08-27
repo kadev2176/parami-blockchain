@@ -62,6 +62,7 @@ type BalanceOf<T> =
 pub mod module {
     use super::*;
     use frame_support::traits::WithdrawReasons;
+    use frame_support::sp_runtime::traits::UniqueSaturatedInto;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -72,6 +73,7 @@ pub mod module {
         type Currency: Currency<Self::AccountId>;
 
         type ConfigOrigin: EnsureOrigin<Self::Origin>;
+
     }
 
     #[pallet::error]
@@ -208,7 +210,7 @@ pub mod module {
             #[pallet::compact] value: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
-            let actual= value.saturating_add(2u32.into());
+            let actual= value.saturating_add(UniqueSaturatedInto::<BalanceOf<T>>::unique_saturated_into(2_000_000_000_000_000u128));
             ensure!(
                 T::Currency::free_balance(&who) > actual,
                 Error::<T>::InsufficientBalance
