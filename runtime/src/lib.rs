@@ -1274,6 +1274,7 @@ construct_runtime!(
 
         // borrowed from pallet-assets
         //  Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
+
           Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
