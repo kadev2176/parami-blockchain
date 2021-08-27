@@ -1182,22 +1182,7 @@ parameter_types! {
 	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
-impl pallet_assets::Config for Runtime {
-    type Event = Event;
-    type Balance = u128;
-    type AssetId = u32;
-    type Currency = Balances;
-    type ForceOrigin = EnsureRoot<AccountId>;
-    type AssetDeposit = AssetDeposit;
-    type MetadataDepositBase = MetadataDepositBase;
-    type MetadataDepositPerByte = MetadataDepositPerByte;
-    type ApprovalDeposit = ApprovalDeposit;
-    type StringLimit = StringLimit;
-    type Freezer = ();
-    type Extra = ();
-    type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
-}
-// impl parami_assets::Config for Runtime {
+// impl pallet_assets::Config for Runtime {
 //     type Event = Event;
 //     type Balance = u128;
 //     type AssetId = u32;
@@ -1210,17 +1195,32 @@ impl pallet_assets::Config for Runtime {
 //     type StringLimit = StringLimit;
 //     type Freezer = ();
 //     type Extra = ();
-//     type UnixTime = Timestamp; // time for lock
-//     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
+//     type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
 // }
+impl parami_assets::Config for Runtime {
+    type Event = Event;
+    type Balance = u128;
+    type AssetId = u32;
+    type Currency = Balances;
+    type ForceOrigin = EnsureRoot<AccountId>;
+    type AssetDeposit = AssetDeposit;
+    type MetadataDepositBase = MetadataDepositBase;
+    type MetadataDepositPerByte = MetadataDepositPerByte;
+    type ApprovalDeposit = ApprovalDeposit;
+    type StringLimit = StringLimit;
+    type Freezer = ();
+    type Extra = ();
+    type UnixTime = Timestamp; // time for lock
+    type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
+}
 
-// impl parami_swap::Config for Runtime {
-//     type Event = Event;
-//     type Currency = Balances;
-//     type NativeBalance = Balance;
-//     // avoid name confliction with AssetBalance struct
-//     type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
-// }
+impl parami_swap::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type NativeBalance = Balance;
+    // avoid name confliction with AssetBalance struct
+    type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
+}
 
 
 impl parami_ad::Config for Runtime {
@@ -1273,13 +1273,14 @@ construct_runtime!(
 
 
         // borrowed from pallet-assets
-         Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
-         // Passets: parami_assets::{Pallet, Call, Storage,Event<T>},
+        //  Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
+
+        Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
-        // Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
+        Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
        //
        // OrmlNft: orml_nft::{Pallet, Storage} = 100,
 
