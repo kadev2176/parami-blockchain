@@ -367,7 +367,6 @@ pub mod pallet {
                 &sender,
                 &pool_account_id,
                 asset_amount.into(),
-                true,
             )?;
 
             // LP handling
@@ -476,10 +475,9 @@ pub mod pallet {
             )?;
             <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                 asset_id,
-                &pool_account_id,
-                &sender,
+                pool_account_id,
+                    sender,
                 asset_amount.into(),
-                true,
             )?;
 
             // LP handling
@@ -576,9 +574,8 @@ pub mod pallet {
             <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                 asset_id,
                 &pool_account_id,
-                &sender,
+                sender,
                 asset_amount_out.into(),
-                true,
             )?;
 
             pair.native_reserve = Self::native_pool(asset_id).1.into();
@@ -655,7 +652,6 @@ pub mod pallet {
                 &sender,
                 &pool_account_id,
                 asset_amount_in.into(),
-                true,
             )?;
             <T as pallet::Config>::Currency::transfer(
                 &pool_account_id,

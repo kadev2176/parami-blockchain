@@ -1195,7 +1195,9 @@ parameter_types! {
 //     type StringLimit = StringLimit;
 //     type Freezer = ();
 //     type Extra = ();
+
 //     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
+
 // }
 impl parami_assets::Config for Runtime {
     type Event = Event;
@@ -1275,12 +1277,16 @@ construct_runtime!(
         // borrowed from pallet-assets
         //  Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
 
+
           Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
+
 
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
-         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
+
+        Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
+
        //
        // OrmlNft: orml_nft::{Pallet, Storage} = 100,
 
