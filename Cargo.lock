@@ -5118,6 +5118,7 @@ dependencies = [
  "parami-cross-assets",
  "parami-did",
  "parami-primitives",
+ "parami-swap",
  "parity-scale-codec",
  "serde",
  "sp-api",
@@ -5138,6 +5139,25 @@ dependencies = [
  "sp-version",
  "static_assertions",
  "substrate-wasm-builder 4.0.0",
+]
+
+[[package]]
+name = "parami-swap"
+version = "0.1.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "integer-sqrt",
+ "log",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parami-assets",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]

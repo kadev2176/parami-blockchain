@@ -1195,7 +1195,7 @@ parameter_types! {
 //     type StringLimit = StringLimit;
 //     type Freezer = ();
 //     type Extra = ();
-//     type WeightInfo = pallet_assets::weights::SubstrateWeight<Runtime>;
+//     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
 // }
 impl parami_assets::Config for Runtime {
     type Event = Event;
@@ -1214,13 +1214,13 @@ impl parami_assets::Config for Runtime {
     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
 }
 
-// impl parami_swap::Config for Runtime {
-//     type Event = Event;
-//     type Currency = Balances;
-//     type NativeBalance = Balance;
-//     // avoid name confliction with AssetBalance struct
-//     type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
-// }
+impl parami_swap::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type NativeBalance = Balance;
+    // avoid name confliction with AssetBalance struct
+    type SwapAssetBalance = <Self as parami_assets::Config>::Balance;
+}
 
 
 impl parami_ad::Config for Runtime {
@@ -1280,7 +1280,7 @@ construct_runtime!(
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
-        // Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
+         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
        //
        // OrmlNft: orml_nft::{Pallet, Storage} = 100,
 
