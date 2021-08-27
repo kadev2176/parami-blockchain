@@ -82,7 +82,7 @@ pub mod module {
         NoPermission,
 
         InsufficientBalance,
-        
+
     }
 
     #[pallet::event]
@@ -208,13 +208,14 @@ pub mod module {
             #[pallet::compact] value: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let who = ensure_signed(origin)?;
+            let actual= value.saturating_add(2u32.into());
             ensure!(
-                T::Currency::free_balance(&who) > value,
+                T::Currency::free_balance(&who) > actual,
                 Error::<T>::InsufficientBalance
             );
             let _ =
-                T::Currency::withdraw(&who, value, WithdrawReasons::TRANSACTION_PAYMENT, KeepAlive);
-            Self::deposit_event(Event::Desposit(to_eth_addr, who, value));
+                T::Currency::withdraw(&who, actual, WithdrawReasons::TRANSACTION_PAYMENT, KeepAlive);
+            Self::deposit_event(Event::Desposit(to_eth_addr, who, actual));
 
             Ok((None, Pays::No).into())
         }
