@@ -472,8 +472,8 @@ pub mod pallet {
             )?;
             <pallet_assets::Pallet<T>>::transfer(
                 asset_id,
-                &pool_account_id,
-                &sender,
+                pool_account_id,
+                    sender,
                 asset_amount.into(),
             )?;
 
@@ -572,7 +572,6 @@ pub mod pallet {
                 &pool_account_id,
                 &sender,
                 asset_amount_out.into(),
-                true,
             )?;
 
             pair.native_reserve = Self::native_pool(asset_id).1.into();
