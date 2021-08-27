@@ -5149,11 +5149,9 @@ dependencies = [
  "frame-system",
  "integer-sqrt",
  "log",
-
  "pallet-balances",
  "pallet-timestamp",
  "parami-assets",
-
  "parity-scale-codec",
  "serde",
  "sp-core",
