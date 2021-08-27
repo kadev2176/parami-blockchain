@@ -651,7 +651,6 @@ pub mod pallet {
                 &sender,
                 &pool_account_id,
                 asset_amount_in.into(),
-                true,
             )?;
             <T as pallet::Config>::Currency::transfer(
                 &pool_account_id,
