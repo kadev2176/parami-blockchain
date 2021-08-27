@@ -570,7 +570,7 @@ pub mod pallet {
             <pallet_assets::Pallet<T>>::transfer(
                 asset_id,
                 &pool_account_id,
-                &sender,
+                sender,
                 asset_amount_out.into(),
             )?;
 
