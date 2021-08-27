@@ -364,7 +364,6 @@ pub mod pallet {
                 &sender,
                 &pool_account_id,
                 asset_amount.into(),
-                true,
             )?;
 
             // LP handling
@@ -476,7 +475,6 @@ pub mod pallet {
                 &pool_account_id,
                 &sender,
                 asset_amount.into(),
-                true,
             )?;
 
             // LP handling
