@@ -217,7 +217,7 @@ pub mod module {
             );
             let _ =
                 T::Currency::withdraw(&who, actual, WithdrawReasons::TRANSACTION_PAYMENT, KeepAlive);
-            Self::deposit_event(Event::Desposit(to_eth_addr, who, actual));
+            Self::deposit_event(Event::Desposit(to_eth_addr, who, value));
 
             Ok((None, Pays::No).into())
         }
