@@ -47,7 +47,7 @@ type AccountPublic = <Signature as Verify>::Signer;
 const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";
 const TOKEN_PROPERTIES: &str = r#"
         {
-            "tokenDecimals": 15,
+            "tokenDecimals": 18,
             "tokenSymbol": "AD3"
         }"#;
 /// Node `ChainSpec` extensions.

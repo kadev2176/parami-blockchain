@@ -23,7 +23,7 @@ pub mod currency {
 
     // Default for node-template: 15
     // Other chains: 12, 18
-    pub const UNITS: Balance = 1_000_000_000_000_000;
+    pub const UNITS: Balance = 1_000_000_000_000_000_000;
     pub const DOLLARS: Balance = UNITS;
     pub const CENTS: Balance = DOLLARS / 100;
     pub const MILLICENTS: Balance = CENTS / 1_000;
