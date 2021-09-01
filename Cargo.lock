@@ -404,6 +404,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "auction-manager"
+version = "2.0.0"
+dependencies = [
+ "frame-support",
+ "funty",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4003,6 +4017,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "orml-traits"
+version = "0.4.1-dev"
+dependencies = [
+ "frame-support",
+ "impl-trait-for-tuples",
+ "num-traits",
+ "parity-scale-codec",
+ "serde",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "output_vt100"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5000,12 +5028,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-nft"
+version = "0.1.0"
+dependencies = [
+ "auction-manager",
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-nft",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parami-assets",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-primitives"
 version = "2.0.0"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
  "pretty_assertions",
+ "serde",
  "sp-application-crypto",
  "sp-core",
  "sp-runtime",
@@ -5117,6 +5171,7 @@ dependencies = [
  "parami-bridge",
  "parami-cross-assets",
  "parami-did",
+ "parami-nft",
  "parami-primitives",
  "parami-swap",
  "parity-scale-codec",

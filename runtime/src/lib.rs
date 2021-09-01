@@ -94,6 +94,10 @@ pub mod constants;
 use constants::{currency::*, time::*};
 use sp_runtime::generic::Era;
 
+use parami_nft;
+
+mod weights;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -456,15 +460,26 @@ impl parami_cross_assets::Config for Runtime {
     type NativeTokenId = NativeTokenId;
 }
 
-/*
+parameter_types! {
+    pub CreateClassDeposit: Balance = 500 * CENTS;
+    pub CreateAssetDeposit: Balance = 100 * CENTS;
+}
+
+impl parami_nft::Config for Runtime {
+    type Event = Event;
+    type CreateClassDeposit = CreateClassDeposit;
+    type CreateAssetDeposit = CreateAssetDeposit;
+    type Currency = Balances;
+    type WeightInfo = weights::module_nft::WeightInfo<Runtime>;
+    type PalletId = NftModuleId;
+}
+
 impl orml_nft::Config for Runtime {
     type ClassId = u32;
     type TokenId = u64;
-    // TODO: fill Class metadata and Token metadata
-    type ClassData = ();
-    type TokenData = ();
+    type ClassData = parami_nft::ClassData<Balance>;
+    type TokenData = parami_nft::AssetData<Balance>;
 }
- */
 
 parameter_types! {
     // NOTE: minimum balance is 1 cent, 0.01 dollar
@@ -859,6 +874,7 @@ parameter_types! {
     pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
     pub const BountyValueMinimum: Balance = 5 * DOLLARS;
     pub const MaxApprovals: u32 = 100;
+    pub const NftModuleId: PalletId = PalletId(*b"par/pnft");
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -1272,24 +1288,15 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Pallet, Storage},
-
-
         // borrowed from pallet-assets
         //  Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
-
-
-          Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
-
-
+        Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
-
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
-
-       //
-       // OrmlNft: orml_nft::{Pallet, Storage} = 100,
-
+        OrmlNft: orml_nft::{Pallet, Storage} = 100,
+        Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Ad: parami_ad::{Pallet, Call, Config<T>, Storage, Event<T>},
         Bridge: parami_bridge::{Pallet, Storage, Call, Event<T>}
     }

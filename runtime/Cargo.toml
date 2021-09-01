@@ -94,7 +94,7 @@ parami-airdrop = { path = "../pallets/airdrop", default-features = false }
 chainbridge = { path = "../pallets/chainbridge", default-features = false }
 parami-cross-assets = { path = "../pallets/cross-assets", default-features = false }
 parami-assets = { path = "../pallets/assets", default-features = false }
-
+parami-nft = { path = "../pallets/nft", default-features = false }
 parami-swap = { path = "../pallets/swap", default-features = false }
 
 parami-ad = { path = "../pallets/ad", default-features = false }
@@ -173,11 +173,11 @@ std = [
     "parami-cross-assets/std",
     "orml-nft/std",
     "pallet-assets/std",
-
-     "parami-swap/std",
+    "parami-swap/std",
     "parami-assets/std",
     "parami-ad/std",
-    "parami-bridge/std"
+    "parami-bridge/std",
+    "parami-nft/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
@@ -211,4 +211,5 @@ runtime-benchmarks = [
     "hex-literal",
     "parami-did/runtime-benchmarks",
     "pallet-assets/runtime-benchmarks",
+    "parami-nft/runtime-benchmarks"
 ]
