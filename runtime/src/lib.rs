@@ -478,7 +478,25 @@ impl orml_nft::Config for Runtime {
     type ClassId = u32;
     type TokenId = u64;
     type ClassData = parami_nft::ClassData<Balance>;
-    type TokenData = parami_nft::AssetData<Balance>;
+    type TokenData = parami_nft::AssetData<Balance, Moment>;
+}
+
+parameter_types! {
+    pub const MinimumAuctionDuration: BlockNumber = 300; // 300 blocks
+}
+
+impl parami_auction::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type MinimumAuctionDuration = MinimumAuctionDuration;
+}
+
+impl orml_auction::Config for Runtime {
+    type Event = Event;
+    type Balance = Balance;
+    type AuctionId = u64;
+    type Handler = Auction;
+    type WeightInfo = ();
 }
 
 parameter_types! {
@@ -1296,6 +1314,8 @@ construct_runtime!(
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
         OrmlNft: orml_nft::{Pallet, Storage} = 100,
+        OrmlAuction: orml_auction::{Pallet, Storage, Event<T>},
+        Auction: parami_auction::{Pallet, Call, Storage, Event<T>},
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Ad: parami_ad::{Pallet, Call, Config<T>, Storage, Event<T>},
         Bridge: parami_bridge::{Pallet, Storage, Call, Event<T>}

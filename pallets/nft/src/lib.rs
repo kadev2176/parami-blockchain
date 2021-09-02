@@ -26,6 +26,11 @@ pub mod weights;
 
 pub use weights::WeightInfo;
 
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
+
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ClassData<Balance> {
@@ -41,11 +46,21 @@ pub struct ClassData<Balance> {
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetData<Balance> {
+pub struct AdsSlot<Balance, Moment> {
+    pub id: u32,
+    pub start_time: Moment,
+    pub end_time: Moment,
+    pub deposit: Balance,
+    pub media: Vec<u8>,
+}
+
+#[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub struct AssetData<Balance, Moment> {
     pub deposit: Balance,
     pub name: Vec<u8>,
     pub description: Vec<u8>,
-    pub properties: Vec<u8>,
+    pub slot: AdsSlot<Balance, Moment>,
 }
 
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
@@ -110,12 +125,13 @@ pub mod pallet {
 
     #[pallet::config]
     pub trait Config:
-    frame_system::Config +
-    parami_assets::Config +
-    orml_nft::Config<
-        TokenData=AssetData<BalanceOf<Self>>,
-        ClassData=ClassData<BalanceOf<Self>>,
-    >
+        frame_system::Config +
+        parami_assets::Config +
+        pallet_timestamp::Config +
+        orml_nft::Config<
+            TokenData=AssetData<BalanceOf<Self>, <Self as pallet_timestamp::Config>::Moment>,
+            ClassData=ClassData<BalanceOf<Self>>,
+        >
     {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -272,11 +288,19 @@ pub mod pallet {
             <T as Config>::Currency::transfer(&sender, &class_fund, total_deposit, KeepAlive)?;
             <T as Config>::Currency::reserve(&class_fund, total_deposit)?;
 
+            let ads_slot = AdsSlot {
+                id: 1u32,
+                start_time: pallet_timestamp::Pallet::<T>::now(),
+                end_time: pallet_timestamp::Pallet::<T>::now(),
+                deposit,
+                media: description.clone(),
+
+            };
             let new_nft_data = AssetData {
                 deposit,
                 name: name.clone(),
                 description,
-                properties: metadata.clone(),
+                slot: ads_slot,
             };
 
             let mut new_asset_ids: Vec<AssetId> = Vec::new();
@@ -311,7 +335,7 @@ pub mod pallet {
                 Assets::<T>::insert(asset_id, (class_id, token_id));
                 last_token_id = token_id;
 
-                // nft fractional
+                // create fractional
                 let fractional_id = T::AssetId::from(asset_id as u32);
                 <parami_assets::Pallet<T>>::create(
                     origin.clone(),
@@ -320,6 +344,7 @@ pub mod pallet {
                     MIN_BALANCE.into(),
                 )?;
 
+                // set metadata
                 <parami_assets::Pallet<T>>::set_metadata(
                     origin.clone(),
                     fractional_id,
@@ -327,6 +352,18 @@ pub mod pallet {
                     symbol.clone(),
                     18,
                 )?;
+
+                // initial supply
+                <parami_assets::Pallet<T>>::mint(
+                    origin.clone(),
+                    fractional_id,
+                    <T::Lookup as StaticLookup>::unlookup(sender.clone()),
+                    100_000_000u32.into(),
+                )?;
+
+                log::info!("fractional_id => {:?}", fractional_id);
+                log::info!("name => {:?}", name);
+                log::info!("symbol => {:?}", symbol);
             }
 
             Self::deposit_event(Event::<T>::NewNftMinted(*new_asset_ids.first().unwrap(), *new_asset_ids.last().unwrap(), sender, class_id, quantity, last_token_id));
@@ -400,7 +437,7 @@ pub mod pallet {
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
     impl<T: Config> Pallet<T> {
-        fn handle_ownership_transfer(
+        pub fn handle_ownership_transfer(
             sender: &T::AccountId,
             to: &T::AccountId,
             asset_id: AssetId,

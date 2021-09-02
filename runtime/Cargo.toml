@@ -87,6 +87,7 @@ pallet-vesting = { git = "https://github.com/paritytech/substrate", version = "4
 
 # orml
 orml-nft = { path = "../orml/nft", default-features = false }
+orml-auction = { path = "../orml/auction", default-features = false }
 
 # own pallets
 parami-did = { path = "../pallets/did", default-features = false }
@@ -95,6 +96,7 @@ chainbridge = { path = "../pallets/chainbridge", default-features = false }
 parami-cross-assets = { path = "../pallets/cross-assets", default-features = false }
 parami-assets = { path = "../pallets/assets", default-features = false }
 parami-nft = { path = "../pallets/nft", default-features = false }
+parami-auction = { path = "../pallets/auction", default-features = false }
 parami-swap = { path = "../pallets/swap", default-features = false }
 
 parami-ad = { path = "../pallets/ad", default-features = false }
@@ -172,12 +174,14 @@ std = [
     "chainbridge/std",
     "parami-cross-assets/std",
     "orml-nft/std",
+    "orml-auction/std",
     "pallet-assets/std",
     "parami-swap/std",
     "parami-assets/std",
     "parami-ad/std",
     "parami-bridge/std",
-    "parami-nft/std"
+    "parami-nft/std",
+    "parami-auction/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",

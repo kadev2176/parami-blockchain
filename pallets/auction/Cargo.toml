@@ -1,5 +1,5 @@
 [package]
-name = "parami-nft"
+name = "parami-auction"
 version = "0.1.0"
 authors = ["Parami Team <info@parami.io>"]
 edition = "2018"

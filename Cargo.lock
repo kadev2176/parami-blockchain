@@ -404,20 +404,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "auction-manager"
-version = "2.0.0"
-dependencies = [
- "frame-support",
- "funty",
- "parami-primitives",
- "parity-scale-codec",
- "serde",
- "sp-io",
- "sp-runtime",
- "sp-std",
-]
-
-[[package]]
 name = "autocfg"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4003,6 +3989,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "77af24da69f9d9341038eba93a073b1fdaaa1b788221b00a69bce9e762cb32de"
 
 [[package]]
+name = "orml-auction"
+version = "0.4.1-dev"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "orml-nft"
 version = "0.4.1-dev"
 dependencies = [
@@ -4816,6 +4817,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-auction"
+version = "0.1.0"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-auction",
+ "orml-nft",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parami-assets",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-bridge"
 version = "3.0.0"
 dependencies = [
@@ -5031,12 +5057,12 @@ dependencies = [
 name = "parami-nft"
 version = "0.1.0"
 dependencies = [
- "auction-manager",
  "enumflags2",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
+ "orml-auction",
  "orml-nft",
  "orml-traits",
  "pallet-balances",
@@ -5126,6 +5152,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal",
  "log",
+ "orml-auction",
  "orml-nft",
  "pallet-assets",
  "pallet-authority-discovery",
@@ -5168,6 +5195,7 @@ dependencies = [
  "parami-ad",
  "parami-airdrop",
  "parami-assets",
+ "parami-auction",
  "parami-bridge",
  "parami-cross-assets",
  "parami-did",
