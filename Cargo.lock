@@ -5117,6 +5117,7 @@ dependencies = [
  "parami-bridge",
  "parami-cross-assets",
  "parami-did",
+ "parami-magic-link",
  "parami-primitives",
  "parami-swap",
  "parity-scale-codec",
