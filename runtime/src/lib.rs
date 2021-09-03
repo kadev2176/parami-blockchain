@@ -573,10 +573,6 @@ parameter_types! {
 }
 
 use frame_election_provider_support::onchain;
-// use frame_benchmarking::frame_support::pallet_prelude::{EnsureOrigin, IsType};
-// use frame_benchmarking::frame_support::dispatch::{GetDispatchInfo, Dispatchable};
-// use frame_benchmarking::frame_support::traits::{ReservableCurrency, IsSubType};
-// use frame_benchmarking::frame_support::Parameter;
 
 impl pallet_staking::Config for Runtime {
     const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
