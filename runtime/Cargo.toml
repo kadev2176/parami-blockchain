@@ -11,6 +11,7 @@ repository = "https://github.com/paritytech/substrate/"
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
 
+
 [dependencies]
 
 # third-party dependencies
@@ -100,7 +101,9 @@ parami-magic-link = { path = "../pallets/magic-link", default-features = false }
 
 parami-ad = { path = "../pallets/ad", default-features = false }
 parami-bridge = { package = "parami-bridge", path = "../pallets/bridge", default-features = false }
+
 [build-dependencies]
+prost-build = "0.8"
 substrate-wasm-builder = { version = "4.0.0" }
 
 [dev-dependencies]
