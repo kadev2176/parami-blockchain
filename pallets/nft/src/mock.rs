@@ -6,12 +6,24 @@ use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Filter,},
 };
-pub use primitives::{AccountId, Balance, Moment};
+pub use primitives::{AccountId, BlockNumber, Balance, Moment, AssetId, ItemId, AuctionId, AuctionItem, AuctionType};
+pub use orml_traits::{Auction,AuctionInfo};
+use orml_traits::{AssetHandler};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+
+pub struct NftAssetHandler;
+
+impl AssetHandler<u32> for NftAssetHandler {
+    fn check_item_in_auction(
+        _asset_id: u32,
+    ) -> bool {
+        return false;
+    }
+}
 
 parameter_types! {
 	pub const BlockHashCount: u64 = 250;
@@ -97,9 +109,9 @@ impl parami_assets::Config for Runtime {
 
 impl orml_nft::Config for Runtime {
     type ClassId = u32;
-    type TokenId = u64;
+    type TokenId = u32;
     type ClassData = parami_nft::ClassData<Balance>;
-    type TokenData = parami_nft::AssetData<Balance, Moment>;
+    type TokenData = parami_nft::AssetData<Balance>;
 }
 
 parameter_types! {
@@ -113,7 +125,8 @@ impl Config for Runtime {
     type CreateClassDeposit = CreateClassDeposit;
     type CreateAssetDeposit = CreateAssetDeposit;
     type Currency = Balances;
-    type PalletId = NftModuleId;
+	type PalletId = NftModuleId;
+	type AssetsHandler = NftAssetHandler;
     type WeightInfo = ();
 }
 

@@ -53,7 +53,7 @@ fn create_class_should_work() {
             initial_supply: Default::default(),
         };
 
-        let class_info = orml_nft::ClassInfo::<u64, u64, ClassData<u128>> {
+        let class_info = orml_nft::ClassInfo::<u32, u64, ClassData<u128>> {
             metadata: vec![1],
             total_issuance: Default::default(),
             owner: ALICE,
@@ -108,6 +108,9 @@ fn mint_asset_should_work() {
         let metadata = <parami_assets::Metadata::<Runtime>>::get(1);
         println!("metadata => {:?}", metadata);
         assert_eq!(<parami_assets::Metadata::<Runtime>>::contains_key(1), true);
+
+        let ads_slot = AdsSlots::<Runtime>::get(1);
+        println!("ads slot => {:?}", ads_slot);
 
         assert_eq!(Nft::next_asset_id(), 3);
         assert_eq!(Nft::get_assets_by_owner(ALICE), vec![0, 1, 2]);
@@ -226,7 +229,7 @@ fn do_handle_asset_ownership_transfer_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         init_test_nft(origin.clone());
         assert_ok!(Nft::handle_ownership_transfer(&ALICE, &BOB, 0));
-        assert_eq!(Nft::get_assets_by_owner(ALICE), Vec::<u64>::new());
+        assert_eq!(Nft::get_assets_by_owner(ALICE), Vec::<u32>::new());
         assert_eq!(Nft::get_assets_by_owner(BOB), vec![0]);
     })
 }
@@ -237,7 +240,7 @@ fn do_transfer_should_work() {
     ExtBuilder::default().build().execute_with(|| {
         init_test_nft(origin.clone());
         assert_ok!(Nft::do_transfer(&ALICE, &BOB, 0));
-        assert_eq!(Nft::get_assets_by_owner(ALICE), Vec::<u64>::new());
+        assert_eq!(Nft::get_assets_by_owner(ALICE), Vec::<u32>::new());
         assert_eq!(Nft::get_assets_by_owner(BOB), vec![0]);
     })
 }

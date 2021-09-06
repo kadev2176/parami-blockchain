@@ -2,7 +2,7 @@
 
 use frame_support::{
     ensure, dispatch::{DispatchResultWithPostInfo},
-    traits::{Currency, Get, ReservableCurrency,},
+    traits::{Get, ReservableCurrency,},
     pallet_prelude::*, PalletId,
 };
 use frame_support::traits::tokens::fungibles::{Transfer};
@@ -12,7 +12,7 @@ use parami_nft::Pallet as NFTModule;
 
 use frame_system::pallet_prelude::*;
 use orml_traits::{Auction, OnNewBidResult, AuctionHandler, AssetHandler, Change,};
-use primitives::{AuctionId, ItemId, AuctionItem, AuctionType, AuctionInfo, };
+use primitives::{AuctionId, ItemId, AuctionItem, AuctionType, };
 use parami_nft::Pallet as NFTPallet;
 use sp_runtime::{traits::{AccountIdConversion, Zero},};
 
@@ -58,20 +58,12 @@ pub mod pallet {
     type BalanceOfAsset<T> = <T as orml_auction::Config>::Balance;
 
     #[pallet::storage]
-    #[pallet::getter(fn auctions)]
-    pub(super) type Auctions<T: Config> = StorageMap<_, Blake2_128Concat, T::AuctionId, AuctionInfo<T::AccountId, BalanceOfAsset<T>, T::BlockNumber>, OptionQuery>;
-
-    #[pallet::storage]
     #[pallet::getter(fn assets_in_auction)]
     pub(super) type AssetsInAuction<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, bool, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_auction_item)]
     pub(super) type AuctionItems<T: Config> = StorageMap<_, Blake2_128Concat, T::AuctionId, AuctionItem<T::AccountId, T::BlockNumber, BalanceOfAsset<T>, T::AssetId>, OptionQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn auction_end_time)]
-    pub(super) type AuctionEndTime<T: Config> = StorageDoubleMap<_, Blake2_128Concat, T::BlockNumber, Blake2_128Concat, T::AuctionId, (), OptionQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -119,8 +111,7 @@ pub mod pallet {
 
             let remaining_time: T::BlockNumber = end_time.checked_sub(&start_time).ok_or("Overflow")?;
 
-            ensure!(remaining_time >= T::MinimumAuctionDuration::get(),
-            Error::<T>::AuctionEndIsLessThanMinimumDuration);
+            ensure!(remaining_time >= T::MinimumAuctionDuration::get(), Error::<T>::AuctionEndIsLessThanMinimumDuration);
 
             Self::create_auction(AuctionType::Auction, item_id, Some(end_time), from.clone(), value.clone(), start_time)?;
 
@@ -170,7 +161,7 @@ pub mod pallet {
                     let class_info_data = class_info.data;
                     let token_info = orml_nft::Pallet::<T>::tokens(asset.0, asset.1).ok_or(Error::<T>::NoPermissionToCreateAuction)?;
                     ensure!(recipient == token_info.owner, Error::<T>::NoPermissionToCreateAuction);
-                    ensure!(class_info_data.token_type.is_transferable(), Error::<T>::NoPermissionToCreateAuction);
+                    ensure!(!class_info_data.token_type.is_transferable(), Error::<T>::NoPermissionToCreateAuction);
                     ensure!(Self::assets_in_auction(asset_id) == None, Error::<T>::AssetAlreadyInAuction);
 
                     let start_time = <frame_system::Pallet<T>>::block_number();
@@ -210,17 +201,13 @@ pub mod pallet {
         }
 
         fn remove_auction(id: T::AuctionId, item_id: ItemId<T::AssetId>) {
-            if let Some(auction) = <Auctions<T>>::get(&id) {
-                if let Some(end_block) = auction.end {
-                    <AuctionEndTime<T>>::remove(end_block, id);
-                    <Auctions<T>>::remove(&id);
-                    match item_id {
-                        ItemId::NFT(asset_id) => {
-                            <AssetsInAuction<T>>::remove(asset_id);
-                        }
-                        _ => {}
-                    }
+            AuctionModule::<T>::remove_auction(id);
+    
+            match item_id {
+                ItemId::NFT(asset_id) => {
+                    <AssetsInAuction<T>>::remove(asset_id);
                 }
+                _ => {}
             }
         }
 
@@ -245,9 +232,8 @@ pub mod pallet {
                         let auction_pool_id = Self::auction_pool_id(asset_id);
 
                         if let Some(last_bidder) = last_bidder {
-                            // unlock reserve amount
                             if !last_bid_price.is_zero() {
-                                //Unreserve balance of last bidder
+                                // refund asset to last bidder
                                 <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                                     asset_id,
                                     &auction_pool_id,
@@ -263,7 +249,7 @@ pub mod pallet {
                         let new_bid_amount = <T as parami_assets::Config>::Balance::from(new_bid_price.into());
                         ensure!(<parami_assets::Pallet<T>>::balance(asset_id, &new_bidder) >= new_bid_amount, "InsufficientFunds");
 
-                        // Lock fund of new bidder
+                        // transfer fund to auction pool
                         <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                             asset_id,
                             &new_bidder,
@@ -314,7 +300,19 @@ pub mod pallet {
                             <AssetsInAuction<T>>::remove(asset_id);
 
                             // set ads slot
-                            // let asset_transfer = NFTModule::<T>::do_transfer(&auction_item.recipient, &high_bidder, asset_id);
+                            let slot_update = NFTModule::<T>::update_ads_slot(
+                                &asset_id,
+                                auction_item.start_time,
+                                auction_item.end_time,
+                                <T as parami_assets::Config>::Balance::from(
+                                    high_bid_price.into()
+                                ),
+                                b"https://www.baidu.com".to_vec()
+                            );
+                            match slot_update {
+                                Err(_) => (),
+                                Ok(_) => ()
+                            }
 
                             // unreserve
                             let asset_transfer = <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(

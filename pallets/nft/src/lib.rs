@@ -11,10 +11,9 @@ use serde::{Deserialize, Serialize};
 
 use frame_system::pallet_prelude::*;
 use orml_nft::Pallet as NftModule;
-use primitives::{AssetId};
 use sp_runtime::RuntimeDebug;
 use sp_runtime::{
-    traits::{AccountIdConversion, AtLeast32BitUnsigned, StaticLookup, One},
+    traits::{AccountIdConversion, AtLeast32BitUnsigned, StaticLookup, Zero},
     DispatchError,
 };
 use sp_std::{vec::Vec, prelude::*};
@@ -48,7 +47,6 @@ pub struct ClassData<Balance> {
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct AdsSlot<Balance, BlockNumber> {
-    pub id: u32,
     pub start_time: BlockNumber,
     pub end_time: BlockNumber,
     pub deposit: Balance,
@@ -57,11 +55,10 @@ pub struct AdsSlot<Balance, BlockNumber> {
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetData<Balance, BlockNumber> {
+pub struct AssetData<Balance> {
     pub deposit: Balance,
     pub name: Vec<u8>,
     pub description: Vec<u8>,
-    pub slot: AdsSlot<Balance, BlockNumber>,
 }
 
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
@@ -82,7 +79,7 @@ impl TokenType {
 
 impl Default for TokenType {
     fn default() -> Self {
-        TokenType::Transferable
+        TokenType::BoundToAddress
     }
 }
 
@@ -123,14 +120,14 @@ const MIN_BALANCE: u128 = 1_000;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::sp_runtime::traits::{CheckedSub, CheckedAdd, };
+    use frame_support::sp_runtime::traits::{CheckedAdd, };
 
     #[pallet::config]
     pub trait Config:
         frame_system::Config +
         parami_assets::Config +
         orml_nft::Config<
-            TokenData=AssetData<BalanceOf<Self>, <Self as frame_system::Config>::BlockNumber>,
+            TokenData=AssetData<BalanceOf<Self>>,
             ClassData=ClassData<BalanceOf<Self>>,
         >
     {
@@ -166,6 +163,7 @@ pub mod pallet {
     type TokenIdOf<T> = <T as orml_nft::Config>::TokenId;
     type BalanceOf<T> =
     <<T as Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+    type BalanceOfAsset<T> = <T as parami_assets::Config>::Balance;
 
     #[pallet::storage]
     #[pallet::getter(fn get_asset)]
@@ -184,6 +182,10 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn next_asset_id)]
     pub(super) type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn get_ads_slot)]
+    pub(super) type AdsSlots<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AdsSlot<BalanceOfAsset<T>, T::BlockNumber>, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_asset_supporters)]
@@ -293,19 +295,10 @@ pub mod pallet {
             <T as Config>::Currency::transfer(&sender, &class_fund, total_deposit, KeepAlive)?;
             <T as Config>::Currency::reserve(&class_fund, total_deposit)?;
 
-            let ads_slot = AdsSlot {
-                id: 1u32,
-                start_time: <frame_system::Pallet<T>>::block_number(),
-                end_time: <frame_system::Pallet<T>>::block_number(),
-                deposit,
-                media: description.clone(),
-
-            };
             let new_nft_data = AssetData {
                 deposit,
                 name: name.clone(),
                 description,
-                slot: ads_slot,
             };
 
             let mut new_asset_ids: Vec<T::AssetId> = Vec::new();
@@ -340,8 +333,15 @@ pub mod pallet {
                 Assets::<T>::insert(asset_id, (class_id, token_id));
                 last_token_id = token_id;
 
+                let ads_slot = AdsSlot {
+                    start_time: <frame_system::Pallet<T>>::block_number(),
+                    end_time: <frame_system::Pallet<T>>::block_number(),
+                    deposit: Zero::zero(),
+                    media: Vec::new(),
+                };
+                AdsSlots::<T>::insert(asset_id, ads_slot);
+
                 // create fractional
-                // let fractional_id = T::AssetId::from(asset_id as u32);
                 <parami_assets::Pallet<T>>::create(
                     origin.clone(),
                     asset_id,
@@ -363,12 +363,11 @@ pub mod pallet {
                     origin.clone(),
                     asset_id,
                     <T::Lookup as StaticLookup>::unlookup(sender.clone()),
-                    100_000_000u32.into(),
+                    100000000000000000000000000u128.into(),
                 )?;
 
                 log::info!("fractional_id => {:?}", asset_id);
                 log::info!("name => {:?}", name);
-                log::info!("symbol => {:?}", symbol);
             }
 
             Self::deposit_event(Event::<T>::NewNftMinted(*new_asset_ids.first().unwrap(), *new_asset_ids.last().unwrap(), sender, class_id, quantity, last_token_id));
@@ -429,7 +428,7 @@ pub mod pallet {
                     let supporters = supporters.as_mut().ok_or("Empty supporters")?;
                     supporters.push(sender);
                     Ok(())
-                });
+                })?;
                 Ok(().into())
             } else {
                 let mut new_supporters = Vec::new();
@@ -510,6 +509,25 @@ pub mod pallet {
             }
     
             return Ok(false);
+        }
+
+        pub fn update_ads_slot(asset_id: &T::AssetId, start_time: T::BlockNumber, end_time: T::BlockNumber, deposit: BalanceOfAsset<T>, media: Vec<u8>) -> DispatchResult {
+            let ads_slot = AdsSlot {
+                start_time,
+                end_time,
+                deposit,
+                media,
+            };
+            AdsSlots::<T>::insert(asset_id, ads_slot);
+            // AdsSlots::<T>::try_mutate(asset_id, |slot| -> DispatchResult{
+            //     let ads_slot = slot.as_mut().ok_or("empty slot")?;
+                
+            //     ads_slot.start_time = <frame_system::Pallet<T>>::block_number();
+
+            //     Ok(())
+            // })?;
+
+            Ok(())
         }
     }
 }

@@ -203,6 +203,7 @@ impl<T: Config> Auction<T::AccountId, T::BlockNumber> for Pallet<T> {
 	fn remove_auction(id: Self::AuctionId) {
 		if let Some(auction) = Auctions::<T>::take(&id) {
 			if let Some(end_block) = auction.end {
+				<Auctions<T>>::remove(&id);
 				AuctionEndTime::<T>::remove(end_block, id);
 			}
 		}

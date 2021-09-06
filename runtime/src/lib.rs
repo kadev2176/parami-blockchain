@@ -479,7 +479,7 @@ impl orml_nft::Config for Runtime {
     type ClassId = u32;
     type TokenId = u64;
     type ClassData = parami_nft::ClassData<Balance>;
-    type TokenData = parami_nft::AssetData<Balance, BlockNumber>;
+    type TokenData = parami_nft::AssetData<Balance>;
 }
 
 parameter_types! {
