@@ -111,13 +111,41 @@ pub type CountryId = u64;
 /// Auction ID
 pub type AuctionId = u64;
 
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum AuctionType {
+    Auction,
+    BuyNow,
+}
+
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Clone, RuntimeDebug)]
+pub struct AuctionInfo<AccountId, Balance, BlockNumber> {
+    /// Current bidder and bid price.
+    pub bid: Option<(AccountId, Balance)>,
+    /// Define which block this auction will be started.
+    pub start: BlockNumber,
+    /// Define which block this auction will be ended.
+    pub end: Option<BlockNumber>,
+}
+
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Clone, RuntimeDebug)]
+pub struct AuctionItem<AccountId, BlockNumber, Balance, AssetId> {
+    pub item_id: ItemId<AssetId>,
+    pub recipient: AccountId,
+    pub initial_amount: Balance,
+    pub amount: Balance,
+    pub start_time: BlockNumber,
+    pub end_time: BlockNumber,
+    pub auction_type: AuctionType,
+}
+
 /// Public item id for auction
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum ItemId {
+pub enum ItemId<AssetId> {
     NFT(AssetId),
-    Spot(u64, CountryId),
-    Country(CountryId),
     Block(u64),
 }
 

@@ -4831,6 +4831,7 @@ dependencies = [
  "pallet-balances",
  "pallet-timestamp",
  "parami-assets",
+ "parami-nft",
  "parami-primitives",
  "parity-scale-codec",
  "serde",

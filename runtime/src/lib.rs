@@ -470,30 +470,34 @@ impl parami_nft::Config for Runtime {
     type CreateClassDeposit = CreateClassDeposit;
     type CreateAssetDeposit = CreateAssetDeposit;
     type Currency = Balances;
+    type PalletId = NftPalletId;
+    type AssetsHandler = Auction;
     type WeightInfo = weights::module_nft::WeightInfo<Runtime>;
-    type PalletId = NftModuleId;
 }
 
 impl orml_nft::Config for Runtime {
     type ClassId = u32;
     type TokenId = u64;
     type ClassData = parami_nft::ClassData<Balance>;
-    type TokenData = parami_nft::AssetData<Balance, Moment>;
+    type TokenData = parami_nft::AssetData<Balance, BlockNumber>;
 }
 
 parameter_types! {
     pub const MinimumAuctionDuration: BlockNumber = 300; // 300 blocks
+    pub const AuctionTimeToClose: u32 = 100800; // Default 100800 Blocks
 }
 
 impl parami_auction::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
     type MinimumAuctionDuration = MinimumAuctionDuration;
+    type Handler = Auction;
+    type AuctionTimeToClose = AuctionTimeToClose;
 }
 
 impl orml_auction::Config for Runtime {
     type Event = Event;
-    type Balance = Balance;
+    type Balance = <Self as parami_assets::Config>::Balance;
     type AuctionId = u64;
     type Handler = Auction;
     type WeightInfo = ();
@@ -892,7 +896,7 @@ parameter_types! {
     pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
     pub const BountyValueMinimum: Balance = 5 * DOLLARS;
     pub const MaxApprovals: u32 = 100;
-    pub const NftModuleId: PalletId = PalletId(*b"par/pnft");
+    pub const NftPalletId: PalletId = PalletId(*b"par/pnft");
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -1216,23 +1220,6 @@ parameter_types! {
 	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
-// impl pallet_assets::Config for Runtime {
-//     type Event = Event;
-//     type Balance = u128;
-//     type AssetId = u32;
-//     type Currency = Balances;
-//     type ForceOrigin = EnsureRoot<AccountId>;
-//     type AssetDeposit = AssetDeposit;
-//     type MetadataDepositBase = MetadataDepositBase;
-//     type MetadataDepositPerByte = MetadataDepositPerByte;
-//     type ApprovalDeposit = ApprovalDeposit;
-//     type StringLimit = StringLimit;
-//     type Freezer = ();
-//     type Extra = ();
-
-//     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
-
-// }
 impl parami_assets::Config for Runtime {
     type Event = Event;
     type Balance = u128;

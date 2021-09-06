@@ -18,6 +18,7 @@ use sp_runtime::{
     DispatchError,
 };
 use sp_std::{vec::Vec, prelude::*};
+use orml_traits::{AssetHandler};
 
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
@@ -46,21 +47,21 @@ pub struct ClassData<Balance> {
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AdsSlot<Balance, Moment> {
+pub struct AdsSlot<Balance, BlockNumber> {
     pub id: u32,
-    pub start_time: Moment,
-    pub end_time: Moment,
+    pub start_time: BlockNumber,
+    pub end_time: BlockNumber,
     pub deposit: Balance,
     pub media: Vec<u8>,
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AssetData<Balance, Moment> {
+pub struct AssetData<Balance, BlockNumber> {
     pub deposit: Balance,
     pub name: Vec<u8>,
     pub description: Vec<u8>,
-    pub slot: AdsSlot<Balance, Moment>,
+    pub slot: AdsSlot<Balance, BlockNumber>,
 }
 
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
@@ -122,14 +123,14 @@ const MIN_BALANCE: u128 = 1_000;
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
+    use frame_support::sp_runtime::traits::{CheckedSub, CheckedAdd, };
 
     #[pallet::config]
     pub trait Config:
         frame_system::Config +
         parami_assets::Config +
-        pallet_timestamp::Config +
         orml_nft::Config<
-            TokenData=AssetData<BalanceOf<Self>, <Self as pallet_timestamp::Config>::Moment>,
+            TokenData=AssetData<BalanceOf<Self>, <Self as frame_system::Config>::BlockNumber>,
             ClassData=ClassData<BalanceOf<Self>>,
         >
     {
@@ -150,6 +151,9 @@ pub mod pallet {
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
+        /// Asset handler
+        type AssetsHandler: AssetHandler<<Self as parami_assets::Config>::AssetId>;
+
         // Weight info
         type WeightInfo: WeightInfo;
     }
@@ -166,12 +170,12 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn get_asset)]
     pub(super) type Assets<T: Config> =
-    StorageMap<_, Blake2_128Concat, AssetId, (ClassIdOf<T>, TokenIdOf<T>), OptionQuery>;
+    StorageMap<_, Blake2_128Concat, T::AssetId, (ClassIdOf<T>, TokenIdOf<T>), OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_assets_by_owner)]
     pub(super) type AssetsByOwner<T: Config> =
-    StorageMap<_, Blake2_128Concat, T::AccountId, Vec<AssetId>, ValueQuery>;
+    StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::AssetId>, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_class_type)]
@@ -179,12 +183,12 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn next_asset_id)]
-    pub(super) type NextAssetId<T: Config> = StorageValue<_, AssetId, ValueQuery>;
+    pub(super) type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_asset_supporters)]
     pub(super) type AssetSupporters<T: Config> =
-    StorageMap<_, Blake2_128Concat, AssetId, Vec<T::AccountId>, OptionQuery>;
+    StorageMap<_, Blake2_128Concat, T::AssetId, Vec<T::AccountId>, OptionQuery>;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
@@ -192,13 +196,14 @@ pub mod pallet {
     < T as frame_system::Config >::AccountId = "AccountId",
     ClassIdOf <T> = "ClassId",
     TokenIdOf <T> = "TokenId",
+    T::AssetId = "AssetId",
     )]
     pub enum Event<T: Config> {
         /// new NFT Class created
         NewNftClassCreated(<T as frame_system::Config>::AccountId, ClassIdOf<T>),
 
         /// new NFT minted
-        NewNftMinted(AssetId, AssetId, <T as frame_system::Config>::AccountId, ClassIdOf<T>, u32, TokenIdOf<T>),
+        NewNftMinted(T::AssetId, T::AssetId, <T as frame_system::Config>::AccountId, ClassIdOf<T>, u32, TokenIdOf<T>),
 
         /// NFT transferred
         TransferedNft(<T as frame_system::Config>::AccountId, <T as frame_system::Config>::AccountId, TokenIdOf<T>),
@@ -290,8 +295,8 @@ pub mod pallet {
 
             let ads_slot = AdsSlot {
                 id: 1u32,
-                start_time: pallet_timestamp::Pallet::<T>::now(),
-                end_time: pallet_timestamp::Pallet::<T>::now(),
+                start_time: <frame_system::Pallet<T>>::block_number(),
+                end_time: <frame_system::Pallet<T>>::block_number(),
                 deposit,
                 media: description.clone(),
 
@@ -303,13 +308,13 @@ pub mod pallet {
                 slot: ads_slot,
             };
 
-            let mut new_asset_ids: Vec<AssetId> = Vec::new();
+            let mut new_asset_ids: Vec<T::AssetId> = Vec::new();
             let mut last_token_id: TokenIdOf<T> = Default::default();
 
             for _ in 0..quantity {
-                let asset_id = NextAssetId::<T>::try_mutate(|id| -> Result<AssetId, DispatchError> {
+                let asset_id = NextAssetId::<T>::try_mutate(|id| -> Result<T::AssetId, DispatchError> {
                     let current_id = *id;
-                    *id = id.checked_add(One::one()).ok_or(Error::<T>::NoAvailableAssetId)?;
+                    *id = id.checked_add(&(Into::into(1u32))).ok_or(Error::<T>::NoAvailableAssetId)?;
 
                     Ok(current_id)
                 })?;
@@ -326,7 +331,7 @@ pub mod pallet {
                         },
                     )?;
                 } else {
-                    let mut assets = Vec::<AssetId>::new();
+                    let mut assets = Vec::<T::AssetId>::new();
                     assets.push(asset_id);
                     AssetsByOwner::<T>::insert(&sender, assets)
                 }
@@ -336,10 +341,10 @@ pub mod pallet {
                 last_token_id = token_id;
 
                 // create fractional
-                let fractional_id = T::AssetId::from(asset_id as u32);
+                // let fractional_id = T::AssetId::from(asset_id as u32);
                 <parami_assets::Pallet<T>>::create(
                     origin.clone(),
-                    fractional_id,
+                    asset_id,
                     <T::Lookup as StaticLookup>::unlookup(sender.clone()),
                     MIN_BALANCE.into(),
                 )?;
@@ -347,7 +352,7 @@ pub mod pallet {
                 // set metadata
                 <parami_assets::Pallet<T>>::set_metadata(
                     origin.clone(),
-                    fractional_id,
+                    asset_id,
                     name.clone(),
                     symbol.clone(),
                     18,
@@ -356,12 +361,12 @@ pub mod pallet {
                 // initial supply
                 <parami_assets::Pallet<T>>::mint(
                     origin.clone(),
-                    fractional_id,
+                    asset_id,
                     <T::Lookup as StaticLookup>::unlookup(sender.clone()),
                     100_000_000u32.into(),
                 )?;
 
-                log::info!("fractional_id => {:?}", fractional_id);
+                log::info!("fractional_id => {:?}", asset_id);
                 log::info!("name => {:?}", name);
                 log::info!("symbol => {:?}", symbol);
             }
@@ -372,8 +377,10 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000)]
-        pub fn transfer(origin: OriginFor<T>, to: T::AccountId, asset_id: AssetId) -> DispatchResultWithPostInfo {
+        pub fn transfer(origin: OriginFor<T>, to: T::AccountId, asset_id: T::AssetId) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
+
+            ensure!(!T::AssetsHandler::check_item_in_auction(asset_id),Error::<T>::AssetAlreadyInAuction);
 
             let token_id = Self::do_transfer(&sender, &to, asset_id)?;
 
@@ -383,7 +390,7 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000)]
-        pub fn transfer_batch(origin: OriginFor<T>, tos: Vec<(T::AccountId, AssetId)>) -> DispatchResultWithPostInfo {
+        pub fn transfer_batch(origin: OriginFor<T>, tos: Vec<(T::AccountId, T::AssetId)>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             for (_i, x) in tos.iter().enumerate() {
@@ -411,10 +418,10 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000)]
-        pub fn sign_asset(origin: OriginFor<T>, asset_id: AssetId) -> DispatchResultWithPostInfo {
+        pub fn sign_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
-            let asset_by_owner: Vec<AssetId> = Self::get_assets_by_owner(&sender);
+            let asset_by_owner: Vec<T::AssetId> = Self::get_assets_by_owner(&sender);
             ensure!(!asset_by_owner.contains(&asset_id), Error::<T>::SignOwnAsset);
 
             if AssetSupporters::<T>::contains_key(&asset_id) {
@@ -440,7 +447,7 @@ pub mod pallet {
         pub fn handle_ownership_transfer(
             sender: &T::AccountId,
             to: &T::AccountId,
-            asset_id: AssetId,
+            asset_id: T::AssetId,
         ) -> DispatchResult {
             AssetsByOwner::<T>::try_mutate(&sender, |asset_ids| -> DispatchResult {
                 let asset_index = asset_ids.iter().position(|x| *x == asset_id).unwrap();
@@ -459,7 +466,7 @@ pub mod pallet {
                     Ok(())
                 })?;
             } else {
-                let mut asset_ids = Vec::<AssetId>::new();
+                let mut asset_ids = Vec::<T::AssetId>::new();
                 asset_ids.push(asset_id);
                 AssetsByOwner::<T>::insert(&to, asset_ids);
             }
@@ -470,7 +477,7 @@ pub mod pallet {
         pub fn do_transfer(
             sender: &T::AccountId,
             to: &T::AccountId,
-            asset_id: AssetId) -> Result<<T as orml_nft::Config>::TokenId, DispatchError> {
+            asset_id: T::AssetId) -> Result<<T as orml_nft::Config>::TokenId, DispatchError> {
             let asset = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
     
             let class_info = NftModule::<T>::classes(asset.0).ok_or(Error::<T>::ClassIdNotFound)?;
@@ -492,7 +499,7 @@ pub mod pallet {
 
         pub fn check_ownership(
             sender: &T::AccountId,
-            asset_id: &AssetId) -> Result<bool, DispatchError> {
+            asset_id: &T::AssetId) -> Result<bool, DispatchError> {
             let asset = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
             let class_info = NftModule::<T>::classes(asset.0).ok_or(Error::<T>::ClassIdNotFound)?;
             let _data = class_info.data;

@@ -64,3 +64,9 @@ pub trait AuctionHandler<AccountId, Balance, BlockNumber, AuctionId> {
 	/// End an auction with `winner`
 	fn on_auction_ended(id: AuctionId, winner: Option<(AccountId, Balance)>);
 }
+
+pub trait AssetHandler<AssetId> {
+    fn check_item_in_auction(
+        asset_id: AssetId,
+    ) -> bool;
+}
