@@ -61,6 +61,7 @@ pub mod module {
 	pub enum Error<T> {
 		AuctionNotExist,
 		AuctionNotStarted,
+		AuctionIsExpired,
 		BidNotAccepted,
 		InvalidBidPrice,
 		NoAvailableAuctionId,
@@ -126,6 +127,10 @@ pub mod module {
 				// make sure auction is started
 				ensure!(block_number >= auction.start, Error::<T>::AuctionNotStarted);
 
+				let auction_end: Option<T::BlockNumber> = auction.end;
+
+				ensure!(block_number < auction_end.unwrap(), Error::<T>::AuctionIsExpired);
+				
 				if let Some(ref current_bid) = auction.bid {
 					ensure!(value > current_bid.1, Error::<T>::InvalidBidPrice);
 				} else {

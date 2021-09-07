@@ -54,6 +54,9 @@ pub mod pallet {
 
         /// time to close auction
         type AuctionTimeToClose: Get<Self::BlockNumber>;
+
+        /// ads list duration
+        type AdsListDuration: Get<Self::BlockNumber>;
     }
 
     #[pallet::pallet]
@@ -81,9 +84,10 @@ pub mod pallet {
     pub enum Event<T: Config> {
         /// new auction created
         NewAuctionItem(T::AuctionId, T::AccountId, BalanceOfAsset<T>, BalanceOfAsset<T>, T::BlockNumber),
-        Bid(T::AuctionId, T::AccountId, BalanceOfAsset<T>),
+        Bid(T::AuctionId, T::AssetId, T::AccountId, BalanceOfAsset<T>),
         AuctionFinalized(T::AuctionId, T::AccountId, BalanceOfAsset<T>),
         AuctionFinalizedNoBid(T::AuctionId),
+        AssetTransferFailed(T::AuctionId, T::AssetId),
     }
 
     #[pallet::error]
@@ -99,8 +103,6 @@ pub mod pallet {
         AuctionNotExist,
         InvalidAuctionType,
         SelfBidNotAccepted,
-        AuctionNotStarted,
-        AuctionIsExpired,
         InvalidBidPrice,
         BidNotAccepted,
         InsufficientFunds,
@@ -152,7 +154,7 @@ pub mod pallet {
             PALLET_ID.into_sub_account(asset_id)
         }
 
-        fn create_auction(
+        pub fn create_auction(
             auction_type: AuctionType,
             item_id: ItemId<T::AssetId>,
             _end: Option<T::BlockNumber>,
@@ -208,7 +210,7 @@ pub mod pallet {
             }
         }
 
-        fn remove_auction(id: T::AuctionId, item_id: ItemId<T::AssetId>) {
+        pub fn remove_auction(id: T::AuctionId, item_id: ItemId<T::AssetId>) {
             OrmlAuction::<T>::remove_auction(id);
     
             match item_id {
@@ -229,9 +231,9 @@ pub mod pallet {
             ensure!(!new_bid_price.is_zero(), Error::<T>::InvalidBidPrice);
 
             <AuctionItems<T>>::try_mutate_exists(id, |auction_item| -> DispatchResult {
-                let mut auction_item = auction_item.as_mut().ok_or("AuctionNotExist")?;
+                let mut auction_item = auction_item.as_mut().ok_or(Error::<T>::AuctionNotExist)?;
 
-                let last_bid_price = last_bid.clone().map_or(Zero::zero(), |(_, price)| price); //get last bid price
+                let last_bid_price = last_bid.clone().map_or(Zero::zero(), |(_, price)| price);
                 let last_bidder = last_bid.as_ref().map(|(who, _)| who);
 
                 match auction_item.item_id {
@@ -241,7 +243,7 @@ pub mod pallet {
 
                         if let Some(last_bidder) = last_bidder {
                             if !last_bid_price.is_zero() {
-                                // refund asset to last bidder
+                                // refund from pool to last bidder
                                 <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                                     asset_id,
                                     &auction_pool_id,
@@ -255,7 +257,7 @@ pub mod pallet {
                         }
         
                         let new_bid_amount = <T as parami_assets::Config>::Balance::from(new_bid_price.into());
-                        ensure!(<parami_assets::Pallet<T>>::balance(asset_id, &new_bidder) >= new_bid_amount, "InsufficientFunds");
+                        ensure!(<parami_assets::Pallet<T>>::balance(asset_id, &new_bidder) >= new_bid_amount, Error::<T>::InsufficientFunds);
 
                         // transfer fund to auction pool
                         <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
@@ -267,6 +269,7 @@ pub mod pallet {
                         )?;
                         auction_item.amount = new_bid_price.clone();
 
+			            Self::deposit_event(Event::Bid(id, asset_id, new_bidder, new_bid_price));
                     }
                     _ => {}
                 }
@@ -295,9 +298,6 @@ pub mod pallet {
             if let Some(auction_item) = <AuctionItems<T>>::get(&auction_id) {
                 Self::remove_auction(auction_id.clone(), auction_item.item_id);
 
-                // ads list
-                // 1.set ads slot 2.unreserve assets to ads pool
-                // Transfer balance from high bidder to asset owner
                 if let Some(current_bid) = winner {
                     let (high_bidder, high_bid_price): (T::AccountId, BalanceOfAsset<T>) = current_bid;
                     
@@ -310,21 +310,22 @@ pub mod pallet {
                             // set ads slot
                             let slot_update = NFTModule::<T>::update_ads_slot(
                                 &asset_id,
-                                auction_item.start_time,
                                 auction_item.end_time,
+                                auction_item.end_time + T::AdsListDuration::get(),
                                 <T as parami_assets::Config>::Balance::from(
                                     high_bid_price.into()
                                 ),
-                                b"https://www.baidu.com".to_vec()
+                                b"https://www.baidu.com".to_vec(),
+                                high_bidder.clone(),
                             );
                             match slot_update {
                                 Err(_) => (),
                                 Ok(_) => ()
                             }
 
-                            // unreserve
+                            // transfer funds to pool
                             let asset_transfer = <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
-                                asset_id,
+                                asset_id.clone(),
                                 &auction_pool_id,
                                 &high_bidder,
                                 <T as parami_assets::Config>::Balance::from(
@@ -334,7 +335,9 @@ pub mod pallet {
                             );
 
                             match asset_transfer {
-                                Err(_) => (),
+                                Err(_) => {
+                                    Self::deposit_event(Event::AssetTransferFailed(auction_id.clone(), asset_id));
+                                },
                                 Ok(_) => {
                                     Self::deposit_event(Event::AuctionFinalized(auction_id, high_bidder, high_bid_price));
                                 }

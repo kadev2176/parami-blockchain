@@ -12,8 +12,8 @@ use sp_std::{
 };
 
 /// Auction info.
-#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
-#[derive(Encode, Decode, RuntimeDebug)]
+// #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug)]
 pub struct AuctionInfo<AccountId, Balance, BlockNumber> {
 	/// Current bidder and bid price.
 	pub bid: Option<(AccountId, Balance)>,

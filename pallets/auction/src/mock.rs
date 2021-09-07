@@ -18,7 +18,7 @@ use sp_runtime::{
 pub struct Handler;
 
 impl AuctionHandler<u64, u128, u64, u64> for Handler {
-    fn on_new_bid(now: u64, id: u64, new_bid: (u64, u128), last_bid: Option<(u64, u128)>) -> OnNewBidResult<u64> {
+    fn on_new_bid(_now: u64, _id: u64, new_bid: (u64, u128), _last_bid: Option<(u64, u128)>) -> OnNewBidResult<u64> {
         //Test with Alice bid
         if new_bid.0 == ALICE {
             OnNewBidResult {
@@ -155,13 +155,14 @@ impl orml_auction::Config for Runtime {
     type Event = Event;
     type Balance = u128;
     type AuctionId = u64;
-    type Handler = Handler;
+    type Handler = AuctionPallet;
     type WeightInfo = ();
 }
 
 parameter_types! {
     pub const MinimumAuctionDuration: BlockNumber = 100;
     pub const AuctionTimeToClose: u32 = 10;
+    pub const AdsListDuration: u32 = 100;
 }
 
 impl Config for Runtime {
@@ -170,6 +171,7 @@ impl Config for Runtime {
     type MinimumAuctionDuration = MinimumAuctionDuration;
     type Handler = Handler;
     type AuctionTimeToClose = AuctionTimeToClose;
+    type AdsListDuration = AdsListDuration;
 }
 
 use frame_system::Call as SystemCall;
@@ -243,4 +245,14 @@ pub fn last_event() -> Event {
         .pop()
         .expect("Event expected")
         .event
+}
+
+pub fn run_to_block(n: u64) {
+    while System::block_number() < n {
+        OrmlAuction::on_finalize(System::block_number());
+        System::on_finalize(System::block_number());
+        System::set_block_number(System::block_number() + 1);
+        System::on_initialize(System::block_number());
+        OrmlAuction::on_initialize(System::block_number());
+    }
 }

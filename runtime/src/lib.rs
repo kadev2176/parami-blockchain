@@ -485,6 +485,7 @@ impl orml_nft::Config for Runtime {
 parameter_types! {
     pub const MinimumAuctionDuration: BlockNumber = 300; // 300 blocks
     pub const AuctionTimeToClose: u32 = 100800; // Default 100800 Blocks
+    pub const AdsListDuration: u32 = 100800;
 }
 
 impl parami_auction::Config for Runtime {
@@ -493,6 +494,7 @@ impl parami_auction::Config for Runtime {
     type MinimumAuctionDuration = MinimumAuctionDuration;
     type Handler = Auction;
     type AuctionTimeToClose = AuctionTimeToClose;
+    type AdsListDuration = AdsListDuration;
 }
 
 impl orml_auction::Config for Runtime {

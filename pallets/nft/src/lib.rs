@@ -46,11 +46,12 @@ pub struct ClassData<Balance> {
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub struct AdsSlot<Balance, BlockNumber> {
+pub struct AdsSlot<AccountId, Balance, BlockNumber> {
     pub start_time: BlockNumber,
     pub end_time: BlockNumber,
     pub deposit: Balance,
     pub media: Vec<u8>,
+    pub owner: AccountId,
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
@@ -115,7 +116,7 @@ impl Default for CollectionType {
 
 pub use pallet::*;
 
-const MIN_BALANCE: u128 = 1_000;
+const MIN_BALANCE: u128 = 1;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -185,7 +186,7 @@ pub mod pallet {
 
     #[pallet::storage]
     #[pallet::getter(fn get_ads_slot)]
-    pub(super) type AdsSlots<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AdsSlot<BalanceOfAsset<T>, T::BlockNumber>, OptionQuery>;
+    pub(super) type AdsSlots<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AdsSlot<T::AccountId, BalanceOfAsset<T>, T::BlockNumber>, OptionQuery>;
 
     #[pallet::storage]
     #[pallet::getter(fn get_asset_supporters)]
@@ -346,6 +347,7 @@ pub mod pallet {
                         end_time: <frame_system::Pallet<T>>::block_number(),
                         deposit: Zero::zero(),
                         media: Vec::new(),
+                        owner: Default::default(),
                     };
                     AdsSlots::<T>::insert(asset_id, ads_slot);
     
@@ -520,12 +522,13 @@ pub mod pallet {
             return Ok(false);
         }
 
-        pub fn update_ads_slot(asset_id: &T::AssetId, start_time: T::BlockNumber, end_time: T::BlockNumber, deposit: BalanceOfAsset<T>, media: Vec<u8>) -> DispatchResult {
+        pub fn update_ads_slot(asset_id: &T::AssetId, start_time: T::BlockNumber, end_time: T::BlockNumber, deposit: BalanceOfAsset<T>, media: Vec<u8>, owner: T::AccountId) -> DispatchResult {
             let ads_slot = AdsSlot {
                 start_time,
                 end_time,
                 deposit,
                 media,
+                owner,
             };
             AdsSlots::<T>::insert(asset_id, ads_slot);
             // AdsSlots::<T>::try_mutate(asset_id, |slot| -> DispatchResult{
