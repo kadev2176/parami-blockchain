@@ -1,19 +1,40 @@
 #![cfg(test)]
 
 use super::*;
-use crate as parami_nft;
+use crate as auction;
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{Filter,},
 };
 pub use primitives::{AccountId, BlockNumber, Balance, Moment, AssetId, ItemId, AuctionId, AuctionItem, AuctionType};
-pub use orml_traits::{Auction,AuctionInfo};
+pub use orml_traits::{AuctionHandler, Auction, };
 use orml_traits::{AssetHandler};
 use sp_core::H256;
 use sp_runtime::{
 	testing::Header,
 	traits::{BlakeTwo256, IdentityLookup},
 };
+
+pub struct Handler;
+
+impl AuctionHandler<u64, u128, u64, u64> for Handler {
+    fn on_new_bid(now: u64, id: u64, new_bid: (u64, u128), last_bid: Option<(u64, u128)>) -> OnNewBidResult<u64> {
+        //Test with Alice bid
+        if new_bid.0 == ALICE {
+            OnNewBidResult {
+                accept_bid: true,
+                auction_end_change: Change::NoChange,
+            }
+        } else {
+            OnNewBidResult {
+                accept_bid: false,
+                auction_end_change: Change::NoChange,
+            }
+        }
+    }
+
+    fn on_auction_ended(_id: u64, _winner: Option<(u64, u128)>) {}
+}
 
 pub struct NftAssetHandler;
 
@@ -120,7 +141,7 @@ parameter_types! {
     pub const NftModuleId: PalletId = PalletId(*b"par/pnft");
 }
 
-impl Config for Runtime {
+impl parami_nft::Config for Runtime {
     type Event = Event;
     type CreateClassDeposit = CreateClassDeposit;
     type CreateAssetDeposit = CreateAssetDeposit;
@@ -130,13 +151,28 @@ impl Config for Runtime {
     type WeightInfo = ();
 }
 
+impl orml_auction::Config for Runtime {
+    type Event = Event;
+    type Balance = u128;
+    type AuctionId = u64;
+    type Handler = Handler;
+    type WeightInfo = ();
+}
+
+parameter_types! {
+    pub const MinimumAuctionDuration: BlockNumber = 100;
+    pub const AuctionTimeToClose: u32 = 10;
+}
+
+impl Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type MinimumAuctionDuration = MinimumAuctionDuration;
+    type Handler = Handler;
+    type AuctionTimeToClose = AuctionTimeToClose;
+}
+
 use frame_system::Call as SystemCall;
-
-pub const CLASS_ID: <Runtime as orml_nft::Config>::ClassId = 0;
-pub const CLASS_ID_BOUND: <Runtime as orml_nft::Config>::ClassId = 1;
-pub const TOKEN_ID: <Runtime as orml_nft::Config>::TokenId = 0;
-
-// pub type AssetMetadata =  parami_assets::AssetMetadata<u64>;
 
 pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
 pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, Call, u32, ()>;
@@ -164,14 +200,18 @@ construct_runtime!(
 		Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: parami_assets::{Pallet, Call, Storage, Event<T>},
+        NftModule: parami_nft::{Pallet, Call, Storage, Event<T>},
 		OrmlNft: orml_nft::{Pallet, Storage},
-		Nft: parami_nft::{Pallet, Call, Event<T>},
+		OrmlAuction: orml_auction::{Pallet, Storage, Event<T>},
+		AuctionPallet: auction::{Pallet, Call, Storage, Event<T>},
 	}
 );
 
 pub const ALICE: u64 = 1;
 pub const BOB: u64 = 2;
 pub const DAVE: u64 = 3;
+pub const CLASS_ID: u32 = 0;
+pub const TOKEN_ID: u32 = 0;
 
 pub struct ExtBuilder;
 impl Default for ExtBuilder {

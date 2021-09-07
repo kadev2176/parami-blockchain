@@ -101,21 +101,63 @@ fn mint_asset_should_work() {
             2
         ));
 
-        let nft_asset_data = NftModule::<Runtime>::tokens(CLASS_ID, TOKEN_ID);
-        println!("nft data => {:?}", nft_asset_data);
-
-        // check fractional
-        let metadata = <parami_assets::Metadata::<Runtime>>::get(1);
-        println!("metadata => {:?}", metadata);
-        assert_eq!(<parami_assets::Metadata::<Runtime>>::contains_key(1), true);
-
-        let ads_slot = AdsSlots::<Runtime>::get(1);
-        println!("ads slot => {:?}", ads_slot);
-
         assert_eq!(Nft::next_asset_id(), 3);
         assert_eq!(Nft::get_assets_by_owner(ALICE), vec![0, 1, 2]);
         assert_eq!(Nft::get_asset(1), Some((CLASS_ID, 1)));
         assert_eq!(Nft::get_asset(2), Some((CLASS_ID, 2)));
+    })
+}
+
+#[test]
+fn mint_nft_and_asset_should_work() {
+    ExtBuilder::default().build().execute_with(|| {
+        let origin = Origin::signed(ALICE);
+
+        assert_ok!(Nft::create_class(
+            origin.clone(),
+            vec![2],        
+            TokenType::BoundToAddress,
+            CollectionType::Collectable,
+        ));
+
+        assert_ok!(Nft::mint(
+            origin.clone(),
+            CLASS_ID,
+            vec![1],
+            vec![1],
+            vec![1],
+            vec![1],
+            1
+        ));
+
+        assert_eq!(
+            reserved_balance(&class_id_account()),
+            <Runtime as Config>::CreateClassDeposit::get() + <Runtime as Config>::CreateAssetDeposit::get()
+        );
+        assert_eq!(Nft::next_asset_id(), 1);
+        assert_eq!(Nft::get_assets_by_owner(ALICE), vec![0]);
+        assert_eq!(Nft::get_asset(0), Some((CLASS_ID, TOKEN_ID)));
+
+        let event = mock::Event::Nft(crate::Event::NewNftMinted(0, 0, ALICE, CLASS_ID, 1, 0));
+        assert_eq!(last_event(), event);
+
+        let nft_asset_data = NftModule::<Runtime>::tokens(CLASS_ID, TOKEN_ID);
+        println!("nft data => {:?}", nft_asset_data);
+
+        // check fractional
+        let metadata = <parami_assets::Metadata::<Runtime>>::get(0);
+        println!("metadata => {:?}", metadata);
+        assert_eq!(<parami_assets::Metadata::<Runtime>>::contains_key(0), true);
+
+        let ads_slot = AdsSlots::<Runtime>::get(0);
+        println!("ads slot => {:?}", ads_slot);
+
+        init_test_nft(origin.clone());
+
+        assert_eq!(Nft::next_asset_id(), 2);
+        assert_eq!(Nft::get_assets_by_owner(ALICE), vec![0, 1]);
+        assert_eq!(Nft::get_asset(0), Some((CLASS_ID, 0)));
+        assert_eq!(Nft::get_asset(1), Some((CLASS_ID, 1)));
     })
 }
 
@@ -157,6 +199,21 @@ fn mint_asset_should_fail() {
             vec![1],
             1
         ), Error::<Runtime>::NoPermission);
+        assert_ok!(Nft::create_class(
+            origin.clone(),
+            vec![1],            
+            TokenType::BoundToAddress,
+            CollectionType::Collectable,
+        ));
+        assert_noop!(Nft::mint(
+            origin.clone(),
+            CLASS_ID_BOUND,
+            vec![1],
+            vec![1],
+            vec![1],
+            vec![1],
+            2
+        ), Error::<Runtime>::QuantityExceeds);
     })
 }
 

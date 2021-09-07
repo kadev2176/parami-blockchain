@@ -7,7 +7,7 @@ use frame_support::{
 };
 use frame_support::traits::tokens::fungibles::{Transfer};
 
-use orml_auction::Pallet as AuctionModule;
+use orml_auction::Pallet as OrmlAuction;
 use parami_nft::Pallet as NFTModule;
 
 use frame_system::pallet_prelude::*;
@@ -19,6 +19,11 @@ use sp_runtime::{traits::{AccountIdConversion, Zero},};
 pub mod weights;
 
 pub use weights::WeightInfo;
+
+#[cfg(test)]
+mod mock;
+#[cfg(test)]
+mod tests;
 
 pub use pallet::*;
 
@@ -85,7 +90,10 @@ pub mod pallet {
     pub enum Error<T> {
         AuctionEndIsLessThanMinimumDuration,
         AssetIsNotExist,
+        ClassNotFound,
+        TokenInfoNotFound,
         NoPermissionToCreateAuction,
+        NotBounded,
         AssetAlreadyInAuction,
         AuctionTypeIsNotSupported,
         AuctionNotExist,
@@ -127,8 +135,8 @@ pub mod pallet {
             ensure!(auction_item.recipient != from, Error::<T>::SelfBidNotAccepted);
 
             let block_number = <frame_system::Pallet<T>>::block_number();
-            let auction = AuctionModule::<T>::auction_info(id).ok_or(Error::<T>::AuctionNotExist)?;
-            AuctionModule::<T>::bid(origin.clone(), id, value)?;
+            let auction = OrmlAuction::<T>::auction_info(id).ok_or(Error::<T>::AuctionNotExist)?;
+            OrmlAuction::<T>::bid(origin.clone(), id, value)?;
 
             Self::auction_bid_handler(block_number, id, (from.clone(), value), auction.bid.clone())?;
 
@@ -157,11 +165,11 @@ pub mod pallet {
                     //Get asset detail
                     let asset = NFTPallet::<T>::get_asset(asset_id).ok_or(Error::<T>::AssetIsNotExist)?;
                     //Check ownership
-                    let class_info = orml_nft::Pallet::<T>::classes(asset.0).ok_or(Error::<T>::NoPermissionToCreateAuction)?;
+                    let class_info = orml_nft::Pallet::<T>::classes(asset.0).ok_or(Error::<T>::ClassNotFound)?;
                     let class_info_data = class_info.data;
-                    let token_info = orml_nft::Pallet::<T>::tokens(asset.0, asset.1).ok_or(Error::<T>::NoPermissionToCreateAuction)?;
+                    let token_info = orml_nft::Pallet::<T>::tokens(asset.0, asset.1).ok_or(Error::<T>::TokenInfoNotFound)?;
                     ensure!(recipient == token_info.owner, Error::<T>::NoPermissionToCreateAuction);
-                    ensure!(!class_info_data.token_type.is_transferable(), Error::<T>::NoPermissionToCreateAuction);
+                    ensure!(!class_info_data.token_type.is_transferable(), Error::<T>::NotBounded);
                     ensure!(Self::assets_in_auction(asset_id) == None, Error::<T>::AssetAlreadyInAuction);
 
                     let start_time = <frame_system::Pallet<T>>::block_number();
@@ -170,7 +178,7 @@ pub mod pallet {
                     if let Some(_end_block) = _end {
                         end_time = _end_block
                     }
-                    let auction_id = AuctionModule::<T>::new_auction(start_time, Some(end_time))?;
+                    let auction_id = OrmlAuction::<T>::new_auction(start_time, Some(end_time))?;
 
                     let new_auction_item = AuctionItem {
                         item_id,
@@ -201,7 +209,7 @@ pub mod pallet {
         }
 
         fn remove_auction(id: T::AuctionId, item_id: ItemId<T::AssetId>) {
-            AuctionModule::<T>::remove_auction(id);
+            OrmlAuction::<T>::remove_auction(id);
     
             match item_id {
                 ItemId::NFT(asset_id) => {

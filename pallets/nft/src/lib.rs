@@ -232,6 +232,8 @@ pub mod pallet {
         NonTransferable,
         //Invalid quantity
         InvalidQuantity,
+        //exceeds quantity
+        QuantityExceeds,
         //No available asset id
         NoAvailableAssetId,
         //Asset Id is already exist
@@ -287,23 +289,28 @@ pub mod pallet {
             ensure!(quantity >= 1, Error::<T>::InvalidQuantity);
             let class_info = NftModule::<T>::classes(class_id).ok_or(Error::<T>::ClassIdNotFound)?;
             ensure!(sender == class_info.owner, Error::<T>::NoPermission);
-
+            
             let deposit = T::CreateAssetDeposit::get();
             let class_fund: T::AccountId = T::PalletId::get().into_sub_account(class_id);
             let total_deposit = deposit * Into::<BalanceOf<T>>::into(quantity);
+            
+            let data = class_info.data;
+            if data.token_type == TokenType::BoundToAddress {
+                ensure!(quantity < 2, Error::<T>::QuantityExceeds);
+            }
 
             <T as Config>::Currency::transfer(&sender, &class_fund, total_deposit, KeepAlive)?;
             <T as Config>::Currency::reserve(&class_fund, total_deposit)?;
-
+            
             let new_nft_data = AssetData {
                 deposit,
                 name: name.clone(),
                 description,
             };
-
+            
             let mut new_asset_ids: Vec<T::AssetId> = Vec::new();
             let mut last_token_id: TokenIdOf<T> = Default::default();
-
+            
             for _ in 0..quantity {
                 let asset_id = NextAssetId::<T>::try_mutate(|id| -> Result<T::AssetId, DispatchError> {
                     let current_id = *id;
@@ -333,41 +340,43 @@ pub mod pallet {
                 Assets::<T>::insert(asset_id, (class_id, token_id));
                 last_token_id = token_id;
 
-                let ads_slot = AdsSlot {
-                    start_time: <frame_system::Pallet<T>>::block_number(),
-                    end_time: <frame_system::Pallet<T>>::block_number(),
-                    deposit: Zero::zero(),
-                    media: Vec::new(),
-                };
-                AdsSlots::<T>::insert(asset_id, ads_slot);
-
-                // create fractional
-                <parami_assets::Pallet<T>>::create(
-                    origin.clone(),
-                    asset_id,
-                    <T::Lookup as StaticLookup>::unlookup(sender.clone()),
-                    MIN_BALANCE.into(),
-                )?;
-
-                // set metadata
-                <parami_assets::Pallet<T>>::set_metadata(
-                    origin.clone(),
-                    asset_id,
-                    name.clone(),
-                    symbol.clone(),
-                    18,
-                )?;
-
-                // initial supply
-                <parami_assets::Pallet<T>>::mint(
-                    origin.clone(),
-                    asset_id,
-                    <T::Lookup as StaticLookup>::unlookup(sender.clone()),
-                    100000000000000000000000000u128.into(),
-                )?;
-
-                log::info!("fractional_id => {:?}", asset_id);
-                log::info!("name => {:?}", name);
+                if data.token_type == TokenType::BoundToAddress {
+                    let ads_slot = AdsSlot {
+                        start_time: <frame_system::Pallet<T>>::block_number(),
+                        end_time: <frame_system::Pallet<T>>::block_number(),
+                        deposit: Zero::zero(),
+                        media: Vec::new(),
+                    };
+                    AdsSlots::<T>::insert(asset_id, ads_slot);
+    
+                    // create fractional
+                    <parami_assets::Pallet<T>>::create(
+                        origin.clone(),
+                        asset_id,
+                        <T::Lookup as StaticLookup>::unlookup(sender.clone()),
+                        MIN_BALANCE.into(),
+                    )?;
+    
+                    // set metadata
+                    <parami_assets::Pallet<T>>::set_metadata(
+                        origin.clone(),
+                        asset_id,
+                        name.clone(),
+                        symbol.clone(),
+                        18,
+                    )?;
+    
+                    // initial supply
+                    <parami_assets::Pallet<T>>::mint(
+                        origin.clone(),
+                        asset_id,
+                        <T::Lookup as StaticLookup>::unlookup(sender.clone()),
+                        100000000000000000000000000u128.into(),
+                    )?;
+    
+                    log::info!("fractional_id => {:?}", asset_id);
+                    log::info!("name => {:?}", name);
+                }
             }
 
             Self::deposit_event(Event::<T>::NewNftMinted(*new_asset_ids.first().unwrap(), *new_asset_ids.last().unwrap(), sender, class_id, quantity, last_token_id));
