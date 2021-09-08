@@ -25,6 +25,11 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = 
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false, optional = true }
 
 parami-did = { path = "../did", default-features = false }
+parami-assets = { path = "../assets", default-features = false }
+parami-nft = { path = "../nft", default-features = false }
+
+orml-traits = { path = "../../orml/traits", default-features = false }
+orml-nft = { path = "../../orml/nft", default-features = false }
 
 [dev-dependencies]
 sp-io = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev" }
@@ -48,6 +53,7 @@ std = [
     "pallet-staking/std",
     "pallet-timestamp/std",
     "parami-did/std",
+    "parami-nft/std",
     "num-traits/std",
 ]
 runtime-benchmarks = [

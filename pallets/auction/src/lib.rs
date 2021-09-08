@@ -39,6 +39,7 @@ pub mod pallet {
         frame_system::Config +
         parami_nft::Config +
         parami_assets::Config +
+        parami_ad::Config +
         orml_auction::Config
     {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;

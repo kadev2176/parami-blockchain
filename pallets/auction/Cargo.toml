@@ -27,6 +27,7 @@ pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = 
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false, optional = true }
 
 parami-assets = { path = "../assets", default-features = false }
+parami-ad = { path = "../ad", default-features = false }
 parami-nft = { path = "../nft", default-features = false }
 
 orml-nft = { path = "../../orml/nft", default-features = false }
@@ -48,6 +49,7 @@ std = [
     "frame-system/std",
     "pallet-timestamp/std",
     "parami-assets/std",
+    "parami-ad/std",
     "parami-nft/std",
 ]
 runtime-benchmarks = [
