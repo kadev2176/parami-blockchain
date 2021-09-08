@@ -8,8 +8,35 @@ use parami_nft::{TokenType, CollectionType};
 use orml_auction::Pallet as OrmlAuction;
 use orml_nft::Pallet as OrmlNft;
 use parami_assets::Pallet as Assets;
+use parami_did::Pallet as Did;
+use parami_ad::Pallet as AdsModule;
+use sp_runtime::PerU16;
 
-fn init_test_nft(owner: Origin) {
+fn init_test(owner: Origin, account: AccountId) {
+    // assert_ok!(NFTModule::<Runtime>::create_class(
+    //     owner.clone(),
+    //     vec![1],        
+    //     TokenType::BoundToAddress,
+    //     CollectionType::Collectable,
+    // ));
+
+    // assert_ok!(NFTModule::<Runtime>::mint(
+    //     owner.clone(),
+    //     CLASS_ID,
+    //     vec![1],
+    //     vec![1],
+    //     vec![1],
+    //     vec![1],
+    //     1
+    // ));
+    prepare_did_and_ads();
+}
+
+fn prepare_did_and_ads() {
+    let owner = Origin::signed(ALICE);
+    let bidder = Origin::signed(BOB);
+    let bidder_two = Origin::signed(DAVE);
+
     assert_ok!(NFTModule::<Runtime>::create_class(
         owner.clone(),
         vec![1],        
@@ -26,13 +53,42 @@ fn init_test_nft(owner: Origin) {
         vec![1],
         1
     ));
+
+    // transfer some nft fraction to bidders
+    assert_ok!(Assets::<Runtime>::transfer(owner.clone(), 0, BOB, 10000));
+    assert_ok!(Assets::<Runtime>::transfer(owner.clone(), 0, DAVE, 10000));
+    assert_eq!(Assets::<Runtime>::balance(0, ALICE), 10000);
+    assert_eq!(Assets::<Runtime>::balance(0, DAVE), 10000);
+    
+    assert_ok!(Did::<Runtime>::register(bidder.clone(), signer::<Runtime>(BOB), None));
+    assert_ok!(Did::<Runtime>::register(bidder_two.clone(), signer::<Runtime>(DAVE), None));
+
+    assert_ok!(AdsModule::<Runtime>::create_advertiser(bidder.clone(), 0, 1000));
+    assert_ok!(AdsModule::<Runtime>::create_ad(
+        bidder.clone(),
+        0,
+        BOB,
+        vec![(0, 1), (1, 2), (2, 3)],
+        PerU16::from_percent(50),
+        b"i am first bidder".to_vec()
+    ));
+
+    assert_ok!(AdsModule::<Runtime>::create_advertiser(bidder_two.clone(), 0, 1000));
+    assert_ok!(AdsModule::<Runtime>::create_ad(
+        bidder_two.clone(),
+        0,
+        DAVE,
+        vec![(0, 1), (1, 2), (2, 3)],
+        PerU16::from_percent(50),
+        b"i am first bidder".to_vec()
+    ));
 }
 
 #[test]
 fn create_new_auction_work() {
     ExtBuilder::default().build().execute_with(|| {
         let origin = Origin::signed(ALICE);
-        init_test_nft(origin.clone());
+        init_test(origin.clone(), ALICE);
 
         let nft_asset_data = OrmlNft::<Runtime>::tokens(CLASS_ID, TOKEN_ID);
         println!("nft data => {:?}", nft_asset_data);
@@ -119,7 +175,7 @@ fn create_auction_fail() {
 fn remove_auction_work() {
     ExtBuilder::default().build().execute_with(|| {
         let origin = Origin::signed(ALICE);
-        init_test_nft(origin.clone());
+        init_test(origin.clone(), ALICE);
         assert_ok!(AuctionPallet::create_new_auction(origin.clone(), ItemId::NFT(0), 50, 101));
 
         AuctionPallet::remove_auction(0, ItemId::NFT(0));
@@ -135,20 +191,11 @@ fn bid_works() {
         let owner = Origin::signed(BOB);
         let bidder = Origin::signed(ALICE);
 
-        init_test_nft(owner.clone());
-
-        // transfer asset to bidder
-        assert_ok!(Assets::<Runtime>::transfer(
-            owner.clone(),
-            0,
-            ALICE,
-            10000,
-        ));
-        assert_eq!(Assets::<Runtime>::balance(0, ALICE), 10000);
+        init_test(owner.clone(), BOB);
 
         assert_ok!(AuctionPallet::create_new_auction(owner.clone(), ItemId::NFT(0), 50, 101));
 
-        assert_ok!(AuctionPallet::bid(bidder, 0, 200));
+        assert_ok!(AuctionPallet::bid(bidder, 0, 200, 0));
         assert_eq!(last_event(), mock::Event::AuctionPallet(crate::Event::Bid(0, 0, ALICE, 200)));
 
         let pool_account = AuctionPallet::auction_pool_id(0);
@@ -162,7 +209,7 @@ fn cannot_bid_on_non_existent_auction() {
         let bidder = Origin::signed(ALICE);
 
         assert_noop!(
-            AuctionPallet::bid(bidder, 0, 100), 
+            AuctionPallet::bid(bidder, 0, 100, 0), 
             Error::<Runtime>::AuctionNotExist
         );
     });
@@ -174,7 +221,7 @@ fn cannot_bid_with_insufficient_funds() {
         let owner = Origin::signed(BOB);
         // let bidder = Origin::signed(ALICE);
 
-        init_test_nft(owner.clone());
+        init_test(owner.clone(), BOB);
 
         assert_ok!(AuctionPallet::create_new_auction(owner.clone(), ItemId::NFT(0), 50, 101));
 
@@ -189,12 +236,12 @@ fn cannot_bid_on_own_auction() {
     ExtBuilder::default().build().execute_with(|| {
         let owner = Origin::signed(ALICE);
 
-        init_test_nft(owner.clone());
+        init_test(owner.clone(), ALICE);
 
         assert_ok!(AuctionPallet::create_new_auction(owner.clone(), ItemId::NFT(0), 50, 101));
 
         assert_noop!(
-            AuctionPallet::bid(owner, 0, 50), 
+            AuctionPallet::bid(owner, 0, 50, 0), 
             Error::<Runtime>::SelfBidNotAccepted
         );
     });
@@ -206,7 +253,7 @@ fn ads_list_after_auction() {
         let owner = Origin::signed(BOB);
         let bidder = Origin::signed(ALICE);
 
-        init_test_nft(owner.clone());
+        init_test(owner.clone(), BOB);
 
         assert_ok!(Assets::<Runtime>::transfer(
             owner.clone(),
@@ -220,7 +267,7 @@ fn ads_list_after_auction() {
 
         assert_ok!(AuctionPallet::create_new_auction(owner.clone(), ItemId::NFT(0), 50, 101));
 
-        assert_ok!(AuctionPallet::bid(bidder, 0, 200));
+        assert_ok!(AuctionPallet::bid(bidder, 0, 200, 0));
         assert_eq!(last_event(), mock::Event::AuctionPallet(crate::Event::Bid(0, 0, ALICE, 200)));
 
         let pool_account = AuctionPallet::auction_pool_id(0);
@@ -229,14 +276,14 @@ fn ads_list_after_auction() {
         assert_ok!(Assets::<Runtime>::transfer(
             owner.clone(),
             0,
-            pool_account,
+            pool_account.clone(),
             1000,
         ));
         assert_eq!(Assets::<Runtime>::balance(0, pool_account), 1200);
 
         run_to_block(102);
 
-        let ads_slot = parami_nft::AdsSlot::<u64, u128, u64> {
+        let ads_slot = parami_nft::AdsSlot::<AccountId, u128, u64> {
             start_time: 101,
             end_time: 201,
             deposit: 200,
@@ -248,7 +295,7 @@ fn ads_list_after_auction() {
         // Auction Finalized
         assert_eq!(
             last_event(),
-            mock::Event::AuctionPallet(crate::Event::AuctionFinalized(0, 1, 200))
+            mock::Event::AuctionPallet(crate::Event::AuctionFinalized(0, ALICE, 200))
         );
     });
 }
@@ -259,13 +306,13 @@ fn cannot_bid_on_ended_auction() {
         let owner = Origin::signed(BOB);
         let bidder = Origin::signed(ALICE);
 
-        init_test_nft(owner.clone());
+        init_test(owner.clone(), BOB);
         assert_ok!(AuctionPallet::create_new_auction(owner.clone(), ItemId::NFT(0), 50, 101));
 
         System::set_block_number(101);
 
         assert_noop!(
-            AuctionPallet::bid(bidder, 0, 200), 
+            AuctionPallet::bid(bidder, 0, 200, 0), 
             orml_auction::Error::<Runtime>::AuctionIsExpired
         );
     });

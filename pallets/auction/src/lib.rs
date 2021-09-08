@@ -9,11 +9,13 @@ use frame_support::traits::tokens::fungibles::{Transfer};
 
 use orml_auction::Pallet as OrmlAuction;
 use parami_nft::Pallet as NFTModule;
+use parami_ad::Pallet as AdsModule;
 
 use frame_system::pallet_prelude::*;
 use orml_traits::{Auction, OnNewBidResult, AuctionHandler, AssetHandler, Change,};
 use primitives::{AuctionId, ItemId, AuctionItem, AuctionType, };
 use parami_nft::Pallet as NFTPallet;
+use parami_ad::{AdId, AdvertiserId, AdvertiserOf, AdvertisementOf};
 use sp_runtime::{traits::{AccountIdConversion, Zero},};
 
 pub mod weights;
@@ -71,6 +73,11 @@ pub mod pallet {
     pub(super) type AssetsInAuction<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, bool, OptionQuery>;
 
     #[pallet::storage]
+	#[pallet::getter(fn current_ads)]
+	pub type CurrentAds<T: Config> =
+		StorageMap<_, Twox64Concat, T::AuctionId, (AdvertiserId, AdId), OptionQuery>;
+
+    #[pallet::storage]
     #[pallet::getter(fn get_auction_item)]
     pub(super) type AuctionItems<T: Config> = StorageMap<_, Blake2_128Concat, T::AuctionId, AuctionItem<T::AccountId, T::BlockNumber, BalanceOfAsset<T>, T::AssetId>, OptionQuery>;
 
@@ -89,6 +96,7 @@ pub mod pallet {
         AuctionFinalized(T::AuctionId, T::AccountId, BalanceOfAsset<T>),
         AuctionFinalizedNoBid(T::AuctionId),
         AssetTransferFailed(T::AuctionId, T::AssetId),
+        UpdateSlotFailed(T::AuctionId, T::AssetId),
     }
 
     #[pallet::error]
@@ -97,6 +105,8 @@ pub mod pallet {
         AssetIsNotExist,
         ClassNotFound,
         TokenInfoNotFound,
+        BidderIsNotAdvertiser,
+        BidderHasNoAdvertisement,
         NoPermissionToCreateAuction,
         NotBounded,
         AssetAlreadyInAuction,
@@ -130,18 +140,25 @@ pub mod pallet {
         }
 
         #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
-        pub fn bid(origin: OriginFor<T>, id: T::AuctionId, value: BalanceOfAsset<T>) -> DispatchResultWithPostInfo {
+        pub fn bid(origin: OriginFor<T>, id: T::AuctionId, value: BalanceOfAsset<T>, ad_id: AdId) -> DispatchResultWithPostInfo {
             let from = ensure_signed(origin.clone())?;
 
             let auction_item: AuctionItem<T::AccountId, T::BlockNumber, BalanceOfAsset<T>, T::AssetId> = Self::get_auction_item(id.clone()).ok_or(Error::<T>::AuctionNotExist)?;
             ensure!(auction_item.auction_type == AuctionType::Auction, Error::<T>::InvalidAuctionType);
             ensure!(auction_item.recipient != from, Error::<T>::SelfBidNotAccepted);
 
+            // check bidder is an advertiser
+            let bidder_did = AdsModule::<T>::ensure_did(&from)?;
+            let advertiser = <parami_ad::Advertisers::<T>>::get(&bidder_did).ok_or(Error::<T>::BidderIsNotAdvertiser)?;
+            let _ads = <parami_ad::Advertisements::<T>>::get(advertiser.advertiser_id, ad_id).ok_or(Error::<T>::BidderHasNoAdvertisement)?;
+
             let block_number = <frame_system::Pallet<T>>::block_number();
             let auction = OrmlAuction::<T>::auction_info(id).ok_or(Error::<T>::AuctionNotExist)?;
             OrmlAuction::<T>::bid(origin.clone(), id, value)?;
 
-            Self::auction_bid_handler(block_number, id, (from.clone(), value), auction.bid.clone())?;
+            CurrentAds::<T>::insert(id, (advertiser.advertiser_id, ad_id));
+
+            Self::auction_bid_handler(block_number, id, (from.clone(), value), auction.bid.clone(), advertiser)?;
 
             Ok(().into())
         }
@@ -174,6 +191,8 @@ pub mod pallet {
                     ensure!(recipient == token_info.owner, Error::<T>::NoPermissionToCreateAuction);
                     ensure!(!class_info_data.token_type.is_transferable(), Error::<T>::NotBounded);
                     ensure!(Self::assets_in_auction(asset_id) == None, Error::<T>::AssetAlreadyInAuction);
+
+                    // check ads list is finished
 
                     let start_time = <frame_system::Pallet<T>>::block_number();
 
@@ -213,13 +232,6 @@ pub mod pallet {
 
         pub fn remove_auction(id: T::AuctionId, item_id: ItemId<T::AssetId>) {
             OrmlAuction::<T>::remove_auction(id);
-    
-            match item_id {
-                ItemId::NFT(asset_id) => {
-                    <AssetsInAuction<T>>::remove(asset_id);
-                }
-                _ => {}
-            }
         }
 
         fn auction_bid_handler(
@@ -227,6 +239,7 @@ pub mod pallet {
             id: T::AuctionId,
             new_bid: (T::AccountId, BalanceOfAsset<T>),
             last_bid: Option<(T::AccountId, BalanceOfAsset<T>)>,
+            advertiser: AdvertiserOf<T>,
         ) -> DispatchResult {
             let (new_bidder, new_bid_price) = new_bid;
             ensure!(!new_bid_price.is_zero(), Error::<T>::InvalidBidPrice);
@@ -240,14 +253,14 @@ pub mod pallet {
                 match auction_item.item_id {
                     ItemId::NFT(asset_id) => {
 
-                        let auction_pool_id = Self::auction_pool_id(asset_id);
+                        // let auction_pool_id = Self::auction_pool_id(asset_id);
 
                         if let Some(last_bidder) = last_bidder {
                             if !last_bid_price.is_zero() {
                                 // refund from pool to last bidder
                                 <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                                     asset_id,
-                                    &auction_pool_id,
+                                    &advertiser.reward_pool_account,
                                     &last_bidder,
                                     <T as parami_assets::Config>::Balance::from(
                                         last_bid_price.into()
@@ -260,11 +273,11 @@ pub mod pallet {
                         let new_bid_amount = <T as parami_assets::Config>::Balance::from(new_bid_price.into());
                         ensure!(<parami_assets::Pallet<T>>::balance(asset_id, &new_bidder) >= new_bid_amount, Error::<T>::InsufficientFunds);
 
-                        // transfer fund to auction pool
+                        // transfer fund to pool
                         <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                             asset_id,
                             &new_bidder,
-                            &auction_pool_id,
+                            &advertiser.reward_pool_account,
                             new_bid_amount,
                             true
                         )?;
@@ -297,6 +310,7 @@ pub mod pallet {
 
         fn on_auction_ended(auction_id: T::AuctionId, winner: Option<(T::AccountId, BalanceOfAsset<T>)>) {
             if let Some(auction_item) = <AuctionItems<T>>::get(&auction_id) {
+
                 Self::remove_auction(auction_id.clone(), auction_item.item_id);
 
                 if let Some(current_bid) = winner {
@@ -304,45 +318,53 @@ pub mod pallet {
                     
                     match auction_item.item_id {
                         ItemId::NFT(asset_id) => {
-                            let auction_pool_id = Self::auction_pool_id(asset_id);
+                            // let auction_pool_id = Self::auction_pool_id(asset_id);
 
                             <AssetsInAuction<T>>::remove(asset_id);
 
-                            // set ads slot
-                            let slot_update = NFTModule::<T>::update_ads_slot(
-                                &asset_id,
-                                auction_item.end_time,
-                                auction_item.end_time + T::AdsListDuration::get(),
-                                <T as parami_assets::Config>::Balance::from(
-                                    high_bid_price.into()
-                                ),
-                                b"https://www.baidu.com".to_vec(),
-                                high_bidder.clone(),
-                            );
-                            match slot_update {
-                                Err(_) => (),
-                                Ok(_) => ()
-                            }
-
-                            // transfer funds to pool
-                            let asset_transfer = <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
-                                asset_id.clone(),
-                                &auction_pool_id,
-                                &high_bidder,
-                                <T as parami_assets::Config>::Balance::from(
-                                    high_bid_price.into()
-                                ),
-                                true
-                            );
-
-                            match asset_transfer {
-                                Err(_) => {
-                                    Self::deposit_event(Event::AssetTransferFailed(auction_id.clone(), asset_id));
-                                },
-                                Ok(_) => {
-                                    Self::deposit_event(Event::AuctionFinalized(auction_id, high_bidder, high_bid_price));
+                            if let Some(current_ads) = <CurrentAds<T>>::get(&auction_id) {
+                                let (advertiser_id, ad_id) = current_ads;
+                                if let Some(ads) = <parami_ad::Advertisements::<T>>::get(advertiser_id, ad_id) {
+                                    // update ads slot
+                                    let slot_update = NFTModule::<T>::update_ads_slot(
+                                        &asset_id,
+                                        auction_item.end_time,
+                                        auction_item.end_time + T::AdsListDuration::get(),
+                                        <T as parami_assets::Config>::Balance::from(
+                                            high_bid_price.into()
+                                        ),
+                                        ads.metadata,
+                                        high_bidder.clone(),
+                                    );
+                                    match slot_update {
+                                        Err(_) => (),
+                                        Ok(_) => {
+                                            <CurrentAds::<T>>::remove(&auction_id);
+                                            Self::deposit_event(Event::AuctionFinalized(auction_id, high_bidder, high_bid_price));
+                                        }
+                                    }
                                 }
                             }
+                            
+                            // transfer funds to pool
+                            // let asset_transfer = <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
+                            //     asset_id.clone(),
+                            //     &bidder_advertiser.reward_pool_account,
+                            //     &high_bidder,
+                            //     <T as parami_assets::Config>::Balance::from(
+                            //         high_bid_price.into()
+                            //     ),
+                            //     true
+                            // );
+
+                            // match asset_transfer {
+                            //     Err(_) => {
+                            //         Self::deposit_event(Event::AssetTransferFailed(auction_id.clone(), asset_id));
+                            //     },
+                            //     Ok(_) => {
+                            //         Self::deposit_event(Event::AuctionFinalized(auction_id, high_bidder, high_bid_price));
+                            //     }
+                            // }
                         }
                         _ => {}
                     }

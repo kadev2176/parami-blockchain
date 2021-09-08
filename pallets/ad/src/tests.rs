@@ -93,7 +93,8 @@ fn create_ad_should_work() {
 			0,
 			ALICE,
 			vec![(0, 1), (1, 2), (2, 3)],
-			PerU16::from_percent(50)
+			PerU16::from_percent(50),
+			b"ads metadata".to_vec()
 		));
 
 		// let advertiser = Advertisers::<Runtime>::get(d!(ALICE)).unwrap();
@@ -123,12 +124,13 @@ fn create_ad_should_fail() {
 				0,
 				ALICE,
 				vec![(0, 1), (1, 2), (2, 3), (4, 4)],
-				PerU16::from_percent(50)
+				PerU16::from_percent(50),
+				b"ads metadata".to_vec()
 			),
 			Error::<Runtime>::InvalidTagCoefficientCount
 		);
 		assert_noop!(
-			Ad::create_ad(origin.clone(), 0, ALICE, vec![], PerU16::from_percent(50)),
+			Ad::create_ad(origin.clone(), 0, ALICE, vec![], PerU16::from_percent(50), b"ads metadata".to_vec()),
 			Error::<Runtime>::InvalidTagCoefficientCount
 		);
 		assert_noop!(
@@ -137,7 +139,8 @@ fn create_ad_should_fail() {
 				0,
 				ALICE,
 				vec![(0, 1), (1, 2), (2, 3)],
-				PerU16::from_percent(50)
+				PerU16::from_percent(50),
+				b"ads metadata".to_vec()
 			),
 			Error::<Runtime>::DIDNotExists
 		);
@@ -147,7 +150,8 @@ fn create_ad_should_fail() {
 				0,
 				ALICE,
 				vec![(0, 1), (200, 2), (2, 3)],
-				PerU16::from_percent(50)
+				PerU16::from_percent(50),
+				b"ads metadata".to_vec()
 			),
 			Error::<Runtime>::InvalidTagType
 		);
@@ -157,7 +161,8 @@ fn create_ad_should_fail() {
 				0,
 				ALICE,
 				vec![(0, 1), (1, 2), (1, 3)],
-				PerU16::from_percent(50)
+				PerU16::from_percent(50),
+				b"ads metadata".to_vec()
 			),
 			Error::<Runtime>::DuplicatedTagType
 		);
@@ -169,7 +174,8 @@ fn create_ad_should_fail() {
 				0,
 				ALICE,
 				vec![(0, 1), (1, 2), (2, 3)],
-				PerU16::from_percent(50)
+				PerU16::from_percent(50),
+				b"ads metadata".to_vec()
 			),
 			Error::<Runtime>::AdvertiserNotExists
 		);
@@ -202,7 +208,8 @@ fn ad_payout_should_work() {
 			0,
 			signer.clone(),
 			vec![(0, 1), (1, 2), (2, 3)],
-			PerU16::from_percent(50)
+			PerU16::from_percent(50),
+			b"ads metadata".to_vec()
 		));
 
 		assert_ok!(Ad::ad_payout(
@@ -247,7 +254,8 @@ fn payout_should_work() {
 			0,
 			signer.clone(),
 			vec![(0, 1), (1, 2), (2, 3)],
-			PerU16::from_percent(50)
+			PerU16::from_percent(50),
+			b"ads metadata".to_vec()
 		));
 
 		pallet_timestamp::Now::<Runtime>::put(ADVERTISER_PAYMENT_WINDOW + 1);

@@ -310,6 +310,7 @@ pub mod pallet {
 			signer: T::AccountId,
 			tag_coefficients: Vec<(TagType, TagCoefficient)>,
 			media_reward_rate: PerU16,
+			metadata: Vec<u8>,
 		) -> DispatchResultWithPostInfo {
 			let who: T::AccountId = ensure_signed(origin)?;
 
@@ -350,6 +351,7 @@ pub mod pallet {
 				tag_coefficients,
 				signer,
 				media_reward_rate,
+				metadata,
 			};
 			Advertisements::<T>::insert(advertiser.advertiser_id, ad_id, ad);
 			Self::deposit_event(Event::CreatedAd(did, advertiser.advertiser_id, ad_id));
@@ -521,7 +523,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	fn ensure_did(who: &T::AccountId) -> ResultPost<DidMethodSpecId> {
+	pub fn ensure_did(who: &T::AccountId) -> ResultPost<DidMethodSpecId> {
 		let did: Option<DidMethodSpecId> = parami_did::Pallet::<T>::lookup_account(who.clone());
 		ensure!(did.is_some(), Error::<T>::DIDNotExists);
 		Ok(did.expect("Must be Some"))
@@ -533,7 +535,7 @@ impl<T: Config> Pallet<T> {
 		Ok(who.expect("Must be Some"))
 	}
 
-	fn ad_accounts(id: AdvertiserId) -> (T::AccountId, T::AccountId) {
+	pub fn ad_accounts(id: AdvertiserId) -> (T::AccountId, T::AccountId) {
 		let deposit = PalletId(*b"prm/ad/d");
 		let reward_pool = PalletId(*b"prm/ad/r");
 		(deposit.into_sub_account(id), reward_pool.into_sub_account(id))

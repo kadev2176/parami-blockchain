@@ -25,10 +25,15 @@ frame-system = { git = "https://github.com/paritytech/substrate", version = "4.0
 pallet-balances = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false, optional = true }
+pallet-staking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
+frame-election-provider-support = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
+pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
+pallet-session = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
 
 parami-assets = { path = "../assets", default-features = false }
 parami-ad = { path = "../ad", default-features = false }
 parami-nft = { path = "../nft", default-features = false }
+parami-did = { path = "../did", default-features = false }
 
 orml-nft = { path = "../../orml/nft", default-features = false }
 orml-auction = { path = "../../orml/auction", default-features = false }

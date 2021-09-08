@@ -40,6 +40,7 @@ pub struct Advertisement<Moment, AccountId> {
 	/// a part of ad reward will be sent to media DID.
 	#[codec(compact)]
 	pub media_reward_rate: PerU16,
+	pub metadata: Vec<u8>,
 }
 
 pub struct TagScoreDefault<T>(PhantomData<T>);
