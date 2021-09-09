@@ -15,7 +15,7 @@ use frame_system::pallet_prelude::*;
 use orml_traits::{Auction, OnNewBidResult, AuctionHandler, AssetHandler, Change,};
 use primitives::{AuctionId, ItemId, AuctionItem, AuctionType, };
 use parami_nft::Pallet as NFTPallet;
-use parami_ad::{AdId, AdvertiserId, AdvertiserOf, AdvertisementOf};
+use parami_ad::{AdId, AdvertiserId, AdvertiserOf,};
 use sp_runtime::{traits::{AccountIdConversion, Zero},};
 
 pub mod weights;
@@ -107,12 +107,15 @@ pub mod pallet {
         TokenInfoNotFound,
         BidderIsNotAdvertiser,
         BidderHasNoAdvertisement,
+        AdsSlotNotExists,
+        AdsIsListing,
         NoPermissionToCreateAuction,
         NotBounded,
         AssetAlreadyInAuction,
         AuctionTypeIsNotSupported,
         AuctionNotExist,
         InvalidAuctionType,
+        ValueLessThanInitialAmount,
         SelfBidNotAccepted,
         InvalidBidPrice,
         BidNotAccepted,
@@ -146,6 +149,7 @@ pub mod pallet {
             let auction_item: AuctionItem<T::AccountId, T::BlockNumber, BalanceOfAsset<T>, T::AssetId> = Self::get_auction_item(id.clone()).ok_or(Error::<T>::AuctionNotExist)?;
             ensure!(auction_item.auction_type == AuctionType::Auction, Error::<T>::InvalidAuctionType);
             ensure!(auction_item.recipient != from, Error::<T>::SelfBidNotAccepted);
+            ensure!(value > auction_item.initial_amount, Error::<T>::ValueLessThanInitialAmount);
 
             // check bidder is an advertiser
             let bidder_did = AdsModule::<T>::ensure_did(&from)?;
@@ -192,9 +196,11 @@ pub mod pallet {
                     ensure!(!class_info_data.token_type.is_transferable(), Error::<T>::NotBounded);
                     ensure!(Self::assets_in_auction(asset_id) == None, Error::<T>::AssetAlreadyInAuction);
 
-                    // check ads list is finished
-
                     let start_time = <frame_system::Pallet<T>>::block_number();
+
+                    // check ads list is finished
+                    let ads_slot = NFTPallet::<T>::get_ads_slot(asset_id).ok_or(Error::<T>::AdsSlotNotExists)?;
+                    ensure!(start_time > ads_slot.end_time, Error::<T>::AdsIsListing);
 
                     let mut end_time = start_time + T::AuctionTimeToClose::get();
                     if let Some(_end_block) = _end {
@@ -205,7 +211,7 @@ pub mod pallet {
                     let new_auction_item = AuctionItem {
                         item_id,
                         recipient: recipient.clone(),
-                        initial_amount: initial_amount,
+                        initial_amount,
                         amount: initial_amount,
                         start_time,
                         end_time,
@@ -232,6 +238,15 @@ pub mod pallet {
 
         pub fn remove_auction(id: T::AuctionId, item_id: ItemId<T::AssetId>) {
             OrmlAuction::<T>::remove_auction(id);
+
+            <CurrentAds::<T>>::remove(id);
+
+            match item_id {
+                ItemId::NFT(asset_id) => {
+                    <AssetsInAuction<T>>::remove(asset_id);
+                }
+                _ => {}
+            }
         }
 
         fn auction_bid_handler(
@@ -258,9 +273,13 @@ pub mod pallet {
                         if let Some(last_bidder) = last_bidder {
                             if !last_bid_price.is_zero() {
                                 // refund from pool to last bidder
+                                 // last advertiser
+                                let last_bidder_did = AdsModule::<T>::ensure_did(&last_bidder).unwrap();
+                                let last_advertiser = <parami_ad::Advertisers::<T>>::get(&last_bidder_did).unwrap();
+                                
                                 <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                                     asset_id,
-                                    &advertiser.reward_pool_account,
+                                    &last_advertiser.reward_pool_account,
                                     &last_bidder,
                                     <T as parami_assets::Config>::Balance::from(
                                         last_bid_price.into()
@@ -311,8 +330,6 @@ pub mod pallet {
         fn on_auction_ended(auction_id: T::AuctionId, winner: Option<(T::AccountId, BalanceOfAsset<T>)>) {
             if let Some(auction_item) = <AuctionItems<T>>::get(&auction_id) {
 
-                Self::remove_auction(auction_id.clone(), auction_item.item_id);
-
                 if let Some(current_bid) = winner {
                     let (high_bidder, high_bid_price): (T::AccountId, BalanceOfAsset<T>) = current_bid;
                     
@@ -320,7 +337,7 @@ pub mod pallet {
                         ItemId::NFT(asset_id) => {
                             // let auction_pool_id = Self::auction_pool_id(asset_id);
 
-                            <AssetsInAuction<T>>::remove(asset_id);
+                            // <AssetsInAuction<T>>::remove(asset_id);
 
                             if let Some(current_ads) = <CurrentAds<T>>::get(&auction_id) {
                                 let (advertiser_id, ad_id) = current_ads;
@@ -339,7 +356,7 @@ pub mod pallet {
                                     match slot_update {
                                         Err(_) => (),
                                         Ok(_) => {
-                                            <CurrentAds::<T>>::remove(&auction_id);
+                                            Self::remove_auction(auction_id.clone(), auction_item.item_id);
                                             Self::deposit_event(Event::AuctionFinalized(auction_id, high_bidder, high_bid_price));
                                         }
                                     }

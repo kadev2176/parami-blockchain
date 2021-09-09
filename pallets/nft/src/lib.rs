@@ -343,8 +343,8 @@ pub mod pallet {
 
                 if data.token_type == TokenType::BoundToAddress {
                     let ads_slot = AdsSlot {
-                        start_time: <frame_system::Pallet<T>>::block_number(),
-                        end_time: <frame_system::Pallet<T>>::block_number(),
+                        start_time: Zero::zero(),
+                        end_time: Zero::zero(),
                         deposit: Zero::zero(),
                         media: Vec::new(),
                         owner: Default::default(),
