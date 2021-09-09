@@ -40,6 +40,7 @@ pub struct Advertisement<Moment, AccountId> {
 	/// a part of ad reward will be sent to media DID.
 	#[codec(compact)]
 	pub media_reward_rate: PerU16,
+	pub metadata: Vec<u8>,
 }
 
 pub struct TagScoreDefault<T>(PhantomData<T>);
@@ -60,6 +61,7 @@ pub type AdvertisementOf<T> =
 	Advertisement<<T as pallet_timestamp::Config>::Moment, <T as frame_system::Config>::AccountId>;
 pub type BalanceOf<T> =
 	<<T as pallet::Config>::Currency as Currency<<T as frame_system::Config>::AccountId>>::Balance;
+pub type BalanceOfAsset<T> = <T as parami_assets::Config>::Balance;
 pub type ResultPost<T> = sp_std::result::Result<T, DispatchErrorWithPostInfo<PostDispatchInfo>>;
 pub type TagType = u8;
 pub type TagScore = i8;

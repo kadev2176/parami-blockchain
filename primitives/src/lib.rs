@@ -17,13 +17,16 @@
 
 //! Low-level types used throughout the Substrate code.
 
-#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
+use codec::{Decode, Encode, MaxEncodedLen};
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, OpaqueExtrinsic,
+    MultiSignature, OpaqueExtrinsic, RuntimeDebug,
 };
 
 /// An index to a block.
@@ -68,6 +71,9 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
 
+/// Token ID
+pub type TokenId = u64;
+
 /// App-specific crypto used for reporting equivocation/misbehavior in BABE and
 /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this
 /// account.
@@ -99,3 +105,122 @@ pub mod report {
         type GenericPublic = sp_core::sr25519::Public;
     }
 }
+
+/// Country ID
+pub type CountryId = u64;
+/// Auction ID
+pub type AuctionId = u64;
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum AuctionType {
+    Auction,
+    BuyNow,
+}
+
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Clone, RuntimeDebug)]
+pub struct AuctionInfo<AccountId, Balance, BlockNumber> {
+    /// Current bidder and bid price.
+    pub bid: Option<(AccountId, Balance)>,
+    /// Define which block this auction will be started.
+    pub start: BlockNumber,
+    /// Define which block this auction will be ended.
+    pub end: Option<BlockNumber>,
+}
+
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Clone, RuntimeDebug)]
+pub struct AuctionItem<AccountId, BlockNumber, Balance, AssetId> {
+    pub item_id: ItemId<AssetId>,
+    pub recipient: AccountId,
+    pub initial_amount: Balance,
+    pub amount: Balance,
+    pub start_time: BlockNumber,
+    pub end_time: BlockNumber,
+    pub auction_type: AuctionType,
+}
+
+/// Public item id for auction
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum ItemId<AssetId> {
+    NFT(AssetId),
+    Block(u64),
+}
+
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum SocialTokenCurrencyId {
+    NativeToken(TokenId),
+    SocialToken(TokenId),
+    DEXShare(TokenId, TokenId),
+    MiningResource(TokenId),
+}
+
+impl SocialTokenCurrencyId {
+    pub fn is_native_token_currency_id(&self) -> bool {
+        matches!(self, SocialTokenCurrencyId::NativeToken(_))
+    }
+
+    pub fn is_social_token_currency_id(&self) -> bool {
+        matches!(self, SocialTokenCurrencyId::SocialToken(_))
+    }
+
+    pub fn is_dex_share_social_token_currency_id(&self) -> bool {
+        matches!(self, SocialTokenCurrencyId::DEXShare(_, _))
+    }
+
+    pub fn is_mining_resource_currency(&self) -> bool {
+        matches!(self, SocialTokenCurrencyId::MiningResource(_))
+    }
+
+    pub fn split_dex_share_social_token_currency_id(&self) -> Option<(Self, Self)> {
+        match self {
+            SocialTokenCurrencyId::DEXShare(token_currency_id_0, token_currency_id_1) => {
+                Some((SocialTokenCurrencyId::NativeToken(*token_currency_id_0), SocialTokenCurrencyId::SocialToken(*token_currency_id_1)))
+            }
+            _ => None,
+        }
+    }
+
+    pub fn join_dex_share_social_currency_id(currency_id_0: Self, currency_id_1: Self) -> Option<Self> {
+        match (currency_id_0, currency_id_1) {
+            (SocialTokenCurrencyId::NativeToken(token_currency_id_0), SocialTokenCurrencyId::SocialToken(token_currency_id_1)) => {
+                Some(SocialTokenCurrencyId::DEXShare(token_currency_id_0, token_currency_id_1))
+            }
+            (SocialTokenCurrencyId::SocialToken(token_currency_id_0), SocialTokenCurrencyId::NativeToken(token_currency_id_1)) => {
+                Some(SocialTokenCurrencyId::DEXShare(token_currency_id_1, token_currency_id_0))
+            }
+            _ => None,
+        }
+    }
+}
+
+/// GroupCollection Id
+pub type GroupCollectionId = u64;
+/// Asset Id
+pub type AssetId = u64;
+
+#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, MaxEncodedLen)]
+#[repr(u8)]
+pub enum ReserveIdentifier {
+    /// collator selection
+	CollatorSelection,
+    /// evm storage deposit
+	EvmStorageDeposit,
+    /// evm developer deposit
+	EvmDeveloperDeposit,
+    /// honzon
+	Honzon,
+    /// nft
+	Nft,
+    /// Transaction Payment
+	TransactionPayment,
+
+	// always the last, indicate number of variants
+	Count,
+}
+/// nft balance
+pub type NFTBalance = u128;
+

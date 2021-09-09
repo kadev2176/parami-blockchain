@@ -1,18 +1,21 @@
 [package]
-name = "parami-ad"
-version = "0.2.0"
+name = "parami-auction"
+version = "0.1.0"
 authors = ["Parami Team <info@parami.io>"]
 edition = "2018"
 
 [dependencies]
 # third-party dependencies
-codec = { package = "parity-scale-codec", version = "2.2.0", default-features = false, features = ["derive", "max-encoded-len"] }
-serde = { version = "1.0.111", optional = true }
-num-traits = { version = "0.2.8", default-features = false }
+codec = { package = "parity-scale-codec", version = "2.0.0", default-features = false, features = ["derive"] }
+serde = { version = "1.0.102", optional = true }
+log = { version = "0.4.14", default-features = false }
+enumflags2 = { version = "0.6.4" }
 
 # primitives
-parami-primitives = { version = "2.0.0", path = "../../primitives", default-features = false }
+primitives = { version = "2.0.0", path = "../../primitives", package="parami-primitives", default-features = false }
 sp-core = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
+sp-io = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
+sp-keyring = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", optional = true }
 sp-runtime = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 sp-std = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 
@@ -20,44 +23,44 @@ sp-std = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev
 frame-support = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 frame-system = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 pallet-balances = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-pallet-staking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
 frame-benchmarking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false, optional = true }
 
-parami-did = { path = "../did", default-features = false }
 parami-assets = { path = "../assets", default-features = false }
+parami-ad = { path = "../ad", default-features = false }
 parami-nft = { path = "../nft", default-features = false }
+parami-did = { path = "../did", default-features = false }
 
-orml-traits = { path = "../../orml/traits", default-features = false }
 orml-nft = { path = "../../orml/nft", default-features = false }
+orml-auction = { path = "../../orml/auction", default-features = false }
+orml-traits = { path = "../../orml/traits", default-features = false }
 
 [dev-dependencies]
-sp-io = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev" }
-pallet-utility = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
-pallet-proxy = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
 frame-election-provider-support = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
 pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
 pallet-session = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
+pallet-staking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev" }
 
 [features]
 default = ["std"]
 std = [
     "codec/std",
     "serde",
+    "log/std",
     "pallet-balances/std",
+    "sp-keyring",
     "sp-core/std",
     "sp-std/std",
     "sp-runtime/std",
     "frame-support/std",
     "frame-system/std",
-    "pallet-staking/std",
     "pallet-timestamp/std",
-    "parami-did/std",
+    "parami-assets/std",
+    "parami-ad/std",
     "parami-nft/std",
-    "num-traits/std",
 ]
 runtime-benchmarks = [
-    "frame-benchmarking",
-    "frame-system/runtime-benchmarks",
-    "frame-support/runtime-benchmarks",
+   "frame-benchmarking",
+   "frame-system/runtime-benchmarks",
+   "frame-support/runtime-benchmarks",
 ]

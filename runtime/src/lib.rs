@@ -94,6 +94,8 @@ pub mod constants;
 use constants::{currency::*, time::*};
 use sp_runtime::generic::Era;
 
+use parami_nft;
+
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -456,15 +458,50 @@ impl parami_cross_assets::Config for Runtime {
     type NativeTokenId = NativeTokenId;
 }
 
-/*
+parameter_types! {
+    pub CreateClassDeposit: Balance = 500 * CENTS;
+    pub CreateAssetDeposit: Balance = 100 * CENTS;
+}
+
+impl parami_nft::Config for Runtime {
+    type Event = Event;
+    type CreateClassDeposit = CreateClassDeposit;
+    type CreateAssetDeposit = CreateAssetDeposit;
+    type Currency = Balances;
+    type PalletId = NftPalletId;
+    type AssetsHandler = Auction;
+    type WeightInfo = parami_nft::weights::SubstrateWeight<Runtime>;
+}
+
 impl orml_nft::Config for Runtime {
     type ClassId = u32;
     type TokenId = u64;
-    // TODO: fill Class metadata and Token metadata
-    type ClassData = ();
-    type TokenData = ();
+    type ClassData = parami_nft::ClassData<Balance>;
+    type TokenData = parami_nft::AssetData<Balance>;
 }
- */
+
+parameter_types! {
+    pub const MinimumAuctionDuration: BlockNumber = 300; // 300 blocks
+    pub const AuctionTimeToClose: u32 = 100800; // Default 100800 Blocks
+    pub const AdsListDuration: u32 = 100800;
+}
+
+impl parami_auction::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type MinimumAuctionDuration = MinimumAuctionDuration;
+    type Handler = Auction;
+    type AuctionTimeToClose = AuctionTimeToClose;
+    type AdsListDuration = AdsListDuration;
+}
+
+impl orml_auction::Config for Runtime {
+    type Event = Event;
+    type Balance = <Self as parami_assets::Config>::Balance;
+    type AuctionId = u64;
+    type Handler = Auction;
+    type WeightInfo = ();
+}
 
 parameter_types! {
     // NOTE: minimum balance is 1 cent, 0.01 dollar
@@ -859,6 +896,7 @@ parameter_types! {
     pub const BountyCuratorDeposit: Permill = Permill::from_percent(50);
     pub const BountyValueMinimum: Balance = 5 * DOLLARS;
     pub const MaxApprovals: u32 = 100;
+    pub const NftPalletId: PalletId = PalletId(*b"par/pnft");
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -1182,23 +1220,6 @@ parameter_types! {
 	pub const MetadataDepositPerByte: Balance = 1 * DOLLARS;
 }
 
-// impl pallet_assets::Config for Runtime {
-//     type Event = Event;
-//     type Balance = u128;
-//     type AssetId = u32;
-//     type Currency = Balances;
-//     type ForceOrigin = EnsureRoot<AccountId>;
-//     type AssetDeposit = AssetDeposit;
-//     type MetadataDepositBase = MetadataDepositBase;
-//     type MetadataDepositPerByte = MetadataDepositPerByte;
-//     type ApprovalDeposit = ApprovalDeposit;
-//     type StringLimit = StringLimit;
-//     type Freezer = ();
-//     type Extra = ();
-
-//     type WeightInfo = parami_assets::weights::SubstrateWeight<Runtime>;
-
-// }
 impl parami_assets::Config for Runtime {
     type Event = Event;
     type Balance = u128;
@@ -1272,24 +1293,17 @@ construct_runtime!(
         Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>},
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Pallet, Storage},
-
-
         // borrowed from pallet-assets
         //  Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
-
-
-          Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
-
-
+        Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},
-
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
-
-       //
-       // OrmlNft: orml_nft::{Pallet, Storage} = 100,
-
+        OrmlNft: orml_nft::{Pallet, Storage} = 100,
+        OrmlAuction: orml_auction::{Pallet, Storage, Event<T>},
+        Auction: parami_auction::{Pallet, Call, Storage, Event<T>},
+        Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Ad: parami_ad::{Pallet, Call, Config<T>, Storage, Event<T>},
         Bridge: parami_bridge::{Pallet, Storage, Call, Event<T>}
     }

@@ -95,8 +95,9 @@ pub fn calc_reward<T: Config>(
 	Ok((reward_media.saturating_add(reward_user), reward_media, reward_user))
 }
 
-pub fn free_balance<T: Config>(who: &T::AccountId) -> BalanceOf<T> {
-	<T as Config>::Currency::free_balance(who)
+pub fn free_balance<T: Config>(asset_id: T::AssetId, who: T::AccountId) -> BalanceOfAsset<T> {
+	<parami_assets::Pallet<T>>::balance(asset_id, who)
+	// <T as Config>::Currency::free_balance(who)
 }
 
 pub fn staked_balance_by_controller<T: Config>(controller: &T::AccountId) -> Balance {
