@@ -22,7 +22,7 @@
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
-use codec::{Decode, Encode, MaxEncodedLen};
+use codec::{Decode, Encode,};
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
@@ -149,78 +149,5 @@ pub enum ItemId<AssetId> {
     Block(u64),
 }
 
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum SocialTokenCurrencyId {
-    NativeToken(TokenId),
-    SocialToken(TokenId),
-    DEXShare(TokenId, TokenId),
-    MiningResource(TokenId),
-}
-
-impl SocialTokenCurrencyId {
-    pub fn is_native_token_currency_id(&self) -> bool {
-        matches!(self, SocialTokenCurrencyId::NativeToken(_))
-    }
-
-    pub fn is_social_token_currency_id(&self) -> bool {
-        matches!(self, SocialTokenCurrencyId::SocialToken(_))
-    }
-
-    pub fn is_dex_share_social_token_currency_id(&self) -> bool {
-        matches!(self, SocialTokenCurrencyId::DEXShare(_, _))
-    }
-
-    pub fn is_mining_resource_currency(&self) -> bool {
-        matches!(self, SocialTokenCurrencyId::MiningResource(_))
-    }
-
-    pub fn split_dex_share_social_token_currency_id(&self) -> Option<(Self, Self)> {
-        match self {
-            SocialTokenCurrencyId::DEXShare(token_currency_id_0, token_currency_id_1) => {
-                Some((SocialTokenCurrencyId::NativeToken(*token_currency_id_0), SocialTokenCurrencyId::SocialToken(*token_currency_id_1)))
-            }
-            _ => None,
-        }
-    }
-
-    pub fn join_dex_share_social_currency_id(currency_id_0: Self, currency_id_1: Self) -> Option<Self> {
-        match (currency_id_0, currency_id_1) {
-            (SocialTokenCurrencyId::NativeToken(token_currency_id_0), SocialTokenCurrencyId::SocialToken(token_currency_id_1)) => {
-                Some(SocialTokenCurrencyId::DEXShare(token_currency_id_0, token_currency_id_1))
-            }
-            (SocialTokenCurrencyId::SocialToken(token_currency_id_0), SocialTokenCurrencyId::NativeToken(token_currency_id_1)) => {
-                Some(SocialTokenCurrencyId::DEXShare(token_currency_id_1, token_currency_id_0))
-            }
-            _ => None,
-        }
-    }
-}
-
-/// GroupCollection Id
-pub type GroupCollectionId = u64;
 /// Asset Id
 pub type AssetId = u64;
-
-#[derive(Encode, Decode, Eq, PartialEq, Copy, Clone, RuntimeDebug, PartialOrd, Ord, MaxEncodedLen)]
-#[repr(u8)]
-pub enum ReserveIdentifier {
-    /// collator selection
-	CollatorSelection,
-    /// evm storage deposit
-	EvmStorageDeposit,
-    /// evm developer deposit
-	EvmDeveloperDeposit,
-    /// honzon
-	Honzon,
-    /// nft
-	Nft,
-    /// Transaction Payment
-	TransactionPayment,
-
-	// always the last, indicate number of variants
-	Count,
-}
-/// nft balance
-pub type NFTBalance = u128;
-

@@ -36,7 +36,7 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_support::{traits::InstanceFilter, PalletId};
-use frame_system::{limits::{BlockLength, BlockWeights}, EnsureOneOf, EnsureRoot, Config};
+use frame_system::{limits::{BlockLength, BlockWeights}, EnsureOneOf, EnsureRoot};
 use pallet_contracts::weights::WeightInfo;
 use pallet_election_provider_multi_phase::FallbackStrategy;
 use pallet_grandpa::fg_primitives;
