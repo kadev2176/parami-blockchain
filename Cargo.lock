@@ -5210,6 +5210,7 @@ dependencies = [
  "parami-bridge",
  "parami-cross-assets",
  "parami-did",
+ "parami-magic-link",
  "parami-nft",
  "parami-primitives",
  "parami-swap",

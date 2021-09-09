@@ -36,10 +36,7 @@ use frame_support::{
     RuntimeDebug,
 };
 use frame_support::{traits::InstanceFilter, PalletId};
-use frame_system::{
-    limits::{BlockLength, BlockWeights},
-    EnsureOneOf, EnsureRoot,
-};
+use frame_system::{limits::{BlockLength, BlockWeights}, EnsureOneOf, EnsureRoot, Config};
 use pallet_contracts::weights::WeightInfo;
 use pallet_election_provider_multi_phase::FallbackStrategy;
 use pallet_grandpa::fg_primitives;
@@ -613,6 +610,7 @@ parameter_types! {
 }
 
 use frame_election_provider_support::onchain;
+
 impl pallet_staking::Config for Runtime {
     const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
     type Currency = Balances;
@@ -1252,6 +1250,13 @@ impl parami_ad::Config for Runtime {
     type ConfigOrigin = EnsureRootOrHalfCouncil;
 }
 
+impl parami_magic_link::Config for Runtime{
+    type Event = Event;
+    type Currency = Balances;
+    type ConfigOrigin = EnsureRootOrHalfCouncil;
+    type Call = Call;
+}
+
 construct_runtime!(
     pub enum Runtime where
         Block = Block,
@@ -1294,8 +1299,8 @@ construct_runtime!(
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
         Mmr: pallet_mmr::{Pallet, Storage},
         // borrowed from pallet-assets
-        //  Assets: pallet_assets::{Pallet, Call, Storage,Event<T>},
         Assets: parami_assets::{Pallet, Call, Storage,Event<T>},
+        Magic: parami_magic_link::{Pallet, Call, Storage,Event<T>},
         Airdrop: parami_airdrop::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: chainbridge::{Pallet, Call, Storage, Event<T>},
         CrossAssets: parami_cross_assets::{Pallet, Call, Event<T>},

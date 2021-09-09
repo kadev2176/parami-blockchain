@@ -98,6 +98,7 @@ parami-assets = { path = "../pallets/assets", default-features = false }
 parami-nft = { path = "../pallets/nft", default-features = false }
 parami-auction = { path = "../pallets/auction", default-features = false }
 parami-swap = { path = "../pallets/swap", default-features = false }
+parami-magic-link = { path = "../pallets/magic-link", default-features = false }
 
 parami-ad = { path = "../pallets/ad", default-features = false }
 parami-bridge = { package = "parami-bridge", path = "../pallets/bridge", default-features = false }
@@ -181,7 +182,8 @@ std = [
     "parami-ad/std",
     "parami-bridge/std",
     "parami-nft/std",
-    "parami-auction/std"
+    "parami-auction/std",
+    "parami-magic-link/std"
 ]
 runtime-benchmarks = [
     "frame-benchmarking",
