@@ -8,8 +8,8 @@ use frame_support::{
 use frame_support::traits::tokens::fungibles::{Transfer};
 
 use orml_auction::Pallet as OrmlAuction;
-use parami_nft::Pallet as NFTModule;
-use parami_ad::Pallet as AdsModule;
+use parami_nft::Pallet as NftPallet;
+use parami_ad::Pallet as AdsPallet;
 
 use frame_system::pallet_prelude::*;
 use orml_traits::{Auction, OnNewBidResult, AuctionHandler, AssetHandler, Change,};
@@ -152,7 +152,7 @@ pub mod pallet {
             ensure!(value > auction_item.initial_amount, Error::<T>::ValueLessThanInitialAmount);
 
             // check bidder is an advertiser
-            let bidder_did = AdsModule::<T>::ensure_did(&from)?;
+            let bidder_did = AdsPallet::<T>::ensure_did(&from)?;
             let advertiser = <parami_ad::Advertisers::<T>>::get(&bidder_did).ok_or(Error::<T>::BidderIsNotAdvertiser)?;
             let _ads = <parami_ad::Advertisements::<T>>::get(advertiser.advertiser_id, ad_id).ok_or(Error::<T>::BidderHasNoAdvertisement)?;
 
@@ -188,6 +188,7 @@ pub mod pallet {
                 ItemId::NFT(asset_id) => {
                     //Get asset detail
                     let asset = NFTPallet::<T>::get_asset(asset_id).ok_or(Error::<T>::AssetIsNotExist)?;
+
                     //Check ownership
                     let class_info = orml_nft::Pallet::<T>::classes(asset.0).ok_or(Error::<T>::ClassNotFound)?;
                     let class_info_data = class_info.data;
@@ -198,7 +199,7 @@ pub mod pallet {
 
                     let start_time = <frame_system::Pallet<T>>::block_number();
 
-                    // check ads list is finished
+                    // check ads is not listing
                     let ads_slot = NFTPallet::<T>::get_ads_slot(asset_id).ok_or(Error::<T>::AdsSlotNotExists)?;
                     ensure!(start_time > ads_slot.end_time, Error::<T>::AdsIsListing);
 
@@ -268,15 +269,16 @@ pub mod pallet {
                 match auction_item.item_id {
                     ItemId::NFT(asset_id) => {
 
-                        // let auction_pool_id = Self::auction_pool_id(asset_id);
+                        let new_bid_amount = <T as parami_assets::Config>::Balance::from(new_bid_price.into());
+                        ensure!(<parami_assets::Pallet<T>>::balance(asset_id, &new_bidder) >= new_bid_amount, Error::<T>::InsufficientFunds);
 
                         if let Some(last_bidder) = last_bidder {
                             if !last_bid_price.is_zero() {
-                                // refund from pool to last bidder
                                  // last advertiser
-                                let last_bidder_did = AdsModule::<T>::ensure_did(&last_bidder).unwrap();
+                                let last_bidder_did = AdsPallet::<T>::ensure_did(&last_bidder).unwrap();
                                 let last_advertiser = <parami_ad::Advertisers::<T>>::get(&last_bidder_did).unwrap();
                                 
+                                // refund from pool to last bidder
                                 <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                                     asset_id,
                                     &last_advertiser.reward_pool_account,
@@ -289,9 +291,6 @@ pub mod pallet {
                             }
                         }
         
-                        let new_bid_amount = <T as parami_assets::Config>::Balance::from(new_bid_price.into());
-                        ensure!(<parami_assets::Pallet<T>>::balance(asset_id, &new_bidder) >= new_bid_amount, Error::<T>::InsufficientFunds);
-
                         // transfer fund to pool
                         <parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(
                             asset_id,
@@ -335,15 +334,13 @@ pub mod pallet {
                     
                     match auction_item.item_id {
                         ItemId::NFT(asset_id) => {
-                            // let auction_pool_id = Self::auction_pool_id(asset_id);
-
-                            // <AssetsInAuction<T>>::remove(asset_id);
 
                             if let Some(current_ads) = <CurrentAds<T>>::get(&auction_id) {
                                 let (advertiser_id, ad_id) = current_ads;
                                 if let Some(ads) = <parami_ad::Advertisements::<T>>::get(advertiser_id, ad_id) {
+                                    
                                     // update ads slot
-                                    let slot_update = NFTModule::<T>::update_ads_slot(
+                                    let slot_update = NftPallet::<T>::update_ads_slot(
                                         &asset_id,
                                         auction_item.end_time,
                                         auction_item.end_time + T::AdsListDuration::get(),

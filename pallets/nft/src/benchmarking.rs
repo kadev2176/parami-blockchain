@@ -28,7 +28,7 @@ use frame_support::traits::Get;
 use frame_system::RawOrigin;
 use sp_runtime::traits::{AccountIdConversion, StaticLookup, UniqueSaturatedInto};
 
-pub use crate::Pallet as NFTModule;
+pub use crate::Pallet as NftPallet;
 pub use crate::*;
 use orml_traits::BasicCurrencyExtended;
 use primitives::Balance;

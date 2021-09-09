@@ -9,19 +9,19 @@ use orml_auction::Pallet as OrmlAuction;
 use orml_nft::Pallet as OrmlNft;
 use parami_assets::Pallet as Assets;
 use parami_did::Pallet as Did;
-use parami_ad::Pallet as AdsModule;
+use parami_ad::Pallet as AdsPallet;
 use sp_runtime::PerU16;
 
 fn init_test(owner: Origin) {
     // Alice create NFT and fractionize it
-    assert_ok!(NFTModule::<Runtime>::create_class(
+    assert_ok!(NftPallet::<Runtime>::create_class(
         owner.clone(),
         vec![1],        
         TokenType::BoundToAddress,
         CollectionType::Collectable,
     ));
 
-    assert_ok!(NFTModule::<Runtime>::mint(
+    assert_ok!(NftPallet::<Runtime>::mint(
         owner.clone(),
         CLASS_ID,
         vec![1],
@@ -48,8 +48,8 @@ fn prepare_bid() {
     assert_ok!(Did::<Runtime>::register(bidder_two.clone(), signer::<Runtime>(DAVE), None));
 
     // bider BOB creates advertiser and ads firstly for being qualified to bid the ads slot
-    assert_ok!(AdsModule::<Runtime>::create_advertiser(bidder.clone(), 0, 1000));
-    assert_ok!(AdsModule::<Runtime>::create_ad(
+    assert_ok!(AdsPallet::<Runtime>::create_advertiser(bidder.clone(), 0, 1000));
+    assert_ok!(AdsPallet::<Runtime>::create_ad(
         bidder.clone(),
         0,
         BOB,
@@ -59,8 +59,8 @@ fn prepare_bid() {
     ));
 
     // bider DAVE creates advertiser and ads firstly for being qualified to bid the ads slot
-    assert_ok!(AdsModule::<Runtime>::create_advertiser(bidder_two.clone(), 0, 1000));
-    assert_ok!(AdsModule::<Runtime>::create_ad(
+    assert_ok!(AdsPallet::<Runtime>::create_advertiser(bidder_two.clone(), 0, 1000));
+    assert_ok!(AdsPallet::<Runtime>::create_ad(
         bidder_two.clone(),
         0,
         DAVE,
@@ -97,14 +97,14 @@ fn create_auction_fail() {
         init_test(owner.clone());
 
         // generate another NFT
-        assert_ok!(NFTModule::<Runtime>::create_class(
+        assert_ok!(NftPallet::<Runtime>::create_class(
             bob.clone(),
             vec![1],            
             TokenType::BoundToAddress,
             CollectionType::Collectable,
         ));
 
-        assert_ok!(NFTModule::<Runtime>::mint(
+        assert_ok!(NftPallet::<Runtime>::mint(
             bob.clone(),
             1,
             vec![1],
@@ -117,14 +117,14 @@ fn create_auction_fail() {
         // have no permission to create auction
         assert_noop!(AuctionPallet::create_new_auction(owner.clone(), ItemId::NFT(1), 50, 101), Error::<Runtime>::NoPermissionToCreateAuction);
 
-        assert_ok!(NFTModule::<Runtime>::create_class(
+        assert_ok!(NftPallet::<Runtime>::create_class(
             owner.clone(),
             vec![1],
             TokenType::Transferable,
             CollectionType::Collectable,
         ));
 
-        assert_ok!(NFTModule::<Runtime>::mint(
+        assert_ok!(NftPallet::<Runtime>::mint(
             owner.clone(),
             2,
             vec![1],
@@ -178,12 +178,12 @@ fn bid_works() {
         assert_ok!(AuctionPallet::bid(bidder, 0, 200, 1));
         assert_eq!(last_event(), mock::Event::AuctionPallet(crate::Event::Bid(0, 0, BOB, 200)));
 
-		let (_, reward_pool_account_1) = AdsModule::<Runtime>::ad_accounts(0);
+		let (_, reward_pool_account_1) = AdsPallet::<Runtime>::ad_accounts(0);
         assert_eq!(Assets::<Runtime>::balance(0, &reward_pool_account_1), 1200);
 
         // Dave bids again
         assert_ok!(AuctionPallet::bid(bidder_two, 0, 201, 3));
-        let (_, reward_pool_account_2) = AdsModule::<Runtime>::ad_accounts(2);
+        let (_, reward_pool_account_2) = AdsPallet::<Runtime>::ad_accounts(2);
         assert_eq!(Assets::<Runtime>::balance(0, reward_pool_account_1), 1000);
         assert_eq!(Assets::<Runtime>::balance(0, reward_pool_account_2), 1201);
     });
@@ -246,14 +246,14 @@ fn ads_list_after_auction() {
         init_test(owner.clone());
         prepare_bid();
 
-        assert_eq!(NFTModule::<Runtime>::get_assets_by_owner(ALICE), [0]);
+        assert_eq!(NftPallet::<Runtime>::get_assets_by_owner(ALICE), [0]);
 
         assert_ok!(AuctionPallet::create_new_auction(owner.clone(), ItemId::NFT(0), 50, 101));
 
         assert_ok!(AuctionPallet::bid(bidder, 0, 200, 1));
         assert_eq!(last_event(), mock::Event::AuctionPallet(crate::Event::Bid(0, 0, BOB, 200)));
 
-        let (_, reward_pool_account) = AdsModule::<Runtime>::ad_accounts(0);
+        let (_, reward_pool_account) = AdsPallet::<Runtime>::ad_accounts(0);
         assert_eq!(Assets::<Runtime>::balance(0, &reward_pool_account), 1200);
 
         run_to_block(102);
@@ -265,7 +265,7 @@ fn ads_list_after_auction() {
             media: b"i am first bidder".to_vec(),
             owner: BOB,
         };
-        assert_eq!(NFTModule::<Runtime>::get_ads_slot(0), Some(ads_slot));
+        assert_eq!(NftPallet::<Runtime>::get_ads_slot(0), Some(ads_slot));
 
         assert_eq!(Assets::<Runtime>::balance(0, reward_pool_account), 1200);
 

@@ -96,8 +96,6 @@ use sp_runtime::generic::Era;
 
 use parami_nft;
 
-mod weights;
-
 // Make the WASM binary available.
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
@@ -472,7 +470,7 @@ impl parami_nft::Config for Runtime {
     type Currency = Balances;
     type PalletId = NftPalletId;
     type AssetsHandler = Auction;
-    type WeightInfo = weights::module_nft::WeightInfo<Runtime>;
+    type WeightInfo = parami_nft::weights::SubstrateWeight<Runtime>;
 }
 
 impl orml_nft::Config for Runtime {

@@ -117,7 +117,7 @@ impl orml_nft::Config for Runtime {
 parameter_types! {
     pub CreateClassDeposit: Balance = 2;
     pub CreateAssetDeposit: Balance = 1;
-    pub const NftModuleId: PalletId = PalletId(*b"par/pnft");
+    pub const NftPalletId: PalletId = PalletId(*b"par/pnft");
 }
 
 impl Config for Runtime {
@@ -125,7 +125,7 @@ impl Config for Runtime {
     type CreateClassDeposit = CreateClassDeposit;
     type CreateAssetDeposit = CreateAssetDeposit;
     type Currency = Balances;
-	type PalletId = NftModuleId;
+	type PalletId = NftPalletId;
 	type AssetsHandler = NftAssetHandler;
     type WeightInfo = ();
 }
@@ -134,9 +134,9 @@ use frame_system::Call as SystemCall;
 
 pub const CLASS_ID: <Runtime as orml_nft::Config>::ClassId = 0;
 pub const CLASS_ID_BOUND: <Runtime as orml_nft::Config>::ClassId = 1;
-pub const TOKEN_ID: <Runtime as orml_nft::Config>::TokenId = 0;
-
-// pub type AssetMetadata =  parami_assets::AssetMetadata<u64>;
+pub const CLASS_ID_NOT_EXIST: <Runtime as orml_nft::Config>::ClassId = 2;
+pub const NFT_TOKEN_ID: <Runtime as orml_nft::Config>::TokenId = 0;
+pub const NFT_TOKEN_ID_NOT_EXIST: <Runtime as orml_nft::Config>::TokenId = 1;
 
 pub type Block = sp_runtime::generic::Block<Header, UncheckedExtrinsic>;
 pub type UncheckedExtrinsic = sp_runtime::generic::UncheckedExtrinsic<u32, Call, u32, ()>;
@@ -185,7 +185,7 @@ impl ExtBuilder {
 		let mut t = frame_system::GenesisConfig::default().build_storage::<Runtime>().unwrap();
 
 		pallet_balances::GenesisConfig::<Runtime> {
-            balances: vec![(ALICE, 10000000), (BOB, 100000000), (DAVE, 1)],
+            balances: vec![(ALICE, 100000), (BOB, 100000), (DAVE, 1)],
         }
 		.assimilate_storage(&mut t)
 		.unwrap();

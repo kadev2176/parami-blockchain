@@ -3,14 +3,14 @@
 use codec::{Decode, Encode};
 use frame_support::{
     ensure, dispatch::{DispatchResult, DispatchResultWithPostInfo},
-    traits::{Currency, ExistenceRequirement::{KeepAlive, }, Get, ReservableCurrency},
+    traits::{Currency, ExistenceRequirement::{KeepAlive, AllowDeath,}, Get, ReservableCurrency},
     pallet_prelude::*, PalletId,
 };
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 
 use frame_system::pallet_prelude::*;
-use orml_nft::Pallet as NftModule;
+use orml_nft::Pallet as OrmlNft;
 use sp_runtime::RuntimeDebug;
 use sp_runtime::{
     traits::{AccountIdConversion, AtLeast32BitUnsigned, StaticLookup, Zero},
@@ -34,14 +34,10 @@ mod tests;
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub struct ClassData<Balance> {
-    // Minimum balance to create a collection of Asset
     pub deposit: Balance,
-    // Metadata from ipfs
     pub metadata: Vec<u8>,
     pub token_type: TokenType,
     pub collection_type: CollectionType,
-    pub total_supply: u64,
-    pub initial_supply: u64,
 }
 
 #[derive(Encode, Decode, Clone, RuntimeDebug, PartialEq, Eq)]
@@ -64,34 +60,11 @@ pub struct AssetData<Balance> {
 
 #[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
 #[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
-pub enum TokenType {
-    Transferable,
-    BoundToAddress,
-}
-
-impl TokenType {
-    pub fn is_transferable(&self) -> bool {
-        match *self {
-            TokenType::Transferable => true,
-            _ => false,
-        }
-    }
-}
-
-impl Default for TokenType {
-    fn default() -> Self {
-        TokenType::BoundToAddress
-    }
-}
-
-#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
-#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
 pub enum CollectionType {
     Collectable,
     Executable,
 }
 
-//Collection extension for fast retrieval
 impl CollectionType {
     pub fn is_collectable(&self) -> bool {
         match *self {
@@ -111,6 +84,28 @@ impl CollectionType {
 impl Default for CollectionType {
     fn default() -> Self {
         CollectionType::Collectable
+    }
+}
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum TokenType {
+    Transferable,
+    BoundToAddress,
+}
+
+impl TokenType {
+    pub fn is_transferable(&self) -> bool {
+        match *self {
+            TokenType::Transferable => true,
+            _ => false,
+        }
+    }
+}
+
+impl Default for TokenType {
+    fn default() -> Self {
+        TokenType::BoundToAddress
     }
 }
 
@@ -145,14 +140,14 @@ pub mod pallet {
         /// The currency trait
         type Currency: Currency<Self::AccountId> + ReservableCurrency<Self::AccountId>;
 
-        //NFT Pallet Id
+        /// NFT Pallet Id
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
         /// Asset handler
         type AssetsHandler: AssetHandler<<Self as parami_assets::Config>::AssetId>;
 
-        // Weight info
+        /// Weight info
         type WeightInfo: WeightInfo;
     }
 
@@ -167,6 +162,14 @@ pub mod pallet {
     type BalanceOfAsset<T> = <T as parami_assets::Config>::Balance;
 
     #[pallet::storage]
+    #[pallet::getter(fn get_ads_slot)]
+    pub(super) type AdsSlots<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AdsSlot<T::AccountId, BalanceOfAsset<T>, T::BlockNumber>, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn next_asset_id)]
+    pub(super) type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
+
+    #[pallet::storage]
     #[pallet::getter(fn get_asset)]
     pub(super) type Assets<T: Config> =
     StorageMap<_, Blake2_128Concat, T::AssetId, (ClassIdOf<T>, TokenIdOf<T>), OptionQuery>;
@@ -177,18 +180,6 @@ pub mod pallet {
     StorageMap<_, Blake2_128Concat, T::AccountId, Vec<T::AssetId>, ValueQuery>;
 
     #[pallet::storage]
-    #[pallet::getter(fn get_class_type)]
-    pub(super) type ClassDataType<T: Config> = StorageMap<_, Blake2_128Concat, ClassIdOf<T>, TokenType, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn next_asset_id)]
-    pub(super) type NextAssetId<T: Config> = StorageValue<_, T::AssetId, ValueQuery>;
-
-    #[pallet::storage]
-    #[pallet::getter(fn get_ads_slot)]
-    pub(super) type AdsSlots<T: Config> = StorageMap<_, Blake2_128Concat, T::AssetId, AdsSlot<T::AccountId, BalanceOfAsset<T>, T::BlockNumber>, OptionQuery>;
-
-    #[pallet::storage]
     #[pallet::getter(fn get_asset_supporters)]
     pub(super) type AssetSupporters<T: Config> =
     StorageMap<_, Blake2_128Concat, T::AssetId, Vec<T::AccountId>, OptionQuery>;
@@ -196,52 +187,58 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub (super) fn deposit_event)]
     #[pallet::metadata(
-    < T as frame_system::Config >::AccountId = "AccountId",
+    T::AccountId = "AccountId",
     ClassIdOf <T> = "ClassId",
     TokenIdOf <T> = "TokenId",
     T::AssetId = "AssetId",
     )]
     pub enum Event<T: Config> {
-        /// new NFT Class created
-        NewNftClassCreated(<T as frame_system::Config>::AccountId, ClassIdOf<T>),
+        /// NFT Class created
+        NftClassCreated(T::AccountId, ClassIdOf<T>),
 
-        /// new NFT minted
-        NewNftMinted(T::AssetId, T::AssetId, <T as frame_system::Config>::AccountId, ClassIdOf<T>, u32, TokenIdOf<T>),
+        /// Class destroyed
+		ClassDestroyed(T::AccountId, ClassIdOf<T>),
+
+        /// NFT minted
+        NftMinted(T::AssetId, T::AssetId, T::AccountId, ClassIdOf<T>, u32, TokenIdOf<T>),
 
         /// NFT transferred
-        TransferedNft(<T as frame_system::Config>::AccountId, <T as frame_system::Config>::AccountId, TokenIdOf<T>),
+        NftTransfered(T::AccountId, T::AccountId, TokenIdOf<T>),
+
+        /// NFT burned
+		NftBurned(T::AccountId, ClassIdOf<T>, TokenIdOf<T>),
 
         /// NFT signed
-        SignedNft(TokenIdOf<T>, <T as frame_system::Config>::AccountId),
+        SignedNft(TokenIdOf<T>, T::AccountId),
     }
 
     #[pallet::error]
     pub enum Error<T> {
-        //Asset Info not found
-        AssetInfoNotFound,
-        //Asset Id not found
-        AssetIdNotFound,
-        //No permission
+        /// No permission
         NoPermission,
-        //No available collection id
-        NoAvailableCollectionId,
-        //Collection id is not exist
-        CollectionIsNotExist,
-        //Class Id not found
+        /// Class Id not found
         ClassIdNotFound,
-        //Non Transferable
-        NonTransferable,
-        //Invalid quantity
-        InvalidQuantity,
-        //exceeds quantity
-        QuantityExceeds,
-        //No available asset id
-        NoAvailableAssetId,
-        //Asset Id is already exist
-        AssetIdAlreadyExist,
-        //Asset Id is currently in an auction
+        /// Can not destroy class
+        CannotDestroyClass,
+        /// Asset Id not found
+        AssetIdNotFound,
+        /// Asset Info not found
+        AssetInfoNotFound,
+        /// Asset Id already exists
+        AssetIdAlreadyExists,
+        /// Asset Id is currently in an auction
         AssetAlreadyInAuction,
-        //Sign your own Asset
+        /// Non Transferable
+        NonTransferable,
+        /// Invalid quantity
+        InvalidQuantity,
+        /// exceeds quantity
+        QuantityExceeds,
+        /// No available asset id
+        NoAvailableAssetId,
+        /// Cannot be burned
+        CannotBeBurned,
+        /// Sign your own Asset
         SignOwnAsset,
     }
     
@@ -254,17 +251,16 @@ pub mod pallet {
         <T as parami_assets::Config>::Balance: From<u128> + Into<u128>,
         <T as parami_assets::Config>::AssetId: AtLeast32BitUnsigned,
     {
-        #[pallet::weight(10_000)]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn create_class(origin: OriginFor<T>, metadata: Vec<u8>, token_type: TokenType, collection_type: CollectionType) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
-            let next_class_id = NftModule::<T>::next_class_id();
+            let next_class_id = OrmlNft::<T>::next_class_id();
 
-            let class_fund: T::AccountId = T::PalletId::get().into_sub_account(next_class_id);
+            let class_pool_account: T::AccountId = T::PalletId::get().into_sub_account(next_class_id);
             let class_deposit = T::CreateClassDeposit::get();
 
-            // Put fund to Class pool
-            <T as Config>::Currency::transfer(&sender, &class_fund, class_deposit, KeepAlive)?;
-            <T as Config>::Currency::reserve(&class_fund, <T as Config>::Currency::free_balance(&class_fund))?;
+            <T as Config>::Currency::transfer(&sender, &class_pool_account, class_deposit, KeepAlive)?;
+            <T as Config>::Currency::reserve(&class_pool_account, <T as Config>::Currency::free_balance(&class_pool_account))?;
 
             let class_data = ClassData
             {
@@ -272,15 +268,39 @@ pub mod pallet {
                 token_type,
                 collection_type,
                 metadata: metadata.clone(),
-                total_supply: Default::default(),
-                initial_supply: Default::default(),
             };
 
-            NftModule::<T>::create_class(&sender, metadata, class_data)?;
+            OrmlNft::<T>::create_class(&sender, metadata, class_data)?;
 
-            Self::deposit_event(Event::<T>::NewNftClassCreated(sender, next_class_id));
+            Self::deposit_event(Event::<T>::NftClassCreated(sender, next_class_id));
 
             Ok(().into())
+        }
+
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn destroy_class(
+			origin: OriginFor<T>,
+			class_id: ClassIdOf<T>,
+		) -> DispatchResultWithPostInfo {
+			let sender = ensure_signed(origin)?;
+            let class_detail = OrmlNft::<T>::classes(class_id).ok_or(Error::<T>::ClassIdNotFound)?;
+            
+			ensure!(sender == class_detail.owner, Error::<T>::NoPermission);
+			ensure!(class_detail.total_issuance == Zero::zero(), Error::<T>::CannotDestroyClass);
+
+            let data = class_detail.data;
+            ensure!(data.token_type != TokenType::BoundToAddress, Error::<T>::CannotDestroyClass);
+
+            let class_pool_account: T::AccountId = T::PalletId::get().into_sub_account(class_id);
+            <T as Config>::Currency::unreserve(&class_pool_account, data.deposit);
+
+            OrmlNft::<T>::destroy_class(&sender, class_id)?;
+
+            // refund reserved tokens
+            <T as Config>::Currency::transfer(&class_pool_account, &sender, <T as Config>::Currency::free_balance(&class_pool_account), AllowDeath)?;
+
+			Self::deposit_event(Event::ClassDestroyed(sender, class_id));
+			Ok(().into())
         }
 
         #[pallet::weight(< T as Config >::WeightInfo::mint(* quantity))]
@@ -288,20 +308,20 @@ pub mod pallet {
             let sender = ensure_signed(origin.clone())?;
 
             ensure!(quantity >= 1, Error::<T>::InvalidQuantity);
-            let class_info = NftModule::<T>::classes(class_id).ok_or(Error::<T>::ClassIdNotFound)?;
-            ensure!(sender == class_info.owner, Error::<T>::NoPermission);
+            let class_detail = OrmlNft::<T>::classes(class_id).ok_or(Error::<T>::ClassIdNotFound)?;
+            ensure!(sender == class_detail.owner, Error::<T>::NoPermission);
             
             let deposit = T::CreateAssetDeposit::get();
-            let class_fund: T::AccountId = T::PalletId::get().into_sub_account(class_id);
+            let class_pool_account: T::AccountId = T::PalletId::get().into_sub_account(class_id);
             let total_deposit = deposit * Into::<BalanceOf<T>>::into(quantity);
             
-            let data = class_info.data;
+            let data = class_detail.data;
             if data.token_type == TokenType::BoundToAddress {
                 ensure!(quantity < 2, Error::<T>::QuantityExceeds);
             }
 
-            <T as Config>::Currency::transfer(&sender, &class_fund, total_deposit, KeepAlive)?;
-            <T as Config>::Currency::reserve(&class_fund, total_deposit)?;
+            <T as Config>::Currency::transfer(&sender, &class_pool_account, total_deposit, KeepAlive)?;
+            <T as Config>::Currency::reserve(&class_pool_account, total_deposit)?;
             
             let new_nft_data = AssetData {
                 deposit,
@@ -326,7 +346,7 @@ pub mod pallet {
                     AssetsByOwner::<T>::try_mutate(
                         &sender,
                         |asset_ids| -> DispatchResult {
-                            ensure!(!asset_ids.iter().any(|i| asset_id == *i), Error::<T>::AssetIdAlreadyExist);
+                            ensure!(!asset_ids.iter().any(|i| asset_id == *i), Error::<T>::AssetIdAlreadyExists);
                             asset_ids.push(asset_id);
                             Ok(())
                         },
@@ -337,11 +357,13 @@ pub mod pallet {
                     AssetsByOwner::<T>::insert(&sender, assets)
                 }
 
-                let token_id = NftModule::<T>::mint(&sender, class_id, metadata.clone(), new_nft_data.clone())?;
-                Assets::<T>::insert(asset_id, (class_id, token_id));
-                last_token_id = token_id;
+                let nft_token_id = OrmlNft::<T>::mint(&sender, class_id, metadata.clone(), new_nft_data.clone())?;
+                Assets::<T>::insert(asset_id, (class_id, nft_token_id));
+                last_token_id = nft_token_id;
 
+                // generate nft fraction
                 if data.token_type == TokenType::BoundToAddress {
+                    // set ads slot
                     let ads_slot = AdsSlot {
                         start_time: Zero::zero(),
                         end_time: Zero::zero(),
@@ -351,55 +373,58 @@ pub mod pallet {
                     };
                     AdsSlots::<T>::insert(asset_id, ads_slot);
     
-                    // create fractional
-                    <parami_assets::Pallet<T>>::create(
-                        origin.clone(),
-                        asset_id,
-                        <T::Lookup as StaticLookup>::unlookup(sender.clone()),
-                        MIN_BALANCE.into(),
-                    )?;
-    
+                    // create fraction
+                    <parami_assets::Pallet<T>>::create(origin.clone(), asset_id, <T::Lookup as StaticLookup>::unlookup(sender.clone()), MIN_BALANCE.into())?;
                     // set metadata
-                    <parami_assets::Pallet<T>>::set_metadata(
-                        origin.clone(),
-                        asset_id,
-                        name.clone(),
-                        symbol.clone(),
-                        18,
-                    )?;
+                    <parami_assets::Pallet<T>>::set_metadata(origin.clone(), asset_id, name.clone(), symbol.clone(), 18)?;
+                    // initial mint
+                    <parami_assets::Pallet<T>>::mint(origin.clone(), asset_id, <T::Lookup as StaticLookup>::unlookup(sender.clone()), 100000000000000000000000000u128.into())?;
     
-                    // initial supply
-                    <parami_assets::Pallet<T>>::mint(
-                        origin.clone(),
-                        asset_id,
-                        <T::Lookup as StaticLookup>::unlookup(sender.clone()),
-                        100000000000000000000000000u128.into(),
-                    )?;
-    
-                    log::info!("fractional_id => {:?}", asset_id);
                     log::info!("name => {:?}", name);
                 }
             }
 
-            Self::deposit_event(Event::<T>::NewNftMinted(*new_asset_ids.first().unwrap(), *new_asset_ids.last().unwrap(), sender, class_id, quantity, last_token_id));
+            Self::deposit_event(Event::<T>::NftMinted(*new_asset_ids.first().unwrap(), *new_asset_ids.last().unwrap(), sender, class_id, quantity, last_token_id));
 
             Ok(().into())
         }
 
-        #[pallet::weight(10_000)]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
+        pub fn burn(origin: OriginFor<T>, token: (ClassIdOf<T>, TokenIdOf<T>)) -> DispatchResult {
+			let sender = ensure_signed(origin)?;
+
+            let nft_info = OrmlNft::<T>::tokens(token.0, token.1).ok_or(Error::<T>::AssetInfoNotFound)?;
+            ensure!(sender == nft_info.owner, Error::<T>::NoPermission);
+
+            // check class type
+            let class_detail = OrmlNft::<T>::classes(token.0).ok_or(Error::<T>::ClassIdNotFound)?;
+            ensure!(class_detail.data.token_type != TokenType::BoundToAddress, Error::<T>::CannotBeBurned);
+
+            OrmlNft::<T>::burn(&sender, token)?;
+
+            let data = nft_info.data;
+            let class_pool_account: T::AccountId = T::PalletId::get().into_sub_account(token.0);
+            <T as Config>::Currency::unreserve(&class_pool_account, data.deposit);
+
+            Self::deposit_event(Event::NftBurned(sender, token.0, token.1));
+
+            Ok(().into())
+		}
+        
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn transfer(origin: OriginFor<T>, to: T::AccountId, asset_id: T::AssetId) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
             ensure!(!T::AssetsHandler::check_item_in_auction(asset_id),Error::<T>::AssetAlreadyInAuction);
 
-            let token_id = Self::do_transfer(&sender, &to, asset_id)?;
+            let nft_token_id = Self::do_transfer(&sender, &to, asset_id)?;
 
-            Self::deposit_event(Event::<T>::TransferedNft(sender, to, token_id));
+            Self::deposit_event(Event::<T>::NftTransfered(sender, to, nft_token_id));
 
             Ok(().into())
         }
 
-        #[pallet::weight(10_000)]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn transfer_batch(origin: OriginFor<T>, tos: Vec<(T::AccountId, T::AssetId)>) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -407,18 +432,18 @@ pub mod pallet {
                 let item = &x;
                 let owner = &sender.clone();
 
-                let asset = Assets::<T>::get(item.1).ok_or(Error::<T>::AssetIdNotFound)?;
+                let nft_info = Assets::<T>::get(item.1).ok_or(Error::<T>::AssetIdNotFound)?;
+                let class_detail = OrmlNft::<T>::classes(nft_info.0).ok_or(Error::<T>::ClassIdNotFound)?;
 
-                let class_info = NftModule::<T>::classes(asset.0).ok_or(Error::<T>::ClassIdNotFound)?;
-                let data = class_info.data;
-
-                match data.token_type {
+                match class_detail.data.token_type {
                     TokenType::Transferable => {
-                        let asset_info = NftModule::<T>::tokens(asset.0, asset.1).ok_or(Error::<T>::AssetInfoNotFound)?;
-                        ensure!(owner.clone() == asset_info.owner, Error::<T>::NoPermission);
+                        let asset_detail = OrmlNft::<T>::tokens(nft_info.0, nft_info.1).ok_or(Error::<T>::AssetInfoNotFound)?;
+                        ensure!(owner.clone() == asset_detail.owner, Error::<T>::NoPermission);
+
                         Self::handle_ownership_transfer(&owner, &item.0, item.1)?;
-                        NftModule::<T>::transfer(&owner, &item.0, (asset.0, asset.1))?;
-                        Self::deposit_event(Event::<T>::TransferedNft(owner.clone(), item.0.clone(), asset.1.clone()));
+                        OrmlNft::<T>::transfer(&owner, &item.0, (nft_info.0, nft_info.1))?;
+
+                        Self::deposit_event(Event::<T>::NftTransfered(owner.clone(), item.0.clone(), nft_info.1.clone()));
                     }
                     _ => ()
                 };
@@ -427,7 +452,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10_000)]
+        #[pallet::weight(10_000 + T::DbWeight::get().writes(1))]
         pub fn sign_asset(origin: OriginFor<T>, asset_id: T::AssetId) -> DispatchResultWithPostInfo {
             let sender = ensure_signed(origin)?;
 
@@ -470,7 +495,7 @@ pub mod pallet {
                 AssetsByOwner::<T>::try_mutate(&to, |asset_ids| -> DispatchResult {
                     ensure!(
                         !asset_ids.iter().any(|i| asset_id == *i),
-                        Error::<T>::AssetIdAlreadyExist
+                        Error::<T>::AssetIdAlreadyExists
                     );
                     asset_ids.push(asset_id);
                     Ok(())
@@ -488,20 +513,19 @@ pub mod pallet {
             sender: &T::AccountId,
             to: &T::AccountId,
             asset_id: T::AssetId) -> Result<<T as orml_nft::Config>::TokenId, DispatchError> {
-            let asset = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
+            let nft_info = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
     
-            let class_info = NftModule::<T>::classes(asset.0).ok_or(Error::<T>::ClassIdNotFound)?;
-            let data = class_info.data;
+            let class_detail = OrmlNft::<T>::classes(nft_info.0).ok_or(Error::<T>::ClassIdNotFound)?;
     
-            match data.token_type {
+            match class_detail.data.token_type {
                 TokenType::Transferable => {
                     let check_ownership = Self::check_ownership(&sender, &asset_id)?;
                     ensure!(check_ownership, Error::<T>::NoPermission);
     
                     Self::handle_ownership_transfer(&sender, &to, asset_id)?;
     
-                    NftModule::<T>::transfer(&sender, &to, asset.clone())?;
-                    Ok(asset.1)
+                    OrmlNft::<T>::transfer(&sender, &to, nft_info.clone())?;
+                    Ok(nft_info.1)
                 }
                 TokenType::BoundToAddress => Err(Error::<T>::NonTransferable.into())
             }
@@ -510,12 +534,10 @@ pub mod pallet {
         pub fn check_ownership(
             sender: &T::AccountId,
             asset_id: &T::AssetId) -> Result<bool, DispatchError> {
-            let asset = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
-            let class_info = NftModule::<T>::classes(asset.0).ok_or(Error::<T>::ClassIdNotFound)?;
-            let _data = class_info.data;
+            let nft_info = Assets::<T>::get(asset_id).ok_or(Error::<T>::AssetIdNotFound)?;
     
-            let asset_info = NftModule::<T>::tokens(asset.0, asset.1).ok_or(Error::<T>::AssetInfoNotFound)?;
-            if sender == &asset_info.owner {
+            let asset_detail = OrmlNft::<T>::tokens(nft_info.0, nft_info.1).ok_or(Error::<T>::AssetInfoNotFound)?;
+            if sender == &asset_detail.owner {
                 return Ok(true);
             }
     

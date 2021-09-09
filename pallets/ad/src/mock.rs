@@ -190,7 +190,7 @@ impl parami_did::Config for Runtime {
 parameter_types! {
     pub CreateClassDeposit: Balance = 2;
     pub CreateAssetDeposit: Balance = 1;
-    pub const NftModuleId: PalletId = PalletId(*b"par/pnft");
+    pub const NftPalletId: PalletId = PalletId(*b"par/pnft");
 }
 
 impl parami_nft::Config for Runtime {
@@ -198,7 +198,7 @@ impl parami_nft::Config for Runtime {
     type CreateClassDeposit = CreateClassDeposit;
     type CreateAssetDeposit = CreateAssetDeposit;
     type Currency = Balances;
-	type PalletId = NftModuleId;
+	type PalletId = NftPalletId;
 	type AssetsHandler = NftAssetHandler;
     type WeightInfo = ();
 }

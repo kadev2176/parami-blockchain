@@ -243,7 +243,7 @@ impl orml_nft::Config for Runtime {
 parameter_types! {
     pub CreateClassDeposit: Balance = 2;
     pub CreateAssetDeposit: Balance = 1;
-    pub const NftModuleId: PalletId = PalletId(*b"par/pnft");
+    pub const NftPalletId: PalletId = PalletId(*b"par/pnft");
 }
 
 impl parami_nft::Config for Runtime {
@@ -251,7 +251,7 @@ impl parami_nft::Config for Runtime {
     type CreateClassDeposit = CreateClassDeposit;
     type CreateAssetDeposit = CreateAssetDeposit;
     type Currency = Balances;
-	type PalletId = NftModuleId;
+	type PalletId = NftPalletId;
 	type AssetsHandler = NftAssetHandler;
     type WeightInfo = ();
 }
@@ -331,7 +331,7 @@ construct_runtime!(
 		Historical: pallet_session_historical::{Pallet},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Assets: parami_assets::{Pallet, Call, Storage, Event<T>},
-        NftModule: parami_nft::{Pallet, Call, Storage, Event<T>},
+        NftPallet: parami_nft::{Pallet, Call, Storage, Event<T>},
 		OrmlNft: orml_nft::{Pallet, Storage},
 		OrmlAuction: orml_auction::{Pallet, Storage, Event<T>},
 		AuctionPallet: auction::{Pallet, Call, Storage, Event<T>},
