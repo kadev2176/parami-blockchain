@@ -12,8 +12,8 @@ use sp_std::{
 };
 
 /// Auction info.
-#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
-#[derive(Encode, Decode, RuntimeDebug)]
+// #[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Eq, PartialEq, RuntimeDebug)]
 pub struct AuctionInfo<AccountId, Balance, BlockNumber> {
 	/// Current bidder and bid price.
 	pub bid: Option<(AccountId, Balance)>,
@@ -63,4 +63,10 @@ pub trait AuctionHandler<AccountId, Balance, BlockNumber, AuctionId> {
 	) -> OnNewBidResult<BlockNumber>;
 	/// End an auction with `winner`
 	fn on_auction_ended(id: AuctionId, winner: Option<(AccountId, Balance)>);
+}
+
+pub trait AssetHandler<AssetId> {
+    fn check_item_in_auction(
+        asset_id: AssetId,
+    ) -> bool;
 }

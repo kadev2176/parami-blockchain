@@ -4195,6 +4195,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "28988d872ab76095a6e6ac88d99b54fd267702734fd7ffe610ca27f533ddb95a"
 
 [[package]]
+name = "orml-auction"
+version = "0.4.1-dev"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "orml-traits",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "orml-nft"
 version = "0.4.1-dev"
 dependencies = [
@@ -4203,6 +4218,20 @@ dependencies = [
  "parity-scale-codec",
  "serde",
  "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "orml-traits"
+version = "0.4.1-dev"
+dependencies = [
+ "frame-support",
+ "impl-trait-for-tuples",
+ "num-traits",
+ "parity-scale-codec",
+ "serde",
  "sp-io",
  "sp-runtime",
  "sp-std",
@@ -4934,6 +4963,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "num-traits",
+ "orml-nft",
+ "orml-traits",
  "pallet-balances",
  "pallet-proxy",
  "pallet-session",
@@ -4941,7 +4972,9 @@ dependencies = [
  "pallet-staking-reward-curve",
  "pallet-timestamp",
  "pallet-utility",
+ "parami-assets",
  "parami-did",
+ "parami-nft",
  "parami-primitives",
  "parity-scale-codec",
  "serde",
@@ -4982,6 +5015,38 @@ dependencies = [
  "parity-scale-codec",
  "sp-core",
  "sp-io",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "parami-auction"
+version = "0.1.0"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-election-provider-support",
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-auction",
+ "orml-nft",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-session",
+ "pallet-staking",
+ "pallet-staking-reward-curve",
+ "pallet-timestamp",
+ "parami-ad",
+ "parami-assets",
+ "parami-did",
+ "parami-nft",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
  "sp-runtime",
  "sp-std",
 ]
@@ -5198,12 +5263,38 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-nft"
+version = "0.1.0"
+dependencies = [
+ "enumflags2",
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "orml-auction",
+ "orml-nft",
+ "orml-traits",
+ "pallet-balances",
+ "pallet-timestamp",
+ "parami-assets",
+ "parami-primitives",
+ "parity-scale-codec",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-keyring",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-primitives"
 version = "2.0.0"
 dependencies = [
  "frame-system",
  "parity-scale-codec",
  "pretty_assertions",
+ "serde",
  "sp-application-crypto",
  "sp-core",
  "sp-runtime",
@@ -5270,6 +5361,7 @@ dependencies = [
  "frame-system-rpc-runtime-api",
  "hex-literal",
  "log",
+ "orml-auction",
  "orml-nft",
  "pallet-assets",
  "pallet-authority-discovery",
@@ -5312,10 +5404,12 @@ dependencies = [
  "parami-ad",
  "parami-airdrop",
  "parami-assets",
+ "parami-auction",
  "parami-bridge",
  "parami-cross-assets",
  "parami-did",
  "parami-magic-link",
+ "parami-nft",
  "parami-primitives",
  "parami-swap",
  "parity-scale-codec",

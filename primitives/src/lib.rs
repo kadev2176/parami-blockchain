@@ -17,13 +17,16 @@
 
 //! Low-level types used throughout the Substrate code.
 
-#![warn(missing_docs)]
 #![cfg_attr(not(feature = "std"), no_std)]
 
+#[cfg(feature = "std")]
+use serde::{Deserialize, Serialize};
+
+use codec::{Decode, Encode,};
 use sp_runtime::{
     generic,
     traits::{BlakeTwo256, IdentifyAccount, Verify},
-    MultiSignature, OpaqueExtrinsic,
+    MultiSignature, OpaqueExtrinsic, RuntimeDebug,
 };
 
 /// An index to a block.
@@ -68,6 +71,9 @@ pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
 pub type BlockId = generic::BlockId<Block>;
 
+/// Token ID
+pub type TokenId = u64;
+
 /// App-specific crypto used for reporting equivocation/misbehavior in BABE and
 /// GRANDPA. Any rewards for misbehavior reporting will be paid out to this
 /// account.
@@ -99,3 +105,49 @@ pub mod report {
         type GenericPublic = sp_core::sr25519::Public;
     }
 }
+
+/// Country ID
+pub type CountryId = u64;
+/// Auction ID
+pub type AuctionId = u64;
+
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum AuctionType {
+    Auction,
+    BuyNow,
+}
+
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Clone, RuntimeDebug)]
+pub struct AuctionInfo<AccountId, Balance, BlockNumber> {
+    /// Current bidder and bid price.
+    pub bid: Option<(AccountId, Balance)>,
+    /// Define which block this auction will be started.
+    pub start: BlockNumber,
+    /// Define which block this auction will be ended.
+    pub end: Option<BlockNumber>,
+}
+
+#[cfg_attr(feature = "std", derive(PartialEq, Eq))]
+#[derive(Encode, Decode, Clone, RuntimeDebug)]
+pub struct AuctionItem<AccountId, BlockNumber, Balance, AssetId> {
+    pub item_id: ItemId<AssetId>,
+    pub recipient: AccountId,
+    pub initial_amount: Balance,
+    pub amount: Balance,
+    pub start_time: BlockNumber,
+    pub end_time: BlockNumber,
+    pub auction_type: AuctionType,
+}
+
+/// Public item id for auction
+#[derive(Encode, Decode, Copy, Clone, PartialEq, Eq, RuntimeDebug)]
+#[cfg_attr(feature = "std", derive(Serialize, Deserialize))]
+pub enum ItemId<AssetId> {
+    NFT(AssetId),
+    Block(u64),
+}
+
+/// Asset Id
+pub type AssetId = u64;
