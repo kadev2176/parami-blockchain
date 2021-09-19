@@ -111,15 +111,15 @@ pub type IoHandler = jsonrpc_core::IoHandler<sc_rpc::Metadata>;
 /// Instantiate all Full RPC extensions.
 pub fn create_full<C, P, SC, B>(
     deps: FullDeps<C, P, SC, B>,
-) -> jsonrpc_core::IoHandler<sc_rpc_api::Metadata>
+) -> Result<jsonrpc_core::IoHandler<sc_rpc_api::Metadata>, Box<dyn std::error::Error + Send + Sync>>
 where
     C: ProvideRuntimeApi<Block>
-        + HeaderBackend<Block>
-        + AuxStore
-        + HeaderMetadata<Block, Error = BlockChainError>
-        + Sync
-        + Send
-        + 'static,
+    + HeaderBackend<Block>
+    + AuxStore
+    + HeaderMetadata<Block, Error = BlockChainError>
+    + Sync
+    + Send
+    + 'static,
     C::Api: substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Index>,
     C::Api: pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber, Hash>,
     C::Api: pallet_mmr_rpc::MmrRuntimeApi<Block, <Block as sp_runtime::traits::Block>::Hash>,
@@ -200,10 +200,10 @@ where
             shared_authority_set,
             shared_epoch_changes,
             deny_unsafe,
-        ),
+        )?,
     ));
 
-    io
+    Ok(io)
 }
 
 /// Instantiate all Light RPC extensions.

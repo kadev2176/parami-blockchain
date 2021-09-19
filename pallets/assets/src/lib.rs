@@ -151,7 +151,7 @@ use frame_system::Config as SystemConfig;
 use sp_runtime::{
     traits::{
         AtLeast32BitUnsigned, Bounded, CheckedAdd, CheckedSub, Saturating, StaticLookup,
-        StoredMapError, Zero,
+         Zero,
     },
     ArithmeticError, RuntimeDebug, TokenError,
 };
