@@ -51,8 +51,8 @@ pub fn decayed_score<Moment: AtLeast32Bit + Copy + Default>(
 pub fn calc_reward<T: Config>(
 	ad: &AdvertisementOf<T>,
 	user_did: &DidMethodSpecId,
-	user: &T::AccountId,
-	media: &T::AccountId,
+	user: &AccountIdOf<T>,
+	media: &AccountIdOf<T>,
 	tag_score_delta: Option<&[TagScore]>,
 ) -> ResultPost<(Balance, Balance, Balance)> {
 	let mut score: FixedI64 = (0, 1).into();
@@ -95,12 +95,12 @@ pub fn calc_reward<T: Config>(
 	Ok((reward_media.saturating_add(reward_user), reward_media, reward_user))
 }
 
-pub fn free_balance<T: Config>(asset_id: T::AssetId, who: T::AccountId) -> BalanceOfAsset<T> {
+pub fn free_balance<T: Config>(asset_id: T::AssetId, who: AccountIdOf<T>) -> BalanceOfAsset<T> {
 	<parami_assets::Pallet<T>>::balance(asset_id, who)
 	// <T as Config>::Currency::free_balance(who)
 }
 
-pub fn staked_balance_by_controller<T: Config>(controller: &T::AccountId) -> Balance {
+pub fn staked_balance_by_controller<T: Config>(controller: &AccountIdOf<T>) -> Balance {
 	// Map from all (unlocked) "controller" accounts to the info regarding the staking.
 	s!(pallet_staking::Ledger::<T>::get(controller)
 		.map(|l| l.total)

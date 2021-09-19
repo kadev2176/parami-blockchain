@@ -18,10 +18,10 @@
 
 use crate::service::new_partial;
 use crate::{chain_spec, service, Cli, Subcommand};
-use parami_executor::Executor;
 use parami_runtime::{Block, RuntimeApi};
 use sc_cli::{ChainSpec, Result, Role, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
+use parami_executor::ExecutorDispatch;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
@@ -86,13 +86,13 @@ pub fn run() -> Result<()> {
         Some(Subcommand::Inspect(cmd)) => {
             let runner = cli.create_runner(cmd)?;
 
-            runner.sync_run(|config| cmd.run::<Block, RuntimeApi, Executor>(config))
+            runner.sync_run(|config| cmd.run::<Block, RuntimeApi, ExecutorDispatch>(config))
         }
         Some(Subcommand::Benchmark(cmd)) => {
             if cfg!(feature = "runtime-benchmarks") {
                 let runner = cli.create_runner(cmd)?;
 
-                runner.sync_run(|config| cmd.run::<Block, Executor>(config))
+                runner.sync_run(|config| cmd.run::<Block, ExecutorDispatch>(config))
             } else {
                 Err("Benchmarking wasn't enabled when building the node. \
                     You can enable it with `--features runtime-benchmarks`."

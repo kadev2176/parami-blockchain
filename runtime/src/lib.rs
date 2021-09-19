@@ -21,12 +21,13 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 // `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
+#![warn(non_camel_case_types)]
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, Filter, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced,
+        Currency, Imbalance, KeyOwnerProofSystem, LockIdentifier, OnUnbalanced,
         U128CurrencyToVote,
     },
     weights::{
@@ -159,8 +160,8 @@ impl OnUnbalanced<NegativeImbalance> for DealWithFees {
 
 // NOTE: Filtered Call will be a BadOrigin error.
 pub struct ParamiBaseCallFilter;
-impl Filter<Call> for ParamiBaseCallFilter {
-    fn filter(c: &Call) -> bool {
+impl Contains<Call> for ParamiBaseCallFilter {
+    fn contains(c: &Call) -> bool {
         use pallet_identity::Data;
 
         match c {
@@ -392,6 +393,7 @@ impl pallet_babe::Config for Runtime {
         pallet_babe::EquivocationHandler<Self::KeyOwnerIdentification, Offences, ReportLongevity>;
 
     type WeightInfo = ();
+    type DisabledValidators = ();
 }
 
 parameter_types! {
@@ -610,6 +612,9 @@ parameter_types! {
 }
 
 use frame_election_provider_support::onchain;
+use frame_support::traits::Contains;
+// use frame_benchmarking::frame_support::traits::{DisabledValidators, EstimateCallFee};
+// use frame_benchmarking::frame_support::pallet_prelude::Get;
 
 impl pallet_staking::Config for Runtime {
     const MAX_NOMINATIONS: u32 = MAX_NOMINATIONS;
@@ -671,16 +676,15 @@ parameter_types! {
 }
 
 sp_npos_elections::generate_solution_type!(
-    #[compact]
-    pub struct NposCompactSolution16::<
-        VoterIndex = u32,
-        TargetIndex = u16,
-        Accuracy = sp_runtime::PerU16,
-    >(16)
+	#[compact]
+	pub struct NposSolution16::<
+		VoterIndex = u32,
+		TargetIndex = u16,
+		Accuracy = sp_runtime::PerU16,
+	>(16)
 );
 
-pub const MAX_NOMINATIONS: u32 =
-    <NposCompactSolution16 as sp_npos_elections::CompactSolution>::LIMIT as u32;
+pub const MAX_NOMINATIONS: u32 = <NposSolution16 as sp_npos_elections::NposSolution>::LIMIT as u32;
 
 /// The numbers configured here should always be more than the the maximum limits of staking pallet
 /// to ensure election snapshot will not run out of memory.
@@ -716,11 +720,12 @@ impl pallet_election_provider_multi_phase::Config for Runtime {
     type RewardHandler = (); // nothing to do upon rewards
     type DataProvider = Staking;
     type OnChainAccuracy = Perbill;
-    type CompactSolution = NposCompactSolution16;
     type Fallback = Fallback;
     type WeightInfo = pallet_election_provider_multi_phase::weights::SubstrateWeight<Runtime>;
     type ForceOrigin = EnsureRootOrHalfCouncil;
     type BenchmarkingConfig = BenchmarkConfig;
+    type EstimateCallFee = TransactionPayment;
+    type Solution = NposSolution16;
 }
 
 parameter_types! {
@@ -981,7 +986,7 @@ impl pallet_contracts::Config for Runtime {
     /// and make sure they are stable. Dispatchables exposed to contracts are not allowed to
     /// change because that would break already deployed contracts. The `Call` structure itself
     /// is not allowed to change the indices of existing pallets, too.
-    type CallFilter = frame_support::traits::DenyAll;
+    type CallFilter = frame_support::traits::Nothing;
     type RentPayment = ();
     type SignedClaimHandicap = SignedClaimHandicap;
     type TombstoneDeposit = TombstoneDeposit;
@@ -1079,13 +1084,19 @@ impl pallet_im_online::Config for Runtime {
     type WeightInfo = pallet_im_online::weights::SubstrateWeight<Runtime>;
 }
 
+
+parameter_types! {
+    pub const MaxAuthorities: u32 = 100;
+}
+
 impl pallet_offences::Config for Runtime {
     type Event = Event;
     type IdentificationTuple = pallet_session::historical::IdentificationTuple<Self>;
     type OnOffenceHandler = Staking;
+
 }
 
-impl pallet_authority_discovery::Config for Runtime {}
+impl pallet_authority_discovery::Config for Runtime { type MaxAuthorities = MaxAuthorities; }
 
 impl pallet_grandpa::Config for Runtime {
     type Event = Event;
@@ -1192,6 +1203,7 @@ impl pallet_vesting::Config for Runtime {
     type BlockNumberToBalance = ConvertInto;
     type MinVestedTransfer = MinVestedTransfer;
     type WeightInfo = pallet_vesting::weights::SubstrateWeight<Runtime>;
+    const MAX_VESTING_SCHEDULES: u32 = 28;
 }
 
 impl pallet_mmr::Config for Runtime {
@@ -1423,6 +1435,9 @@ impl_runtime_apis! {
         fn grandpa_authorities() -> GrandpaAuthorityList {
             Grandpa::grandpa_authorities()
         }
+        fn current_set_id() -> fg_primitives::SetId {
+			Grandpa::current_set_id()
+		}
 
         fn submit_report_equivocation_unsigned_extrinsic(
             equivocation_proof: fg_primitives::EquivocationProof<

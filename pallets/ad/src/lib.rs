@@ -28,10 +28,11 @@ mod constants;
 pub use constants::*;
 
 pub use self::pallet::*;
+type AccountIdOf<T>=<T as frame_system::Config>::AccountId;
+
 #[frame_support::pallet]
 pub mod pallet {
 	use super::*;
-
 	#[pallet::pallet]
 	#[pallet::generate_store(pub(super) trait Store)]
 	pub struct Pallet<T>(PhantomData<T>);
@@ -39,7 +40,7 @@ pub mod pallet {
 	#[pallet::config]
 	#[pallet::disable_frame_system_supertrait_check]
 	pub trait Config:
-		pallet_timestamp::Config<AccountId = parami_primitives::AccountId>
+		pallet_timestamp::Config<AccountId=parami_primitives::AccountId>
 		+ pallet_staking::Config
 		+ parami_did::Config
 		+ parami_assets::Config
@@ -48,10 +49,10 @@ pub mod pallet {
 		type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
 		/// The currency mechanism.
-		type Currency: ReservableCurrency<Self::AccountId>;
+		type Currency: ReservableCurrency<<Self as frame_system::Config>::AccountId>;
 
 		/// Required `origin` for updating configuration
-		type ConfigOrigin: EnsureOrigin<Self::Origin>;
+		type ConfigOrigin: EnsureOrigin<<Self as frame_system::Config>::Origin>;
 	}
 
 	#[pallet::event]
@@ -59,7 +60,7 @@ pub mod pallet {
 	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// an advertiser was created. \[who, did, advertiserId\]
-		CreatedAdvertiser(T::AccountId, DidMethodSpecId, AdvertiserId),
+		CreatedAdvertiser(AccountIdOf<T>, DidMethodSpecId, AdvertiserId),
 		/// an advertisement was created. \[did, advertiserId, adId\]
 		CreatedAd(DidMethodSpecId, AdvertiserId, AdId),
 		AdReward(AdvertiserId, AdId, Balance),
@@ -93,7 +94,7 @@ pub mod pallet {
 	}
 
 	#[pallet::hooks]
-	impl<T: Config> Hooks<T::BlockNumber> for Pallet<T> {
+	impl<T: Config> Hooks<<T as frame_system::Config>::BlockNumber> for Pallet<T> {
 		fn on_runtime_upgrade() -> Weight {
 			0
 		}
@@ -256,7 +257,7 @@ pub mod pallet {
 			asset_id: T::AssetId,
 			#[pallet::compact] reward_pool: Balance,
 		) -> DispatchResultWithPostInfo {
-			let who: T::AccountId = ensure_signed(origin)?;
+			let who: AccountIdOf<T>= ensure_signed(origin)?;
 			let did: DidMethodSpecId = Self::ensure_did(&who)?;
 			ensure!(Advertisers::<T>::get(&did).is_none(), Error::<T>::AdvertiserExists);
 
@@ -276,11 +277,11 @@ pub mod pallet {
                 <T as pallet::Config>::Currency::minimum_balance(),
                 KeepAlive,
             )?;
-			
+
 			let deposit = AdvertiserDeposit::<T>::get();
 
-			<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &who, &deposit_account, s!(deposit), true)?;
-			<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &who, &reward_pool_account, s!(reward_pool), true)?;
+			<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &who, &deposit_account, s!(deposit), true)?;
+			<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &who, &reward_pool_account, s!(reward_pool), true)?;
 			// <T as Config>::Currency::transfer(&who, &deposit_account, s!(deposit), KeepAlive)?;
 			// <T as Config>::Currency::transfer(
 			// 	&who,
@@ -307,12 +308,12 @@ pub mod pallet {
 		pub fn create_ad(
 			origin: OriginFor<T>,
 			asset_id: T::AssetId,
-			signer: T::AccountId,
+			signer: AccountIdOf<T>,
 			tag_coefficients: Vec<(TagType, TagCoefficient)>,
 			media_reward_rate: PerU16,
 			metadata: Vec<u8>,
 		) -> DispatchResultWithPostInfo {
-			let who: T::AccountId = ensure_signed(origin)?;
+			let who: AccountIdOf<T> = ensure_signed(origin)?;
 
 			ensure!(
 				tag_coefficients.len() <= MAX_TAG_COUNT,
@@ -336,7 +337,7 @@ pub mod pallet {
 			let advertiser = Advertisers::<T>::get(&did).ok_or(Error::<T>::AdvertiserNotExists)?;
 			let deposit = AdDeposit::<T>::get();
 
-			<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &who, &advertiser.deposit_account, s!(deposit), true)?;
+			<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &who, &advertiser.deposit_account, s!(deposit), true)?;
 			// <T as Config>::Currency::transfer(
 			// 	&who,
 			// 	&advertiser.deposit_account,
@@ -369,7 +370,7 @@ pub mod pallet {
 			media_did: DidMethodSpecId,
 			tag_score_delta: Vec<TagScore>,
 		) -> DispatchResultWithPostInfo {
-			let advertiser: T::AccountId = ensure_signed(origin)?;
+			let advertiser = ensure_signed(origin)?;
 			let advertiser_did: DidMethodSpecId = Self::ensure_did(&advertiser)?;
 
 			let advertiser =
@@ -391,8 +392,8 @@ pub mod pallet {
 			let (reward, reward_media, reward_user) =
 				calc_reward::<T>(&ad, &user_did, &user, &media, Some(&tag_score_delta))?;
 
-			<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.reward_pool_account, &user, s!(reward_user), true)?;
-			<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.reward_pool_account, &media, s!(reward_media), true)?;
+			<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.reward_pool_account, &user, s!(reward_user), true)?;
+			<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.reward_pool_account, &media, s!(reward_media), true)?;
 			// <T as Config>::Currency::transfer(
 			// 	&advertiser.reward_pool_account,
 			// 	&user,
@@ -426,7 +427,7 @@ pub mod pallet {
 			media_did: DidMethodSpecId,
 			timestamp: T::Moment,
 		) -> DispatchResultWithPostInfo {
-			let sender = ensure_signed(origin)?;
+			let sender :AccountIdOf<T> = ensure_signed(origin)?;
 
 			let advertiser =
 				Advertisers::<T>::get(&advertiser_did).ok_or(Error::<T>::AdvertiserNotExists)?;
@@ -459,7 +460,7 @@ pub mod pallet {
 
 			let mut free: Balance = s!(free_balance::<T>(asset_id, advertiser.reward_pool_account.clone()));
 			if free > reward_user {
-				<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.reward_pool_account, &user, s!(reward_user), true)?;
+				<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.reward_pool_account, &user, s!(reward_user), true)?;
 				// <T as Config>::Currency::transfer(
 				// 	&advertiser.reward_pool_account,
 				// 	&user,
@@ -468,7 +469,7 @@ pub mod pallet {
 				// )?;
 				free = free.saturating_sub(reward_user);
 			} else {
-				<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.deposit_account, &user, s!(reward_user), true)?;
+				<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.deposit_account, &user, s!(reward_user), true)?;
 				// <T as Config>::Currency::transfer(
 				// 	&advertiser.deposit_account,
 				// 	&user,
@@ -478,7 +479,7 @@ pub mod pallet {
 			}
 
 			if free > reward_media {
-				<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.reward_pool_account, &media, s!(reward_media), true)?;
+				<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.reward_pool_account, &media, s!(reward_media), true)?;
 				// <T as Config>::Currency::transfer(
 				// 	&advertiser.reward_pool_account,
 				// 	&media,
@@ -487,7 +488,7 @@ pub mod pallet {
 				// )?;
 				free = free.saturating_sub(reward_media);
 			} else {
-				<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.deposit_account, &media, s!(reward_media), true)?;
+				<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.deposit_account, &media, s!(reward_media), true)?;
 				// <T as Config>::Currency::transfer(
 				// 	&advertiser.deposit_account,
 				// 	&media,
@@ -498,7 +499,7 @@ pub mod pallet {
 
 			let extra_reward = ExtraReward::<T>::get();
 			if free > extra_reward {
-				<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.reward_pool_account, &sender, s!(extra_reward), true)?;
+				<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.reward_pool_account, &sender, s!(extra_reward), true)?;
 				// <T as Config>::Currency::transfer(
 				// 	&advertiser.reward_pool_account,
 				// 	&sender,
@@ -506,7 +507,7 @@ pub mod pallet {
 				// 	KeepAlive,
 				// )?;
 			} else {
-				<parami_assets::Pallet<T> as Transfer<T::AccountId>>::transfer(asset_id, &advertiser.deposit_account, &sender, s!(extra_reward), true)?;
+				<parami_assets::Pallet<T> as Transfer<AccountIdOf<T>>>::transfer(asset_id, &advertiser.deposit_account, &sender, s!(extra_reward), true)?;
 				// <T as Config>::Currency::transfer(
 				// 	&advertiser.deposit_account,
 				// 	&sender,
@@ -523,19 +524,20 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-	pub fn ensure_did(who: &T::AccountId) -> ResultPost<DidMethodSpecId> {
+	pub fn ensure_did(who: &AccountIdOf<T>) -> ResultPost<DidMethodSpecId>
+    {
 		let did: Option<DidMethodSpecId> = parami_did::Pallet::<T>::lookup_account(who.clone());
 		ensure!(did.is_some(), Error::<T>::DIDNotExists);
 		Ok(did.expect("Must be Some"))
 	}
 
-	fn lookup_index(did: DidMethodSpecId) -> ResultPost<T::AccountId> {
+	fn lookup_index(did: DidMethodSpecId) -> ResultPost<<T as frame_system::Config>::AccountId> {
 		let who: Option<T::AccountId> = parami_did::Pallet::<T>::lookup_index(did);
 		ensure!(who.is_some(), Error::<T>::ObsoletedDID);
 		Ok(who.expect("Must be Some"))
 	}
 
-	pub fn ad_accounts(id: AdvertiserId) -> (T::AccountId, T::AccountId) {
+	pub fn ad_accounts(id: AdvertiserId) -> (AccountIdOf<T>, AccountIdOf<T>) {
 		let deposit = PalletId(*b"prm/ad/d");
 		let reward_pool = PalletId(*b"prm/ad/r");
 		(deposit.into_sub_account(id), reward_pool.into_sub_account(id))

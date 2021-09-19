@@ -12,17 +12,17 @@ num-traits = { version = "0.2.8", default-features = false }
 
 # primitives
 parami-primitives = { version = "2.0.0", path = "../../primitives", default-features = false }
-sp-core = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-sp-runtime = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-sp-std = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
+sp-core = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
+sp-std = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
 
 # frame dependencies
-frame-support = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-frame-system = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-pallet-balances = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-pallet-staking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-pallet-timestamp = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false }
-frame-benchmarking = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
+frame-system = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
+pallet-staking = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
+pallet-timestamp = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false }
+frame-benchmarking = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09", default-features = false, optional = true }
 
 parami-did = { path = "../did", default-features = false }
 parami-assets = { path = "../assets", default-features = false }
@@ -32,12 +32,12 @@ orml-traits = { path = "../../orml/traits", default-features = false }
 orml-nft = { path = "../../orml/nft", default-features = false }
 
 [dev-dependencies]
-sp-io = { git = "https://github.com/paritytech/substrate", version = "4.0.0-dev" }
-pallet-utility = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
-pallet-proxy = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
-frame-election-provider-support = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
-pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
-pallet-session = { git = 'https://github.com/paritytech/substrate.git', version = "4.0.0-dev" }
+sp-io = { git = "https://github.com/paritytech/substrate", tag="monthly-2021-09" }
+pallet-utility = { git = 'https://github.com/paritytech/substrate.git', tag="monthly-2021-09" }
+pallet-proxy = { git = 'https://github.com/paritytech/substrate.git', tag="monthly-2021-09" }
+frame-election-provider-support = { git = 'https://github.com/paritytech/substrate.git', tag="monthly-2021-09" }
+pallet-staking-reward-curve = { git = 'https://github.com/paritytech/substrate.git', tag="monthly-2021-09" }
+pallet-session = { git = 'https://github.com/paritytech/substrate.git', tag="monthly-2021-09" }
 
 [features]
 default = ["std"]

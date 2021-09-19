@@ -43,7 +43,7 @@ use sc_client_api::{
     BlockBackend, ExecutionStrategy,
 };
 use sc_client_db::PruningMode;
-use sc_executor::{NativeExecutor, WasmExecutionMethod};
+use sc_executor::NativeElseWasmExecutor;
 use sp_api::ProvideRuntimeApi;
 use sp_block_builder::BlockBuilder;
 use sp_consensus::{

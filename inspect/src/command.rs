@@ -24,6 +24,7 @@ use sc_cli::{CliConfiguration, ImportParams, Result, SharedParams};
 use sc_service::{new_full_client, Configuration, NativeExecutionDispatch};
 use sp_runtime::traits::Block;
 use std::str::FromStr;
+use sc_executor::NativeElseWasmExecutor;
 
 impl InspectCmd {
     /// Run the inspect command, passing the inspector.
@@ -34,7 +35,12 @@ impl InspectCmd {
         RA: Send + Sync + 'static,
         EX: NativeExecutionDispatch + 'static,
     {
-        let client = new_full_client::<B, RA, EX>(&config, None)?;
+        let executor = NativeElseWasmExecutor::<EX>::new(
+            config.wasm_method,
+            config.default_heap_pages,
+            config.max_runtime_instances,
+        );
+        let client = new_full_client::<B, RA, _>(&config, None, executor)?;
         let inspect = Inspector::<B>::new(client);
 
         match &self.command {
