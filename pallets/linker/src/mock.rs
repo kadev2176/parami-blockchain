@@ -1,4 +1,4 @@
-use crate as parami_linker;
+use crate::{self as parami_linker, types::AccountType};
 use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
 use frame_system::{self as system, EnsureRoot};
 use sp_core::{
@@ -16,6 +16,8 @@ type Block = system::mocking::MockBlock<Test>;
 
 type AccountId = <<Signature as Verify>::Signer as IdentifyAccount>::AccountId;
 pub type Extrinsic = TestXt<Call, ()>;
+
+pub const POLKA: &[u8] = b"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
 pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
 pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
@@ -183,13 +185,20 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .unwrap();
 
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(ALICE, 100)],
+        balances: vec![(ALICE, 100), (BOB, 100)],
     }
     .assimilate_storage(&mut t)
     .unwrap();
 
     parami_did::GenesisConfig::<Test> {
         ids: vec![(ALICE, DID_ALICE, None), (BOB, DID_BOB, None)],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    parami_linker::GenesisConfig::<Test> {
+        links: vec![(DID_ALICE, AccountType::Polkadot, POLKA.to_vec())],
+        registrars: vec![DID_ALICE],
     }
     .assimilate_storage(&mut t)
     .unwrap();

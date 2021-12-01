@@ -32,7 +32,61 @@ fn should_generate_message() {
 }
 
 #[test]
-fn should_fetch() {
+fn should_link() {
+    new_test_ext().execute_with(|| {
+        let profile = b"https://t.me/AmeliaParami".to_vec();
+
+        assert_ok!(Linker::insert_pending(
+            DID_ALICE,
+            AccountType::Telegram,
+            profile.clone(),
+        ));
+
+        let maybe_pending = <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE);
+        assert_ne!(maybe_pending, None);
+
+        let pending = maybe_pending.unwrap();
+        assert_eq!(pending.profile, profile);
+        assert_eq!(pending.deadline, <Test as Config>::PendingLifetime::get());
+
+        assert_ok!(Linker::insert_link(
+            DID_ALICE,
+            AccountType::Telegram,
+            profile.clone(),
+            DID_ALICE,
+        ));
+
+        assert_eq!(
+            <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE),
+            None
+        );
+
+        assert!(<Linked<Test>>::get(&AccountType::Telegram, &profile));
+
+        assert_eq!(
+            <LinksOf<Test>>::get(&DID_ALICE, &AccountType::Telegram),
+            Some(profile)
+        );
+    })
+}
+
+#[test]
+fn should_fail_when_exists() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Linker::insert_pending(DID_ALICE, AccountType::Polkadot, POLKA.to_vec()),
+            Error::<Test>::Exists
+        );
+
+        assert_noop!(
+            Linker::insert_pending(DID_BOB, AccountType::Polkadot, POLKA.to_vec()),
+            Error::<Test>::Exists
+        );
+    })
+}
+
+#[test]
+fn should_ocw_fetch() {
     let url: String = "https://example.com".into();
 
     let (offchain, state) = testing::TestOffchainExt::new();
@@ -59,7 +113,7 @@ fn should_fetch() {
 }
 
 #[test]
-fn should_submit() {
+fn should_ocw_submit() {
     let (offchain, _) = testing::TestOffchainExt::new();
     let (pool, state) = testing::TestTransactionPoolExt::new();
 
@@ -68,7 +122,7 @@ fn should_submit() {
     t.register_extension(TransactionPoolExt::new(pool));
 
     t.execute_with(|| {
-        Linker::ocw_submit_link(DID_ALICE, AccountType::Unknown, Vec::<u8>::new(), false);
+        Linker::ocw_submit_link(DID_ALICE, AccountType::Telegram, Vec::<u8>::new(), false);
 
         let tx = state.write().transactions.pop().unwrap();
 
@@ -76,14 +130,65 @@ fn should_submit() {
             tx,
             Call::Linker(crate::Call::submit_link {
                 did: DID_ALICE,
-                site: AccountType::Unknown,
+                site: AccountType::Telegram,
                 profile: Vec::<u8>::new(),
-                ok: false,
+                validated: false,
             })
         );
-
-        // TODO: test that the transaction is actually submitted
     });
+}
+
+#[test]
+fn should_submit() {
+    new_test_ext().execute_with(|| {
+        let profile = b"https://t.me/AmeliaParami".to_vec();
+
+        assert_ok!(Linker::submit_link(
+            Origin::none(),
+            DID_ALICE,
+            AccountType::Telegram,
+            profile.clone(),
+            true,
+        ));
+
+        assert!(<Linked<Test>>::get(&AccountType::Telegram, &profile));
+
+        assert_eq!(
+            <LinksOf<Test>>::get(&DID_ALICE, &AccountType::Telegram),
+            Some(profile)
+        );
+    })
+}
+
+#[test]
+fn should_submit_when_pending() {
+    new_test_ext().execute_with(|| {
+        let profile = b"https://t.me/AmeliaParami".to_vec();
+
+        assert_ok!(Linker::link_sociality(
+            Origin::signed(ALICE),
+            AccountType::Telegram,
+            profile.clone(),
+        ));
+
+        assert_ne!(
+            <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE),
+            None
+        );
+
+        assert_ok!(Linker::submit_link(
+            Origin::none(),
+            DID_ALICE,
+            AccountType::Telegram,
+            profile.clone(),
+            false,
+        ));
+
+        assert_eq!(
+            <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE),
+            None
+        );
+    })
 }
 
 #[test]
@@ -118,13 +223,6 @@ fn should_link_sociality() {
             profile.clone(),
         ));
 
-        let maybe_pending = <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE);
-        assert_ne!(maybe_pending, None);
-
-        let pending = maybe_pending.unwrap();
-        assert_eq!(pending.profile, profile);
-        assert_eq!(pending.deadline, <Test as Config>::PendingLifetime::get());
-
         Linker::offchain_worker(0);
 
         Linker::offchain_worker(5);
@@ -137,7 +235,7 @@ fn should_link_sociality() {
                 did: DID_ALICE,
                 site: AccountType::Telegram,
                 profile: Vec::new(),
-                ok: false,
+                validated: false,
             })
         );
     });
@@ -378,57 +476,36 @@ fn should_recover_trx() {
 }
 
 #[test]
-fn should_deposit() {
+fn should_deposit_and_trust() {
     new_test_ext().execute_with(|| {
-        assert_ok!(Linker::deposit(Origin::signed(ALICE), 10));
+        assert_ok!(Linker::deposit(Origin::signed(BOB), 10));
 
-        assert_eq!(Balances::free_balance(&ALICE), 90);
-        assert_eq!(Balances::reserved_balance(ALICE), 10);
-    });
-}
+        assert_eq!(Balances::free_balance(&BOB), 90);
+        assert_eq!(Balances::reserved_balance(BOB), 10);
 
-#[test]
-fn should_trust() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Linker::deposit(Origin::signed(ALICE), 10));
+        assert_ok!(Linker::force_trust(Origin::root(), DID_BOB));
 
-        assert_ok!(Linker::force_trust(Origin::root(), DID_ALICE));
+        assert_eq!(<Registrar<Test>>::get(&DID_BOB), Some(true));
 
-        assert_eq!(<Registrar<Test>>::get(&DID_ALICE), Some(true));
-    });
-}
+        assert_ok!(Linker::force_block(Origin::root(), DID_BOB));
 
-#[test]
-fn should_block() {
-    new_test_ext().execute_with(|| {
-        assert_ok!(Linker::deposit(Origin::signed(ALICE), 10));
+        assert_eq!(<Registrar<Test>>::get(&DID_BOB), Some(false));
 
-        assert_ok!(Linker::force_trust(Origin::root(), DID_ALICE));
-
-        assert_ok!(Linker::force_block(Origin::root(), DID_ALICE));
-
-        assert_eq!(<Registrar<Test>>::get(&DID_ALICE), Some(false));
-
-        assert_eq!(Balances::free_balance(&ALICE), 90);
-        assert_eq!(Balances::reserved_balance(ALICE), 0);
-
-        assert_noop!(
-            Linker::deposit(Origin::signed(ALICE), 10),
-            Error::<Test>::Blocked
-        );
+        assert_eq!(Balances::free_balance(&BOB), 90);
+        assert_eq!(Balances::reserved_balance(BOB), 0);
     });
 }
 
 #[test]
 fn should_link_via_registrar() {
     new_test_ext().execute_with(|| {
-        let profile = b"https://mastodon.social/@ParamiProtocol".to_vec();
+        let profile = b"https://t.me/AmeliaParami".to_vec();
 
         assert_noop!(
             Linker::submit_link(
-                Origin::signed(ALICE),
+                Origin::signed(BOB),
                 DID_ALICE,
-                AccountType::Mastodon,
+                AccountType::Telegram,
                 profile.clone(),
                 true
             ),
@@ -439,18 +516,10 @@ fn should_link_via_registrar() {
 
         assert_ok!(Linker::force_trust(Origin::root(), DID_ALICE));
 
-        assert_eq!(<Registrar<Test>>::get(&DID_ALICE), Some(true));
-
-        assert_ok!(Linker::link_sociality(
-            Origin::signed(ALICE),
-            AccountType::Mastodon,
-            profile.clone(),
-        ));
-
         assert_ok!(Linker::submit_link(
             Origin::signed(ALICE),
             DID_ALICE,
-            AccountType::Mastodon,
+            AccountType::Telegram,
             profile.clone(),
             true
         ));
@@ -458,65 +527,19 @@ fn should_link_via_registrar() {
         assert_ok!(Linker::submit_score(
             Origin::signed(ALICE),
             DID_ALICE,
-            b"mastodon".to_vec(),
+            b"telegram".to_vec(),
             50
         ));
-
-        assert_noop!(
-            Linker::submit_link(
-                Origin::signed(ALICE),
-                DID_ALICE,
-                AccountType::Mastodon,
-                profile.clone(),
-                true
-            ),
-            Error::<Test>::Exists
-        );
-
-        assert_noop!(
-            Linker::submit_link(
-                Origin::signed(ALICE),
-                DID_BOB,
-                AccountType::Mastodon,
-                profile.clone(),
-                true
-            ),
-            Error::<Test>::Exists
-        );
     });
 }
 
 #[test]
-fn should_reject_duplicate() {
+fn should_force_unlink() {
     new_test_ext().execute_with(|| {
-        let address = vec![0u8; 20];
-        let signature = [0u8; 65];
-
-        assert_ok!(Linker::link_crypto(
-            Origin::signed(ALICE),
-            AccountType::Unknown,
-            address.clone(),
-            signature,
+        assert_ok!(Linker::force_unlink(
+            Origin::root(),
+            DID_ALICE,
+            AccountType::Polkadot,
         ));
-
-        assert_noop!(
-            Linker::link_crypto(
-                Origin::signed(ALICE),
-                AccountType::Unknown,
-                address.clone(),
-                signature,
-            ),
-            Error::<Test>::Exists
-        );
-
-        assert_noop!(
-            Linker::link_crypto(
-                Origin::signed(BOB),
-                AccountType::Unknown,
-                address.clone(),
-                signature,
-            ),
-            Error::<Test>::Exists
-        );
-    });
+    })
 }
