@@ -21,6 +21,7 @@ use frame_support::{
     PalletId,
 };
 use parami_did::{EnsureDid, Pallet as Did};
+use sp_runtime::traits::Saturating;
 
 use weights::WeightInfo;
 
@@ -105,7 +106,10 @@ pub mod pallet {
 
             let reserved = T::Currency::reserved_balance_named(&id.0, &who);
 
-            ensure!(reserved + value >= minimum, Error::<T>::ExistentialDeposit);
+            ensure!(
+                reserved.saturating_add(value) >= minimum,
+                Error::<T>::ExistentialDeposit
+            );
 
             T::Currency::reserve_named(&id.0, &who, value)?;
 

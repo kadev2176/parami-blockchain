@@ -28,21 +28,21 @@ jsonrpc-core-client = '18.0.0'
 jsonrpc-derive = '18.0.0'
 
 [dependencies.sp-api]
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-blockchain]
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-core]
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-rpc]
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-runtime]
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'

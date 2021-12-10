@@ -313,11 +313,11 @@ fn should_recover_dot() {
 #[test]
 fn should_recover_eth() {
     new_test_ext().execute_with(|| {
-        // PK: ***REMOVED***
-        let address = "***REMOVED***";
+        // PK: be6383dad004f233317e46ddb46ad31b16064d14447a95cc1d8c8d4bc61c3728
+        let address = "eb014f8c8b418db6b45774c326a0e64c78914dc0";
         let address = decode_hex(address).unwrap();
 
-        let signature = "***REMOVED***";
+        let signature = "193883369b84888e1dded1e83a8fd92cdde41b9a9c977be5ddbbb259783a69d060d120704760eb82671889c664be25d6cf6f25b9efe781fb637bbd6097da0e621c";
         let signature = decode_hex(signature).unwrap();
 
         let mut sig = [0u8; 65];

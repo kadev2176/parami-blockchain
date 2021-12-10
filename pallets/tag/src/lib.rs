@@ -181,17 +181,21 @@ pub mod pallet {
     }
 
     #[pallet::genesis_config]
-    pub struct GenesisConfig<T> {
-        pub tags: Vec<Vec<u8>>,
-        pub phantom: PhantomData<T>,
+    pub struct GenesisConfig<T: Config> {
+        pub tag: Vec<Vec<u8>>,
+        pub tags: Vec<(HashOf<T>, Vec<u8>)>,
+        pub personas: Vec<(T::DecentralizedId, Vec<u8>, i32)>,
+        pub influences: Vec<(T::DecentralizedId, Vec<u8>, i32)>,
     }
 
     #[cfg(feature = "std")]
     impl<T: Config> Default for GenesisConfig<T> {
         fn default() -> Self {
             Self {
+                tag: Default::default(),
                 tags: Default::default(),
-                phantom: Default::default(),
+                personas: Default::default(),
+                influences: Default::default(),
             }
         }
     }
@@ -199,7 +203,7 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            for tag in &self.tags {
+            for tag in &self.tag {
                 <Metadata<T>>::insert(
                     tag,
                     types::Metadata {
@@ -207,6 +211,18 @@ pub mod pallet {
                         created: Default::default(),
                     },
                 );
+            }
+
+            for (ad, tag) in &self.tags {
+                <TagsOf<T>>::insert(ad, tag, true);
+            }
+
+            for (did, tag, score) in &self.personas {
+                <PersonasOf<T>>::insert(did, tag, score);
+            }
+
+            for (did, tag, score) in &self.influences {
+                <InfluencesOf<T>>::insert(did, tag, score);
             }
         }
     }

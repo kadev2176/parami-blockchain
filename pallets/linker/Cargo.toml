@@ -40,19 +40,19 @@ tracing = { version = '0.1', default-features = false }
 
 [dependencies.frame-benchmarking]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 optional = true
 
 [dependencies.frame-support]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.frame-system]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.num-traits]
 version = '0.2'
@@ -66,35 +66,35 @@ version = '1.0'
 
 [dependencies.sp-core]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-io]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-runtime-interface]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-runtime]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-std]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dev-dependencies.libsecp256k1]
 version = '0.6'
 
 [dev-dependencies.pallet-balances]
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [features]
 default = ['std']

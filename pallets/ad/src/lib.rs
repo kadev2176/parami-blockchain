@@ -365,7 +365,7 @@ pub mod pallet {
 
             let mut meta = Self::ensure_owned(did, ad)?;
 
-            ensure!(meta.remain > value, Error::<T>::InsufficientBalance);
+            ensure!(meta.remain >= value, Error::<T>::InsufficientBalance);
 
             let kol_meta = Did::<T>::meta(&kol).ok_or(Error::<T>::NotMinted)?;
             let nft = kol_meta.nft.ok_or(Error::<T>::NotMinted)?;
@@ -381,8 +381,11 @@ pub mod pallet {
             // and drawback current ad
 
             if let Some(slot) = slot {
+                let quote = T::Swaps::token_in_dry(slot.nft, slot.tokens)?;
+                let remain = slot.remain.saturating_add(quote);
+
                 ensure!(
-                    value >= slot.remain.saturating_mul(120u32.into()) / 100u32.into(),
+                    value.saturating_mul(100u32.into()) / 120u32.into() > remain,
                     Error::<T>::Underbid
                 );
 
@@ -465,10 +468,10 @@ pub mod pallet {
             let personas = T::Tags::personas_of(&visitor);
             let length = personas.len();
             for (_, score) in personas {
-                socring += score;
+                socring.saturating_accrue(score);
             }
 
-            socring /= (length + 1) as i32;
+            socring /= length.saturating_add(1) as i32;
 
             if socring < 0 {
                 socring = 0;
@@ -530,6 +533,21 @@ pub mod pallet {
             Ok(())
         }
     }
+
+    #[pallet::genesis_config]
+    pub struct GenesisConfig {}
+
+    #[cfg(feature = "std")]
+    impl Default for GenesisConfig {
+        fn default() -> Self {
+            Self {}
+        }
+    }
+
+    #[pallet::genesis_build]
+    impl<T: Config> GenesisBuild<T> for GenesisConfig {
+        fn build(&self) {}
+    }
 }
 
 impl<T: Config> Pallet<T> {
@@ -550,16 +568,13 @@ impl<T: Config> Pallet<T> {
             }
 
             let slot = <SlotOf<T>>::get(kol);
-            if slot.is_none() {
-                continue;
-            }
-            let slot = slot.unwrap();
+            if let Some(slot) = slot {
+                if slot.ad != ad {
+                    continue;
+                }
 
-            if slot.ad != ad {
-                continue;
+                let _ = Self::drawback(&kol, &slot);
             }
-
-            let _ = Self::drawback(&kol, &slot);
         }
 
         for ad in ads {

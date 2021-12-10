@@ -26,7 +26,7 @@ use frame_support::{
     weights::GetDispatchInfo,
     PalletId,
 };
-use sp_runtime::traits::{AccountIdConversion, Dispatchable};
+use sp_runtime::traits::{AccountIdConversion, Dispatchable, Saturating};
 use sp_std::boxed::Box;
 
 use weights::WeightInfo;
@@ -111,7 +111,7 @@ pub mod pallet {
         pub fn create_stable_account(
             origin: OriginFor<T>,
             magic_account: AccountOf<T>,
-            #[pallet::compact] deposit: BalanceOf<T>,
+            #[pallet::compact] stashed: BalanceOf<T>,
         ) -> DispatchResult {
             let controller_account = ensure_signed(origin)?;
             ensure!(
@@ -138,9 +138,11 @@ pub mod pallet {
             );
 
             let minimum = T::Currency::minimum_balance();
+            let deposit = minimum.saturating_mul(50u32.into());
 
             ensure!(
-                T::Currency::free_balance(&controller_account) - minimum >= minimum + deposit,
+                T::Currency::free_balance(&controller_account) - minimum
+                    >= deposit.saturating_add(stashed),
                 Error::<T>::InsufficientBalance
             );
 
@@ -163,13 +165,13 @@ pub mod pallet {
             T::Currency::transfer(
                 &sa.controller_account,
                 &sa.magic_account,
-                minimum,
+                deposit,
                 KeepAlive,
             )?;
             T::Currency::transfer(
                 &sa.controller_account,
                 &sa.stash_account,
-                deposit,
+                stashed,
                 KeepAlive,
             )?;
 
@@ -210,6 +212,10 @@ pub mod pallet {
 
             let free = T::Currency::free_balance(&old_controller);
             T::Currency::transfer(&old_controller, &new_controller, free, AllowDeath)?;
+
+            let minimum = T::Currency::minimum_balance();
+            let deposit = minimum.saturating_mul(50u32.into());
+            let _ = T::Currency::transfer(&sa.stash_account, &sa.magic_account, deposit, KeepAlive);
 
             sa.controller_account = new_controller.clone();
 

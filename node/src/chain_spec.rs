@@ -434,6 +434,7 @@ pub fn testnet_genesis(
         democracy: Default::default(),
         technical_membership: Default::default(),
         treasury: Default::default(),
+        uniques: Default::default(),
         vesting: Default::default(),
 
         // airdrop: Default::default(),

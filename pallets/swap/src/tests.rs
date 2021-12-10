@@ -1,4 +1,4 @@
-use crate::{mock::*, Config, Error, LiquidityOf, Metadata};
+use crate::{mock::*, Config, Error, Metadata};
 use frame_support::{
     assert_noop, assert_ok,
     traits::{tokens::fungibles::Mutate as FungMutate, Currency},
@@ -95,12 +95,9 @@ fn should_add_liquidity() {
         assert_eq!(Balances::free_balance(&meta.pot), 300);
         assert_eq!(Assets::balance(token, &meta.pot), 30);
 
-        let liquidity = <LiquidityOf<Test>>::get(&token, &ALICE);
-        assert_eq!(liquidity, 300);
-
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 200 - 100);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 20 - 10);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), liquidity);
+        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 300);
     });
 }
 
@@ -157,12 +154,9 @@ fn should_remove_liquidity() {
         assert_eq!(Balances::free_balance(&meta.pot), 0);
         assert_eq!(Assets::balance(token, &meta.pot), 0);
 
-        let liquidity = <LiquidityOf<Test>>::get(&token, &ALICE);
-        assert_eq!(liquidity, 0);
-
         assert_eq!(Balances::free_balance(&ALICE), 10000);
         assert_eq!(Assets::balance(token, &ALICE), 44);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), liquidity);
+        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 0);
     });
 }
 

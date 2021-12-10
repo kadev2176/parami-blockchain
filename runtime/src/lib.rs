@@ -1203,9 +1203,10 @@ pub struct FarmingCurve;
 impl parami_nft::FarmingCurve<Runtime> for FarmingCurve {
     fn calculate_farming_reward(
         minted_height: BlockNumber,
+        started_supply: Balance,
         maximum_tokens: Balance,
         current_height: BlockNumber,
-        started_supply: Balance,
+        _current_supply: Balance,
     ) -> Balance {
         use core::f64::consts::E;
 
@@ -1308,7 +1309,7 @@ construct_runtime!(
         Tips: pallet_tips::{Pallet, Call, Storage, Event<T>},
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage},
         Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>},
-        Uniques: pallet_uniques::{Pallet, Storage, Event<T>},
+        Uniques: pallet_uniques::{Pallet, Storage, Config<T>, Event<T>},
         Utility: pallet_utility::{Pallet, Call, Event},
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 

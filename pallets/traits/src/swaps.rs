@@ -32,13 +32,6 @@ pub trait Swaps {
     /// Iterate over the swaps
     fn iter() -> Box<dyn Iterator<Item = (Self::AssetId, Self::AssetId, Self::AccountId)>>;
 
-    /// Iterate over the holders
-    ///
-    /// # Arguments
-    ///
-    /// * `token_id` - The Asset ID
-    fn iter_holder(token_id: Self::AssetId) -> Box<dyn Iterator<Item = Self::AccountId>>;
-
     /// Create new swap pair
     ///
     /// # Arguments
@@ -48,8 +41,14 @@ pub trait Swaps {
     ///
     /// # Results
     ///
-    /// The ID of the new swap pair
-    fn new(who: &Self::AccountId, token_id: Self::AssetId) -> Result<Self::AssetId, DispatchError>;
+    /// tuple of (token_id, lp_token_id)
+    ///
+    /// * `token_id` - The Asset ID
+    /// * `lp_token_id` - The Asset ID of the liquidity provider token
+    fn new(
+        who: &Self::AccountId,
+        token_id: Self::AssetId,
+    ) -> Result<(Self::AssetId, Self::AssetId), DispatchError>;
 
     /// Get dry-run result of mint
     ///
@@ -96,7 +95,7 @@ pub trait Swaps {
     ///
     /// tuple of (currency, tokens)
     ///
-    /// * `currency` - The currency involved
+    /// * `liquidity` - The amount of liquidity minted
     /// * `tokens` - The amount of tokens involved
     fn mint(
         who: &Self::AccountId,
@@ -105,7 +104,7 @@ pub trait Swaps {
         min_liquidity: Self::TokenBalance,
         max_tokens: Self::TokenBalance,
         keep_alive: bool,
-    ) -> Result<(Self::QuoteBalance, Self::TokenBalance), DispatchError>;
+    ) -> Result<(Self::TokenBalance, Self::TokenBalance), DispatchError>;
 
     /// Get dry-run result of burn
     ///

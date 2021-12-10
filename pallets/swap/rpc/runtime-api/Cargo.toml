@@ -22,13 +22,13 @@ serde = { version = '1.0', features = ['derive'], optional = true }
 
 [dependencies.sp-api]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-runtime]
 default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
 
 [features]
 default = ['std']

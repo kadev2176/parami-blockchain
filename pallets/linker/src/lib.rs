@@ -408,10 +408,7 @@ pub mod pallet {
     }
 
     #[pallet::genesis_config]
-    pub struct GenesisConfig<T>
-    where
-        T: Config,
-    {
+    pub struct GenesisConfig<T: Config> {
         pub links: Vec<(DidOf<T>, types::AccountType, Vec<u8>)>,
     }
 
