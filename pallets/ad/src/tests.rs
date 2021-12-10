@@ -1,25 +1,14 @@
-use crate::{mock::*, AdsOf, Config, DeadlineOf, Error, Metadata, SlotOf};
-use frame_support::{assert_noop, assert_ok, traits::Hooks};
+use crate::{mock::*, AdsOf, Config, DeadlineOf, Did, Error, Metadata, SlotOf};
+use frame_support::{
+    assert_noop, assert_ok,
+    traits::{Currency, Hooks},
+};
 use parami_traits::Tags;
-use sp_core::sr25519;
-
-macro_rules! ensure_remain {
-    ($meta:tt, $currency:expr, $tokens: expr) => {
-        assert_eq!($meta.remain, $currency);
-        assert_eq!(Balances::free_balance(&$meta.pot), $currency);
-
-        assert_eq!(Assets::balance(0, &$meta.pot), $tokens);
-    };
-}
+use sp_core::{sr25519, H160};
 
 #[test]
 fn should_create() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let did = DID::from_slice(&[0xff; 20]);
-
-        assert_eq!(Balances::free_balance(alice), 100);
-
         let tags = vec![
             vec![5u8, 4u8, 3u8, 2u8, 1u8, 0u8],
             vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
@@ -34,7 +23,7 @@ fn should_create() {
         let metadata = vec![0u8; 64];
 
         assert_ok!(Ad::create(
-            Origin::signed(alice),
+            Origin::signed(ALICE),
             50,
             tags,
             metadata.clone(),
@@ -42,51 +31,41 @@ fn should_create() {
             1
         ));
 
-        assert_eq!(<AdsOf<Test>>::get(&did).unwrap().len(), 1);
+        assert_eq!(<AdsOf<Test>>::get(&DID_ALICE).unwrap().len(), 1);
 
-        let maybe_ad = <Metadata<Test>>::iter_values().next();
+        let maybe_ad = <Metadata<Test>>::iter().next();
         assert_ne!(maybe_ad, None);
 
-        let ad = maybe_ad.unwrap();
-        assert_eq!(ad.creator, did);
-        assert_eq!(ad.budget, 50);
-        assert_eq!(ad.remain, 50);
-        assert_eq!(ad.metadata, metadata);
-        assert_eq!(ad.reward_rate, 1);
-        assert_eq!(ad.created, 0);
-        assert_eq!(ad.deadline, 1);
+        let (ad, meta) = maybe_ad.unwrap();
+        assert_eq!(Balances::free_balance(&meta.pot), meta.budget);
+        assert_eq!(meta.creator, DID_ALICE);
+        assert_eq!(meta.budget, 50);
+        assert_eq!(meta.remain, 50);
+        assert_eq!(meta.metadata, metadata);
+        assert_eq!(meta.reward_rate, 1);
+        assert_eq!(meta.created, 0);
 
-        assert_eq!(Balances::free_balance(alice), 50);
+        assert_eq!(<DeadlineOf<Test>>::get(&Did::<Test>::zero(), &ad), Some(1));
 
-        let pool = ad.pot;
-
-        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+        assert_eq!(Balances::free_balance(&ALICE), 100 - meta.budget);
 
         assert_eq!(<Test as Config>::Tags::tags_of(&ad), hashes);
-
-        assert_eq!(Balances::free_balance(pool), 50);
     });
 }
 
 #[test]
 fn should_fail_when_insufficient() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-
         assert_noop!(
-            Ad::create(Origin::signed(alice), 200, vec![], [0u8; 64].into(), 1, 1),
+            Ad::create(Origin::signed(ALICE), 200, vec![], [0u8; 64].into(), 1, 1),
             pallet_balances::Error::<Test>::InsufficientBalance
         );
-
-        assert_eq!(Balances::free_balance(alice), 100);
     });
 }
 
 #[test]
 fn should_fail_when_tag_not_exists() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-
         let tags = vec![
             vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
             vec![5u8, 4u8, 3u8, 2u8, 1u8, 0u8],
@@ -94,21 +73,17 @@ fn should_fail_when_tag_not_exists() {
         ];
 
         assert_noop!(
-            Ad::create(Origin::signed(alice), 200, tags, [0u8; 64].into(), 1, 1),
+            Ad::create(Origin::signed(ALICE), 200, tags, [0u8; 64].into(), 1, 1),
             Error::<Test>::TagNotExists
         );
-
-        assert_eq!(Balances::free_balance(alice), 100);
     });
 }
 
 #[test]
 fn should_update_reward_rate() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-
         assert_ok!(Ad::create(
-            Origin::signed(alice),
+            Origin::signed(ALICE),
             50,
             vec![],
             [0u8; 64].into(),
@@ -118,7 +93,7 @@ fn should_update_reward_rate() {
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
 
-        assert_ok!(Ad::update_reward_rate(Origin::signed(alice), ad, 2));
+        assert_ok!(Ad::update_reward_rate(Origin::signed(ALICE), ad, 2));
 
         assert_eq!(<Metadata<Test>>::get(&ad).unwrap().reward_rate, 2);
     });
@@ -127,15 +102,13 @@ fn should_update_reward_rate() {
 #[test]
 fn should_fail_when_not_exists_or_not_owned() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-
         assert_noop!(
-            Ad::update_reward_rate(Origin::signed(alice), Default::default(), 2),
+            Ad::update_reward_rate(Origin::signed(ALICE), Default::default(), 2),
             Error::<Test>::NotExists
         );
 
         assert_ok!(Ad::create(
-            Origin::signed(alice),
+            Origin::signed(ALICE),
             50,
             vec![],
             [0u8; 64].into(),
@@ -145,10 +118,8 @@ fn should_fail_when_not_exists_or_not_owned() {
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
 
-        let bob = sr25519::Public([2; 32]);
-
         assert_noop!(
-            Ad::update_reward_rate(Origin::signed(bob), ad, 2),
+            Ad::update_reward_rate(Origin::signed(BOB), ad, 2),
             Error::<Test>::NotOwned
         );
     });
@@ -157,8 +128,6 @@ fn should_fail_when_not_exists_or_not_owned() {
 #[test]
 fn should_update_tags() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-
         let tags = vec![
             vec![5u8, 4u8, 3u8, 2u8, 1u8, 0u8],
             vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
@@ -171,7 +140,7 @@ fn should_update_tags() {
         }
 
         assert_ok!(Ad::create(
-            Origin::signed(alice),
+            Origin::signed(ALICE),
             50,
             vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],],
             [0u8; 64].into(),
@@ -181,178 +150,17 @@ fn should_update_tags() {
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
 
-        assert_ok!(Ad::update_tags(Origin::signed(alice), ad, tags));
+        assert_ok!(Ad::update_tags(Origin::signed(ALICE), ad, tags));
 
         assert_eq!(<Test as Config>::Tags::tags_of(&ad), hashes);
     });
 }
 
 #[test]
-fn should_bid() {
-    new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let kol = DID::from_slice(&[0xff; 20]);
-
-        let bob = sr25519::Public([2; 32]);
-        let charlie = sr25519::Public([3; 32]);
-
-        // 1. prepare
-
-        assert_ok!(Nft::back(Origin::signed(bob), kol, 2_000_100u128));
-
-        assert_ok!(Nft::mint(
-            Origin::signed(alice),
-            b"Test Token".to_vec(),
-            b"XTT".to_vec()
-        ));
-
-        // ad1
-
-        assert_ok!(Ad::create(
-            Origin::signed(bob),
-            500,
-            vec![],
-            [0u8; 64].into(),
-            1,
-            43200
-        ));
-
-        let ad1 = <Metadata<Test>>::iter_keys().next().unwrap();
-        let meta1 = <Metadata<Test>>::get(&ad1).unwrap();
-        ensure_remain!(meta1, 500, 0);
-
-        // ad2
-
-        assert_ok!(Ad::create(
-            Origin::signed(charlie),
-            500,
-            vec![],
-            [0u8; 64].into(),
-            1,
-            1
-        ));
-
-        let ad2 = <Metadata<Test>>::iter_keys().next().unwrap();
-        let meta2 = <Metadata<Test>>::get(&ad2).unwrap();
-        ensure_remain!(meta2, 500, 0);
-
-        // 2. bob bid for ad1
-
-        assert_noop!(
-            Ad::bid(Origin::signed(bob), ad1, kol, 600),
-            pallet_balances::Error::<Test>::InsufficientBalance
-        );
-
-        assert_ok!(Ad::bid(Origin::signed(bob), ad1, kol, 400));
-
-        // ensure: deadline, slot, remain
-
-        assert_eq!(<DeadlineOf<Test>>::get(&kol, &ad1), Some(43200));
-
-        let maybe_slot = <SlotOf<Test>>::get(&kol);
-        assert_ne!(maybe_slot, None);
-        let slot = maybe_slot.unwrap();
-        assert_eq!(slot.ad, ad1);
-        assert_eq!(slot.budget, 199);
-        assert_eq!(slot.remain, 199);
-        assert_eq!(slot.deadline, 43200);
-
-        let meta1 = <Metadata<Test>>::get(&ad1).unwrap();
-        ensure_remain!(meta1, 100, slot.remain);
-
-        // 3. charlie bid for ad2
-
-        assert_noop!(
-            Ad::bid(Origin::signed(charlie), ad2, kol, 400),
-            Error::<Test>::Underbid
-        );
-
-        assert_ok!(Ad::bid(Origin::signed(charlie), ad2, kol, 480));
-
-        // ensure: deadline, slot, remain
-
-        assert_eq!(<DeadlineOf<Test>>::get(&kol, &ad1), None);
-        assert_eq!(<DeadlineOf<Test>>::get(&kol, &ad2), Some(1));
-
-        let maybe_slot = <SlotOf<Test>>::get(&kol);
-        assert_ne!(maybe_slot, None);
-        let slot = maybe_slot.unwrap();
-        assert_eq!(slot.ad, ad2);
-        assert_eq!(slot.budget, 239);
-        assert_eq!(slot.remain, 239);
-        assert_eq!(slot.deadline, 1);
-
-        let meta1 = <Metadata<Test>>::get(&ad1).unwrap();
-        ensure_remain!(meta1, 496, 0);
-
-        let meta2 = <Metadata<Test>>::get(&ad2).unwrap();
-        ensure_remain!(meta2, 20, slot.remain);
-    });
-}
-
-#[test]
-fn should_drawback() {
-    new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let kol = DID::from_slice(&[0xff; 20]);
-
-        let bob = sr25519::Public([2; 32]);
-
-        // 1. prepare
-
-        assert_ok!(Nft::back(Origin::signed(bob), kol, 2_000_100u128));
-
-        assert_ok!(Nft::mint(
-            Origin::signed(alice),
-            b"Test Token".to_vec(),
-            b"XTT".to_vec()
-        ));
-
-        // create ad
-
-        assert_ok!(Ad::create(
-            Origin::signed(bob),
-            500,
-            vec![],
-            [0u8; 64].into(),
-            1,
-            1
-        ));
-
-        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
-
-        // bid
-
-        assert_ok!(Ad::bid(Origin::signed(bob), ad, kol, 400));
-
-        let meta = <Metadata<Test>>::get(&ad).unwrap();
-        let slot = <SlotOf<Test>>::get(&kol).unwrap();
-        assert_eq!(slot.budget, 199);
-        assert_eq!(slot.remain, 199);
-
-        ensure_remain!(meta, 100, slot.remain);
-
-        // 2. step in
-
-        System::set_block_number(1);
-        Ad::on_initialize(System::block_number());
-
-        // ensure slot, remain
-
-        assert_eq!(<SlotOf<Test>>::get(&kol), None);
-
-        let meta = <Metadata<Test>>::get(&ad).unwrap();
-        ensure_remain!(meta, 496, 0);
-    });
-}
-
-#[test]
 fn should_add_budget() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-
         assert_ok!(Ad::create(
-            Origin::signed(alice),
+            Origin::signed(ALICE),
             50,
             vec![],
             [0u8; 64].into(),
@@ -362,36 +170,135 @@ fn should_add_budget() {
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
 
-        assert_ok!(Ad::add_budget(Origin::signed(alice), ad, 20));
+        assert_ok!(Ad::add_budget(Origin::signed(ALICE), ad, 20));
 
         let meta = <Metadata<Test>>::get(&ad).unwrap();
-
-        assert_eq!(meta.budget, 70);
-        assert_eq!(meta.remain, 70);
-
-        assert_eq!(Balances::free_balance(meta.pot), 70);
+        assert_eq!(Balances::free_balance(&meta.pot), meta.budget);
+        assert_eq!(meta.budget, 50 + 20);
+        assert_eq!(meta.remain, 50 + 20);
     });
 }
 
 #[test]
-fn should_pay() {
+fn should_bid() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let kol = DID::from_slice(&[0xff; 20]);
-
-        let bob = sr25519::Public([2; 32]);
-
-        let charlie = sr25519::Public([3; 32]);
-        let did = DID::from_slice(&[0xdd; 20]);
-
         // 1. prepare
 
-        assert_ok!(Tag::create(Origin::signed(alice), b"Test".to_vec()));
-
-        assert_ok!(Nft::back(Origin::signed(bob), kol, 2_000_100u128));
+        assert_ok!(Nft::back(Origin::signed(BOB), DID_ALICE, 2_000_100u128));
 
         assert_ok!(Nft::mint(
-            Origin::signed(alice),
+            Origin::signed(ALICE),
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        // ad1
+
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            500,
+            vec![],
+            [0u8; 64].into(),
+            1,
+            43200
+        ));
+
+        let ad1 = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        let meta1 = <Metadata<Test>>::get(&ad1).unwrap();
+        assert_eq!(Balances::free_balance(&meta1.pot), meta1.budget);
+        assert_eq!(meta1.budget, 500);
+        assert_eq!(meta1.remain, 500);
+
+        // ad2
+
+        assert_ok!(Ad::create(
+            Origin::signed(CHARLIE),
+            600,
+            vec![],
+            [0u8; 64].into(),
+            1,
+            1
+        ));
+
+        let ad2 = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        let meta2 = <Metadata<Test>>::get(&ad2).unwrap();
+        assert_eq!(Balances::free_balance(&meta2.pot), meta2.budget);
+        assert_eq!(meta2.budget, 600);
+        assert_eq!(meta2.remain, 600);
+
+        // 2. bob bid for ad1
+
+        assert_noop!(
+            Ad::bid(Origin::signed(BOB), ad1, DID_ALICE, 600),
+            Error::<Test>::InsufficientBalance
+        );
+
+        assert_ok!(Ad::bid(Origin::signed(BOB), ad1, DID_ALICE, 400));
+
+        // ensure: deadline, slot, remain
+
+        assert_eq!(<DeadlineOf<Test>>::get(&DID_ALICE, &ad1), Some(43200));
+
+        let maybe_slot = <SlotOf<Test>>::get(&DID_ALICE);
+        assert_ne!(maybe_slot, None);
+
+        let meta1 = <Metadata<Test>>::get(&ad1).unwrap();
+        assert_eq!(Balances::free_balance(&meta1.pot), meta1.budget - 40);
+        assert_eq!(meta1.remain, 500 - 400);
+
+        let slot = maybe_slot.unwrap();
+        assert_eq!(Assets::balance(0, &meta1.pot), slot.tokens);
+        assert_eq!(slot.ad, ad1);
+        assert_eq!(slot.budget, 400);
+        assert_eq!(slot.remain, 400 - 40);
+        assert_eq!(slot.tokens, 19);
+
+        // 3. charlie bid for ad2
+
+        assert_noop!(
+            Ad::bid(Origin::signed(CHARLIE), ad2, DID_ALICE, 400),
+            Error::<Test>::Underbid
+        );
+
+        assert_ok!(Ad::bid(Origin::signed(CHARLIE), ad2, DID_ALICE, 480));
+
+        // ensure: deadline, slot, remain
+
+        assert_eq!(<DeadlineOf<Test>>::get(&DID_ALICE, &ad1), None);
+        assert_eq!(<DeadlineOf<Test>>::get(&DID_ALICE, &ad2), Some(1));
+
+        let maybe_slot = <SlotOf<Test>>::get(&DID_ALICE);
+        assert_ne!(maybe_slot, None);
+
+        let meta1 = <Metadata<Test>>::get(&ad1).unwrap();
+        assert_eq!(Balances::free_balance(&meta1.pot), meta1.remain);
+        assert_eq!(meta1.remain, 497);
+
+        let meta2 = <Metadata<Test>>::get(&ad2).unwrap();
+        assert_eq!(Balances::free_balance(&meta2.pot), meta2.budget - 48);
+        assert_eq!(meta2.remain, 600 - 480);
+
+        let slot = maybe_slot.unwrap();
+        assert_eq!(Assets::balance(0, &meta1.pot), 0);
+        assert_eq!(Assets::balance(0, &meta2.pot), slot.tokens);
+        assert_eq!(slot.ad, ad2);
+        assert_eq!(slot.budget, 480);
+        assert_eq!(slot.remain, 480 - 48);
+        assert_eq!(slot.tokens, 23);
+    });
+}
+
+#[test]
+fn should_drawback() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+
+        assert_ok!(Nft::back(Origin::signed(BOB), DID_ALICE, 2_000_100u128));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
             b"Test Token".to_vec(),
             b"XTT".to_vec()
         ));
@@ -399,7 +306,142 @@ fn should_pay() {
         // create ad
 
         assert_ok!(Ad::create(
-            Origin::signed(bob),
+            Origin::signed(BOB),
+            500,
+            vec![],
+            [0u8; 64].into(),
+            1,
+            43200 * 2
+        ));
+
+        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        // bid
+
+        assert_ok!(Ad::bid(Origin::signed(BOB), ad, DID_ALICE, 400));
+
+        // 2. step in
+
+        System::set_block_number(43200);
+
+        Ad::on_initialize(System::block_number());
+
+        // ensure slot, remain
+
+        assert_eq!(<SlotOf<Test>>::get(&DID_ALICE), None);
+
+        let meta = <Metadata<Test>>::get(&ad).unwrap();
+        assert_eq!(meta.remain, 497);
+
+        assert_eq!(Balances::free_balance(&meta.pot), meta.remain);
+        assert_eq!(Assets::balance(0, &meta.pot), 0);
+
+        // 3. step in
+
+        System::set_block_number(43200 * 2);
+
+        Ad::on_initialize(System::block_number());
+
+        // ensure remain
+
+        let meta = <Metadata<Test>>::get(&ad).unwrap();
+
+        assert_eq!(meta.remain, 0);
+        assert_eq!(Balances::free_balance(&meta.pot), meta.remain);
+
+        assert_eq!(
+            Balances::free_balance(&BOB),
+            3_000_000 - 2_000_100 - 500 + 497
+        );
+    });
+}
+
+#[test]
+fn should_pay() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+
+        assert_ok!(Tag::create(Origin::signed(ALICE), b"Test".to_vec()));
+
+        assert_ok!(Nft::back(Origin::signed(BOB), DID_ALICE, 2_000_100u128));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        // create ad
+
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            500,
+            vec![b"Test".to_vec()],
+            [0u8; 64].into(),
+            1,
+            1
+        ));
+
+        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+        let meta = <Metadata<Test>>::get(&ad).unwrap();
+
+        // bid
+
+        assert_ok!(Ad::bid(Origin::signed(BOB), ad, DID_ALICE, 400));
+
+        // 2. pay
+
+        assert_ok!(Ad::pay(
+            Origin::signed(BOB),
+            ad,
+            DID_ALICE,
+            DID_CHARLIE,
+            vec![(b"Test".to_vec(), 5)],
+            None
+        ));
+
+        let slot = <SlotOf<Test>>::get(&DID_ALICE).unwrap();
+        assert_eq!(Assets::balance(0, &meta.pot), slot.tokens);
+        assert_eq!(slot.remain, 400 - 40);
+        assert_eq!(slot.tokens, 19 - 5);
+
+        assert_eq!(Assets::balance(0, &CHARLIE), 5);
+
+        assert_eq!(Tag::get_score(&DID_CHARLIE, b"Test".to_vec()), 5);
+
+        assert_noop!(
+            Ad::pay(
+                Origin::signed(BOB),
+                ad,
+                DID_ALICE,
+                DID_CHARLIE,
+                vec![(b"Test".to_vec(), 5)],
+                None
+            ),
+            Error::<Test>::Paid
+        );
+    });
+}
+
+#[test]
+fn should_auto_swap_when_swapped_token_used_up() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+
+        assert_ok!(Tag::create(Origin::signed(ALICE), b"Test".to_vec()));
+
+        assert_ok!(Nft::back(Origin::signed(BOB), DID_ALICE, 2_000_100u128));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        // create ad
+
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
             500,
             vec![b"Test".to_vec()],
             [0u8; 64].into(),
@@ -411,32 +453,35 @@ fn should_pay() {
 
         // bid
 
-        assert_ok!(Ad::bid(Origin::signed(bob), ad, kol, 400));
+        assert_ok!(Ad::bid(Origin::signed(BOB), ad, DID_ALICE, 400));
 
-        let meta = <Metadata<Test>>::get(&ad).unwrap();
-        let slot = <SlotOf<Test>>::get(&kol).unwrap();
-        assert_eq!(slot.budget, 199);
-        assert_eq!(slot.remain, 199);
+        // 2. pay to 9 users, 5 tokens each
+        let viewer_dids = make_dids(9u8);
+        for viewer_did in &viewer_dids {
+            assert_ok!(Ad::pay(
+                Origin::signed(BOB),
+                ad,
+                DID_ALICE,
+                *viewer_did,
+                vec![(b"Test".to_vec(), 5)],
+                None
+            ));
+        }
 
-        ensure_remain!(meta, 100, slot.remain);
-
-        // 2. pay
-
-        assert_ok!(Ad::pay(
-            Origin::signed(bob),
-            ad,
-            kol,
-            did,
-            vec![(b"Test".to_vec(), 5)],
-            None
-        ));
-
-        let slot = <SlotOf<Test>>::get(&kol).unwrap();
-        assert_eq!(slot.remain, 194);
-        assert_eq!(Assets::balance(0, &meta.pot), 194);
-
-        assert_eq!(Assets::balance(0, &charlie), 5);
-
-        assert_eq!(Tag::get_score(&did, b"Test".to_vec()), 5);
+        let slot = <SlotOf<Test>>::get(&DID_ALICE).unwrap();
+        assert_eq!(slot.remain, 400 - 40 * 3);
     });
+}
+
+fn make_dids(num: u8) -> Vec<H160> {
+    let mut res: Vec<H160> = Vec::new();
+    for i in 0..num {
+        let temp_account: sr25519::Public = sr25519::Public([i + 20; 32]);
+
+        <Test as parami_did::Config>::Currency::make_free_balance_be(&temp_account, 2);
+        assert_ok!(Did::<Test>::register(Origin::signed(temp_account), None));
+        let temp_did = Did::<Test>::did_of(temp_account).unwrap();
+        res.push(temp_did);
+    }
+    return res;
 }

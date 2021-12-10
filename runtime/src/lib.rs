@@ -41,8 +41,8 @@ use frame_election_provider_support::{onchain, ElectionProvider, Supports};
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        Currency, Everything, Imbalance, KeyOwnerProofSystem, LockIdentifier, Nothing,
-        OnUnbalanced, U128CurrencyToVote,
+        Currency, EqualPrivilegeOnly, Everything, Imbalance, KeyOwnerProofSystem, LockIdentifier,
+        Nothing, OnUnbalanced, U128CurrencyToVote,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -836,6 +836,7 @@ impl pallet_scheduler::Config for Runtime {
     type Call = Call;
     type MaximumWeight = MaximumSchedulerWeight;
     type ScheduleOrigin = EnsureRootOrHalfCouncil;
+    type OriginPrivilegeCmp = EqualPrivilegeOnly;
     type MaxScheduledPerBlock = MaxScheduledPerBlock;
     type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
 }
@@ -1062,6 +1063,7 @@ impl pallet_uniques::Config for Runtime {
 impl pallet_utility::Config for Runtime {
     type Event = Event;
     type Call = Call;
+    type PalletsOrigin = OriginCaller;
     type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1080,12 +1082,16 @@ impl pallet_vesting::Config for Runtime {
 
 parameter_types! {
     pub const AdPalletId: PalletId = PalletId(*b"prm/ad  ");
+    pub const PayoutBase: Balance = 1 * CENTS;
+    pub const SlotLifetime: BlockNumber = 3 * DAYS;
 }
 
 impl parami_ad::Config for Runtime {
     type Event = Event;
     type Assets = Assets;
     type PalletId = AdPalletId;
+    type PayoutBase = PayoutBase;
+    type SlotLifetime = SlotLifetime;
     type Swaps = Swap;
     type Tags = Tag;
     type CallOrigin = parami_advertiser::EnsureAdvertiser<Self>;
@@ -1094,13 +1100,13 @@ impl parami_ad::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MinimalDeposit: Balance = 10 * DOLLARS;
+    pub const AdvertiserMinimumDeposit: Balance = 1000 * DOLLARS;
     pub const AdvertiserPalletId: PalletId = PalletId(*b"prm/ader");
 }
 
 impl parami_advertiser::Config for Runtime {
     type Event = Event;
-    type MinimalDeposit = MinimalDeposit;
+    type MinimumDeposit = AdvertiserMinimumDeposit;
     type PalletId = AdvertiserPalletId;
     type Slash = Treasury;
     type ForceOrigin = EnsureRootOrHalfCouncil;
@@ -1158,14 +1164,21 @@ impl parami_did::Config for Runtime {
 }
 
 parameter_types! {
-    pub const UnsignedPriority: BlockNumber = 3;
+    pub const LinkerPalletId: PalletId = PalletId(*b"prm/link");
+    pub const PendingLifetime: BlockNumber = 5;
+    pub const RegistrarMinimumDeposit: Balance = 1_000_000 * DOLLARS;
+    pub const UnsignedPriority: TransactionPriority = 3;
 }
 
 impl parami_linker::Config for Runtime {
     type Event = Event;
-    type DecentralizedId = sp_core::H160;
+    type ForceOrigin = EnsureRootOrHalfCouncil;
+    type MinimumDeposit = MinimumDeposit;
+    type PalletId = LinkerPalletId;
+    type PendingLifetime = PendingLifetime;
+    type Slash = Treasury;
+    type Tags = Tag;
     type UnsignedPriority = UnsignedPriority;
-    type CallOrigin = parami_did::EnsureDid<Self>;
 }
 
 parameter_types! {
@@ -1182,13 +1195,46 @@ impl parami_magic::Config for Runtime {
 
 parameter_types! {
     pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
+    pub const InitialMintingLockupPeriod: BlockNumber = 6 * 30 * DAYS;
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
+}
+
+pub struct FarmingCurve;
+impl parami_nft::FarmingCurve<Runtime> for FarmingCurve {
+    fn calculate_farming_reward(
+        minted_height: BlockNumber,
+        maximum_tokens: Balance,
+        current_height: BlockNumber,
+        started_supply: Balance,
+    ) -> Balance {
+        use core::f64::consts::E;
+
+        // DAYS is the block number of a day
+        const PERIOD: f64 = 3f64 * 365.25f64 * DAYS as f64;
+        const E1: f64 = E - 1f64;
+
+        // Divide[1,x+1]                : y = 1 / (x + 1)
+        // Integrate[y=Divide[1,x+1],x] : y' = log(x + 1)
+        // Log[n+1] = 1                 : y' = 1
+        // n = e - 1
+        //
+        // r = 1 / (x / m * n + 1) / m * n
+        //   = 1 / (x / m * (e - 1) + 1) / m * (e - 1)
+        //   = (e - 1) / (m + (e - 1) x)
+        let x = (current_height - minted_height) as f64;
+
+        let r = E1 / (PERIOD + E1 * x) * 100f64;
+
+        (r as Balance) * (maximum_tokens - started_supply) / 100
+    }
 }
 
 impl parami_nft::Config for Runtime {
     type Event = Event;
     type Assets = Assets;
+    type FarmingCurve = FarmingCurve;
     type InitialMintingDeposit = InitialMintingDeposit;
+    type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
     type Nft = Uniques;
     type StringLimit = StringLimit;
