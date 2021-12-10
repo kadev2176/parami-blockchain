@@ -250,6 +250,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
         let babe_config = babe_link.config().clone();
         let shared_epoch_changes = babe_link.epoch_changes().clone();
 
+        let backend = backend.clone();
         let client = client.clone();
         let pool = transaction_pool.clone();
         let select_chain = select_chain.clone();
@@ -258,6 +259,7 @@ pub fn new_full(mut config: Configuration) -> Result<TaskManager, ServiceError> 
 
         Box::new(move |deny_unsafe, subscription_executor| {
             let deps = crate::rpc::FullDeps {
+                backend: backend.clone(),
                 client: client.clone(),
                 pool: pool.clone(),
                 select_chain: select_chain.clone(),

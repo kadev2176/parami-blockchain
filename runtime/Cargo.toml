@@ -12,6 +12,10 @@ version = '3.0.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
+[build-dependencies.substrate-wasm-builder]
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
+
 [dependencies.parami-primitives]
 default-features = false
 path = '../primitives'
@@ -23,7 +27,6 @@ path = '../pallets/ad'
 [dependencies.parami-advertiser]
 default-features = false
 path = '../pallets/advertiser'
-
 
 [dependencies.parami-chainbridge]
 default-features = false
@@ -64,10 +67,6 @@ path = '../pallets/tag'
 [dependencies.parami-traits]
 default-features = false
 path = '../pallets/traits'
-
-[build-dependencies.substrate-wasm-builder]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
 
 [dependencies.codec]
 default-features = false
@@ -244,7 +243,6 @@ git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'
 
 [dependencies.pallet-staking-reward-curve]
-default-features = false
 git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'
 
@@ -419,7 +417,6 @@ runtime-benchmarks = [
     'pallet-session-benchmarking',
     # 'pallet-session/runtime-benchmarks',
     'pallet-society/runtime-benchmarks',
-    # 'pallet-staking-reward-curve/runtime-benchmarks',
     'pallet-staking/runtime-benchmarks',
     # 'pallet-sudo/runtime-benchmarks',
     'pallet-timestamp/runtime-benchmarks',
@@ -446,11 +443,14 @@ runtime-benchmarks = [
 
 std = [
     'codec/std',
+    'frame-benchmarking/std',
     'frame-election-provider-support/std',
     'frame-executive/std',
     'frame-support/std',
-    'frame-system/std',
+    'frame-system-benchmarking/std',
     'frame-system-rpc-runtime-api/std',
+    'frame-system/std',
+    'hex-literal',
     'pallet-assets/std',
     'pallet-authority-discovery/std',
     'pallet-authorship/std',
@@ -458,9 +458,9 @@ std = [
     'pallet-balances/std',
     'pallet-bounties/std',
     'pallet-collective/std',
-    'pallet-contracts/std',
     'pallet-contracts-primitives/std',
     'pallet-contracts-rpc-runtime-api/std',
+    'pallet-contracts/std',
     'pallet-democracy/std',
     'pallet-election-provider-multi-phase/std',
     'pallet-elections-phragmen/std',
@@ -469,14 +469,15 @@ std = [
     'pallet-membership/std',
     'pallet-mmr/std',
     'pallet-multisig/std',
+    'pallet-offences-benchmarking/std',
     'pallet-offences/std',
     'pallet-randomness-collective-flip/std',
     'pallet-recovery/std',
     'pallet-scheduler/std',
+    'pallet-session-benchmarking/std',
     'pallet-session/std',
     'pallet-society/std',
     'pallet-staking/std',
-    # 'pallet-staking-reward-curve/std',
     'pallet-sudo/std',
     'pallet-timestamp/std',
     'pallet-tips/std',
@@ -489,7 +490,6 @@ std = [
     'parami-ad/std',
     'parami-advertiser/std',
     'parami-chainbridge/std',
-    'parami-xassets/std',
     'parami-did/std',
     'parami-linker/std',
     'parami-magic/std',
@@ -499,7 +499,9 @@ std = [
     'parami-swap/std',
     'parami-tag/std',
     'parami-traits/std',
+    'parami-xassets/std',
     'scale-info/std',
+    'serde',
     'sp-api/std',
     'sp-block-builder/std',
     'sp-consensus-babe/std',

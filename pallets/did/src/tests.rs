@@ -1,23 +1,26 @@
 use crate::{mock::*, DidOf, EnsureDid, Error, Metadata, ReferrerOf};
 use frame_support::{assert_noop, assert_ok};
-use sp_core::sr25519;
+use parami_did_utils::derive_storage_key;
+use sp_core::offchain::{
+    testing::{TestOffchainExt, TestPersistentOffchainDB},
+    OffchainDbExt,
+};
 
 #[test]
 fn should_register() {
     new_test_ext().execute_with(|| {
         System::set_block_number(0);
 
-        let bob = sr25519::Public([2; 32]);
-        assert_ok!(Did::register(Origin::signed(bob), None));
+        assert_ok!(Did::register(Origin::signed(BOB), None));
 
         System::set_block_number(1);
 
         assert_noop!(
-            Did::register(Origin::signed(bob), None),
+            Did::register(Origin::signed(BOB), None),
             Error::<Test>::Exists
         );
 
-        let maybe_did = <DidOf<Test>>::get(&bob);
+        let maybe_did = <DidOf<Test>>::get(&BOB);
         assert_ne!(maybe_did, None);
 
         let maybe_meta = <Metadata<Test>>::get(maybe_did.unwrap());
@@ -29,9 +32,8 @@ fn should_register() {
 #[test]
 fn should_fail_when_exist() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
         assert_noop!(
-            Did::register(Origin::signed(alice), None),
+            Did::register(Origin::signed(ALICE), None),
             Error::<Test>::Exists
         );
     });
@@ -40,27 +42,21 @@ fn should_fail_when_exist() {
 #[test]
 fn should_register_with_referer() {
     new_test_ext().execute_with(|| {
-        let did = DID::from_slice(&[0xff; 20]);
+        assert_ok!(Did::register(Origin::signed(BOB), Some(DID_ALICE)));
 
-        let bob = sr25519::Public([2; 32]);
-        assert_ok!(Did::register(Origin::signed(bob), Some(did)));
-
-        let maybe_did = <DidOf<Test>>::get(&bob);
+        let maybe_did = <DidOf<Test>>::get(&BOB);
         assert_ne!(maybe_did, None);
 
         let maybe_referrer = <ReferrerOf<Test>>::get(maybe_did.unwrap());
-        assert_eq!(maybe_referrer, Some(did));
+        assert_eq!(maybe_referrer, Some(DID_ALICE));
     });
 }
 
 #[test]
 fn should_fail_when_referer_not_exist() {
     new_test_ext().execute_with(|| {
-        let did = DID::from_slice(&[0xee; 20]);
-
-        let bob = sr25519::Public([2; 32]);
         assert_noop!(
-            Did::register(Origin::signed(bob), Some(did)),
+            Did::register(Origin::signed(BOB), Some(DID_BOB)),
             Error::<Test>::ReferrerNotExists
         );
     });
@@ -69,10 +65,8 @@ fn should_fail_when_referer_not_exist() {
 #[test]
 fn should_fail_when_insufficient() {
     new_test_ext().execute_with(|| {
-        let charlie = sr25519::Public([3; 32]);
-
         assert_noop!(
-            Did::register(Origin::signed(charlie), None),
+            Did::register(Origin::signed(CHARLIE), None),
             pallet_balances::Error::<Test>::InsufficientBalance
         );
     });
@@ -81,14 +75,11 @@ fn should_fail_when_insufficient() {
 #[test]
 fn should_revoke() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let did = DID::from_slice(&[0xff; 20]);
+        assert_ok!(Did::revoke(Origin::signed(ALICE)));
 
-        assert_ok!(Did::revoke(Origin::signed(alice)));
+        assert!(!<DidOf<Test>>::contains_key(&ALICE));
 
-        assert!(!<DidOf<Test>>::contains_key(&alice));
-
-        let meta = <Metadata<Test>>::get(&did).unwrap();
+        let meta = <Metadata<Test>>::get(&DID_ALICE).unwrap();
 
         assert_eq!(meta.revoked, true);
     });
@@ -97,8 +88,7 @@ fn should_revoke() {
 #[test]
 fn should_fail_when_not_exist() {
     new_test_ext().execute_with(|| {
-        let bob = sr25519::Public([2; 32]);
-        assert_noop!(Did::revoke(Origin::signed(bob)), Error::<Test>::NotExists);
+        assert_noop!(Did::revoke(Origin::signed(BOB)), Error::<Test>::NotExists);
     });
 }
 
@@ -107,43 +97,39 @@ fn should_reassign() {
     new_test_ext().execute_with(|| {
         System::set_block_number(0);
 
-        let bob = sr25519::Public([2; 32]);
-        assert_ok!(Did::register(Origin::signed(bob), None));
+        assert_ok!(Did::register(Origin::signed(BOB), None));
 
         System::set_block_number(1);
 
-        let did = <DidOf<Test>>::get(&bob).unwrap();
+        let did = <DidOf<Test>>::get(&BOB).unwrap();
 
-        assert_ok!(Did::revoke(Origin::signed(bob)));
+        assert_ok!(Did::revoke(Origin::signed(BOB)));
 
         System::set_block_number(2);
 
-        assert_ok!(Did::register(Origin::signed(bob), None));
+        assert_ok!(Did::register(Origin::signed(BOB), None));
 
-        assert_ne!(<DidOf<Test>>::get(&bob), Some(did));
+        assert_ne!(<DidOf<Test>>::get(&BOB), Some(did));
     });
 }
 
 #[test]
 fn should_transfer() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let bob = sr25519::Public([2; 32]);
-
         System::set_block_number(2);
 
-        assert_ok!(Did::transfer(Origin::signed(alice), bob));
+        assert_ok!(Did::transfer(Origin::signed(ALICE), BOB));
 
-        assert_eq!(<DidOf<Test>>::get(&alice), None);
+        assert_eq!(<DidOf<Test>>::get(&ALICE), None);
 
-        let maybe_did = <DidOf<Test>>::get(&bob);
+        let maybe_did = <DidOf<Test>>::get(&BOB);
         assert_ne!(maybe_did, None);
 
         let maybe_meta = <Metadata<Test>>::get(maybe_did.unwrap());
         assert_ne!(maybe_meta, None);
 
         let meta = maybe_meta.unwrap();
-        assert_eq!(meta.account, bob);
+        assert_eq!(meta.account, BOB);
         assert_eq!(meta.created, 2);
         assert_eq!(meta.revoked, false);
     });
@@ -152,10 +138,8 @@ fn should_transfer() {
 #[test]
 fn should_fail_when_already_have_did() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-
         assert_noop!(
-            Did::transfer(Origin::signed(alice), alice),
+            Did::transfer(Origin::signed(ALICE), ALICE),
             Error::<Test>::Exists
         );
     });
@@ -164,48 +148,38 @@ fn should_fail_when_already_have_did() {
 #[test]
 fn should_fail_when_revoked() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let bob = sr25519::Public([2; 32]);
-
-        assert_ok!(Did::revoke(Origin::signed(alice)));
+        assert_ok!(Did::revoke(Origin::signed(ALICE)));
 
         assert_noop!(
-            Did::transfer(Origin::signed(alice), bob),
+            Did::transfer(Origin::signed(ALICE), BOB),
             Error::<Test>::NotExists
         );
     });
 }
 
 #[test]
-fn should_set_avatar() {
-    new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let did = DID::from_slice(&[0xff; 20]);
+fn should_set_metadata() {
+    const KEY: &[u8] = b"avatar";
+    const VALUE: &[u8] = b"ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG";
 
-        let meta = <Metadata<Test>>::get(did).unwrap();
-        assert_eq!(meta.avatar, Vec::<u8>::new());
+    let db = TestPersistentOffchainDB::new();
+    let (offchain, _state) = TestOffchainExt::with_offchain_db(db);
+    let mut t = new_test_ext();
+    t.register_extension(OffchainDbExt::new(offchain.clone()));
 
-        assert_ok!(Did::set_avatar(Origin::signed(alice), vec![1, 2, 3]));
-
-        let meta = <Metadata<Test>>::get(did).unwrap();
-        assert_eq!(meta.avatar, vec![1, 2, 3]);
+    t.execute_with(|| {
+        assert_ok!(Did::set_metadata(
+            Origin::signed(ALICE),
+            KEY.to_vec(),
+            VALUE.to_vec()
+        ));
     });
-}
 
-#[test]
-fn should_set_nickname() {
-    new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([1; 32]);
-        let did = DID::from_slice(&[0xff; 20]);
+    t.persist_offchain_overlay();
 
-        let meta = <Metadata<Test>>::get(did).unwrap();
-        assert_eq!(meta.nickname, Vec::<u8>::new());
-
-        assert_ok!(Did::set_nickname(Origin::signed(alice), vec![1, 2, 3]));
-
-        let meta = <Metadata<Test>>::get(did).unwrap();
-        assert_eq!(meta.nickname, vec![1, 2, 3]);
-    });
+    let db = t.offchain_db();
+    let avatar = db.get(&derive_storage_key(KEY, &DID_ALICE));
+    assert_eq!(avatar, Some(VALUE.to_vec()));
 }
 
 #[test]
@@ -213,15 +187,10 @@ fn should_ensure() {
     new_test_ext().execute_with(|| {
         use frame_support::traits::EnsureOrigin;
 
-        let alice = sr25519::Public([1; 32]);
-        let bob = sr25519::Public([2; 32]);
-
-        let did = DID::from_slice(&[0xff; 20]);
-
-        let ensure = EnsureDid::<Test>::try_origin(Origin::signed(alice));
+        let ensure = EnsureDid::<Test>::try_origin(Origin::signed(ALICE));
         assert!(ensure.is_ok());
-        assert_eq!(ensure.unwrap(), (did, alice));
+        assert_eq!(ensure.unwrap(), (DID_ALICE, ALICE));
 
-        assert!(EnsureDid::<Test>::try_origin(Origin::signed(bob)).is_err());
+        assert!(EnsureDid::<Test>::try_origin(Origin::signed(BOB)).is_err());
     });
 }

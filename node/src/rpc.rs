@@ -7,7 +7,9 @@
 
 use std::sync::Arc;
 
-use parami_runtime::{opaque::Block, AccountId, AssetId, Balance, BlockNumber, Hash, Index};
+use parami_runtime::{
+    opaque::Block, AccountId, AssetId, Balance, BlockNumber, DecentralizedId, Hash, Index,
+};
 use sc_client_api::AuxStore;
 use sc_consensus_babe::{Config, Epoch};
 use sc_consensus_babe_rpc::BabeRpcHandler;
@@ -52,6 +54,8 @@ pub struct GrandpaDeps<B> {
 
 /// Full client dependencies.
 pub struct FullDeps<C, P, SC, B> {
+    /// The backend instance to use.
+    pub backend: Arc<B>,
     /// The client instance to use.
     pub client: Arc<C>,
     /// Transaction pool instance.
@@ -98,11 +102,13 @@ where
     use pallet_contracts_rpc::{Contracts, ContractsApi};
     use pallet_mmr_rpc::{Mmr, MmrApi};
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApi};
+    use parami_did_rpc::{DidApi, DidRpcHandler};
     use parami_swap_rpc::{SwapApi, SwapsRpcHandler};
     use substrate_frame_rpc_system::{FullSystem, SystemApi};
 
     let mut io = jsonrpc_core::IoHandler::default();
     let FullDeps {
+        backend,
         client,
         pool,
         select_chain,
@@ -158,6 +164,12 @@ where
         ),
     ));
 
+    if let Some(did_rpc) = backend
+        .offchain_storage()
+        .map(|storage| DidApi::<DecentralizedId>::to_delegate(DidRpcHandler::new(storage)))
+    {
+        io.extend_with(did_rpc);
+    }
     io.extend_with(SwapApi::to_delegate(SwapsRpcHandler::new(client.clone())));
 
     io.extend_with(sc_sync_state_rpc::SyncStateRpcApi::to_delegate(

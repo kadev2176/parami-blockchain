@@ -3,7 +3,7 @@ authors = ['Parami Devs <info@parami.io>']
 edition = '2018'
 homepage = 'https://parami.io'
 license = 'GPL-3.0-only WITH Classpath-exception-2.0'
-name = 'parami-swap-rpc'
+name = 'parami-did-rpc'
 publish = false
 repository = 'https://github.com/parami-protocol/parami-blockchain/'
 version = '3.0.0'
@@ -11,8 +11,8 @@ version = '3.0.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dependencies.parami-swap-rpc-runtime-api]
-path = 'runtime-api'
+[dependencies.parami-did-utils]
+path = '../utils'
 
 [dependencies.parami-traits]
 path = '../../traits'
@@ -23,26 +23,19 @@ package = 'parity-scale-codec'
 version = '2.2.0'
 
 [dependencies]
+parking_lot = '0.11'
 jsonrpc-core = '18.0.0'
 jsonrpc-core-client = '18.0.0'
 jsonrpc-derive = '18.0.0'
-
-[dependencies.sp-api]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
-
-[dependencies.sp-blockchain]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
 
 [dependencies.sp-core]
 git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'
 
-[dependencies.sp-rpc]
+[dependencies.sp-offchain]
 git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'
 
-[dependencies.sp-runtime]
+[dependencies.sp-rpc]
 git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'

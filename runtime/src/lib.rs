@@ -67,7 +67,8 @@ pub use parami_primitives::{
         CENTS, DAYS, DOLLARS, EPOCH_DURATION_IN_BLOCKS, EPOCH_DURATION_IN_SLOTS, HOURS, MILLICENTS,
         MILLISECS_PER_BLOCK, MINUTES, PRIMARY_PROBABILITY, SLOT_DURATION,
     },
-    deposit, AccountId, AssetId, Balance, BlockNumber, Hash, Index, Moment, Signature,
+    deposit, names, AccountId, AssetId, Balance, BlockNumber, DecentralizedId, Hash, Index, Moment,
+    Signature,
 };
 
 /// Opaque types. These are used by the CLI to instantiate machinery that don't need to know
@@ -866,7 +867,7 @@ parameter_types! {
     pub const MaxStrikes: u32 = 10;
     pub const PeriodSpend: Balance = 500 * DOLLARS;
     pub const RotationPeriod: BlockNumber = 80 * HOURS;
-    pub const SocietyPalletId: PalletId = PalletId(*b"py/socie");
+    pub const SocietyPalletId: PalletId = PalletId(*names::SOCIETY);
     pub const WrongSideDeduction: Balance = 2 * DOLLARS;
 }
 
@@ -919,7 +920,7 @@ impl pallet_staking::Config for Runtime {
     type RewardRemainder = Treasury;
     type Event = Event;
     type Slash = Treasury; // send the slashed funds to the treasury.
-    type Reward = (); // rewards are minted from the void
+    type Reward = (); // rewards are from the treasury.
     type SessionsPerEra = SessionsPerEra;
     type BondingDuration = BondingDuration;
     type SlashDeferDuration = SlashDeferDuration;
@@ -1017,7 +1018,7 @@ parameter_types! {
     pub const ProposalBond: Permill = Permill::from_percent(5);
     pub const ProposalBondMinimum: Balance = 1 * DOLLARS;
     pub const SpendPeriod: BlockNumber = 1 * DAYS;
-    pub const TreasuryPalletId: PalletId = PalletId(*b"py/trsry");
+    pub const TreasuryPalletId: PalletId = PalletId(*names::TREASURY);
 }
 
 impl pallet_treasury::Config for Runtime {
@@ -1081,7 +1082,7 @@ impl pallet_vesting::Config for Runtime {
 }
 
 parameter_types! {
-    pub const AdPalletId: PalletId = PalletId(*b"prm/ad  ");
+    pub const AdPalletId: PalletId = PalletId(*names::AD);
     pub const PayoutBase: Balance = 1 * CENTS;
     pub const SlotLifetime: BlockNumber = 3 * DAYS;
 }
@@ -1101,7 +1102,7 @@ impl parami_ad::Config for Runtime {
 
 parameter_types! {
     pub const AdvertiserMinimumDeposit: Balance = 1000 * DOLLARS;
-    pub const AdvertiserPalletId: PalletId = PalletId(*b"prm/ader");
+    pub const AdvertiserPalletId: PalletId = PalletId(*names::ADVERTISER);
 }
 
 impl parami_advertiser::Config for Runtime {
@@ -1114,7 +1115,7 @@ impl parami_advertiser::Config for Runtime {
 }
 
 parameter_types! {
-    pub const ChainBridgePalletId: PalletId = PalletId(*b"chnbrdge");
+    pub const ChainBridgePalletId: PalletId = PalletId(*names::CHAIN_BRIDGE);
     pub const ParamiChainId: parami_chainbridge::ChainId = 233;
     pub const ProposalLifetime: BlockNumber = 50;
 }
@@ -1131,7 +1132,7 @@ impl parami_chainbridge::Config for Runtime {
 
 parameter_types! {
     // &blake2_128(b"hash")
-    // 0x000000000000000000000000000000f44be64d2de895454c3467021928e55e00
+    // 0x000000000000000000000000000000f44be64d2de895454c3467021928e55ee9
     pub HashId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(233, &blake2_128(b"hash"));
 
     // &blake2_128(b"AD3")
@@ -1150,21 +1151,21 @@ impl parami_xassets::Config for Runtime {
 }
 
 parameter_types! {
-    pub const DidPalletId: PalletId = PalletId(*b"prm/did ");
+    pub const DidPalletId: PalletId = PalletId(*names::DID);
 }
 
 impl parami_did::Config for Runtime {
     type Event = Event;
     type AssetId = AssetId;
     type Currency = Balances;
-    type DecentralizedId = sp_core::H160;
+    type DecentralizedId = DecentralizedId;
     type Hashing = Keccak256;
     type PalletId = DidPalletId;
     type WeightInfo = parami_did::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
-    pub const LinkerPalletId: PalletId = PalletId(*b"prm/link");
+    pub const LinkerPalletId: PalletId = PalletId(*names::LINKER);
     pub const PendingLifetime: BlockNumber = 5;
     pub const RegistrarMinimumDeposit: Balance = 1_000_000 * DOLLARS;
     pub const UnsignedPriority: TransactionPriority = 3;
@@ -1182,7 +1183,7 @@ impl parami_linker::Config for Runtime {
 }
 
 parameter_types! {
-    pub const MagicPalletId: PalletId = PalletId(*b"prm/stab");
+    pub const MagicPalletId: PalletId = PalletId(*names::MAGIC);
 }
 
 impl parami_magic::Config for Runtime {
@@ -1244,7 +1245,7 @@ impl parami_nft::Config for Runtime {
 }
 
 parameter_types! {
-    pub const SwapPalletId: PalletId = PalletId(*b"prm/swap");
+    pub const SwapPalletId: PalletId = PalletId(*names::SWAP);
 }
 
 impl parami_swap::Config for Runtime {

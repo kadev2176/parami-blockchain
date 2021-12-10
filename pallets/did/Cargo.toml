@@ -12,6 +12,10 @@ version = '3.0.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
+[dependencies.parami-did-utils]
+default-features = false
+path = 'utils'
+
 [dependencies.codec]
 default-features = false
 features = ['derive']
@@ -42,6 +46,11 @@ default-features = false
 features = ['derive']
 version = '1.0'
 
+[dependencies.sp-io]
+default-features = false
+git = 'https://github.com/parami-protocol/substrate.git'
+branch = 'polkadot-v0.9.13'
+
 [dependencies.sp-runtime]
 default-features = false
 git = 'https://github.com/parami-protocol/substrate.git'
@@ -60,10 +69,6 @@ branch = 'polkadot-v0.9.13'
 git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'
 
-[dev-dependencies.sp-io]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
-
 [features]
 default = ['std']
 
@@ -74,8 +79,10 @@ std = [
     'frame-benchmarking/std',
     'frame-support/std',
     'frame-system/std',
+    'parami-did-utils/std',
     'scale-info/std',
     'serde',
+    'sp-io/std',
     'sp-runtime/std',
     'sp-std/std',
 ]
