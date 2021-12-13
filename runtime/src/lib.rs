@@ -22,9 +22,7 @@ use sp_io::hashing::blake2_128;
 #[cfg(any(feature = "std", test))]
 use sp_runtime::BuildStorage;
 use sp_runtime::{
-    create_runtime_str,
-    curve::PiecewiseLinear,
-    generic, impl_opaque_keys,
+    create_runtime_str, generic, impl_opaque_keys,
     traits::{
         BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic, Keccak256, NumberFor, OpaqueKeys,
         SaturatedConversion, StaticLookup, Verify,
@@ -889,25 +887,42 @@ impl pallet_society::Config for Runtime {
     type MaxCandidateIntake = MaxCandidateIntake;
 }
 
-pallet_staking_reward_curve::build! {
-    const REWARD_CURVE: PiecewiseLinear<'static> = curve!(
-        min_inflation: 0_025_000,
-        max_inflation: 0_100_000,
-        ideal_stake: 0_500_000,
-        falloff: 0_050_000,
-        max_piece_count: 40,
-        test_precision: 0_005_000,
-    );
-}
-
 parameter_types! {
     pub const BondingDuration: pallet_staking::EraIndex = 24 * 28;
     pub const MaxNominatorRewardedPerValidator: u32 = 256;
     pub OffchainRepeat: BlockNumber = 5;
     pub const OffendingValidatorsThreshold: Perbill = Perbill::from_percent(17);
-    pub const RewardCurve: &'static PiecewiseLinear<'static> = &REWARD_CURVE;
     pub const SessionsPerEra: sp_staking::SessionIndex = 6;
     pub const SlashDeferDuration: pallet_staking::EraIndex = 24 * 7; // 1/4 the bonding duration.
+}
+
+pub struct StackingEraPayout;
+impl pallet_staking::EraPayout<Balance> for StackingEraPayout {
+    fn era_payout(
+        _total_staked: Balance,
+        total_issuance: Balance,
+        _era_duration_millis: u64,
+    ) -> (Balance, Balance) {
+        // We have 100 million tokens
+        const MAX_SUPPLY: Balance = 100_000_000 * DOLLARS;
+        const BASE_SUPPLY_THIS_YEAR: Balance = 70_000_000 * DOLLARS;
+
+        // 1 era is 1 hour, so 1 year has 365.25 * 24 eras
+        const YEAR: Balance = 8766;
+
+        // We will pay out 30,000,000 to staked accounts
+        const MAX_PAYOUT: Balance = 30_000_000 * DOLLARS;
+        // The first year we will pay out 1/5
+        // and we want to reduce the payout per year
+        const CLIFF: Balance = MAX_PAYOUT / 5;
+        const REST: Balance = CLIFF / YEAR;
+
+        match total_issuance {
+            _ if total_issuance >= BASE_SUPPLY_THIS_YEAR + CLIFF => (0, 0),
+            _ if total_issuance >= MAX_SUPPLY => (0, 0),
+            _ => (REST, REST),
+        }
+    }
 }
 
 impl pallet_staking::Config for Runtime {
@@ -927,7 +942,7 @@ impl pallet_staking::Config for Runtime {
     /// A super-majority of the council can cancel the slash.
     type SlashCancelOrigin = EnsureRootOrMajoritarianCouncil;
     type SessionInterface = Self;
-    type EraPayout = pallet_staking::ConvertCurve<RewardCurve>;
+    type EraPayout = StackingEraPayout;
     type NextNewSession = Session;
     type MaxNominatorRewardedPerValidator = MaxNominatorRewardedPerValidator;
     type OffendingValidatorsThreshold = OffendingValidatorsThreshold;
