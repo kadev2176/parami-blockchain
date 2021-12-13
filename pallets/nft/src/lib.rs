@@ -69,6 +69,18 @@ pub trait FarmingCurve<T: Config> {
     ) -> BalanceOf<T>;
 }
 
+impl<T: Config> FarmingCurve<T> for () {
+    fn calculate_farming_reward(
+        _minted_height: HeightOf<T>,
+        _started_supply: BalanceOf<T>,
+        _maximum_tokens: BalanceOf<T>,
+        _current_height: HeightOf<T>,
+        _current_supply: BalanceOf<T>,
+    ) -> BalanceOf<T> {
+        Default::default()
+    }
+}
+
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;

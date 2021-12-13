@@ -1210,6 +1210,7 @@ impl parami_nft::FarmingCurve<Runtime> for FarmingCurve {
         _current_supply: Balance,
     ) -> Balance {
         use core::f64::consts::E;
+        use sp_core::U512;
 
         // DAYS is the block number of a day
         const PERIOD: f64 = 3f64 * 365.25f64 * DAYS as f64;
@@ -1225,9 +1226,16 @@ impl parami_nft::FarmingCurve<Runtime> for FarmingCurve {
         //   = (e - 1) / (m + (e - 1) x)
         let x = (current_height - minted_height) as f64;
 
-        let r = E1 / (PERIOD + E1 * x) * 100f64;
+        let r = E1 / (PERIOD + E1 * x) * 100_000_000f64;
 
-        (r as Balance) * (maximum_tokens - started_supply) / 100
+        let r = r as Balance;
+        let r: U512 = r.try_into().unwrap_or(U512::zero());
+
+        let left = maximum_tokens - started_supply;
+        let left: U512 = left.try_into().unwrap_or(U512::one());
+
+        let amount = r * left / U512::exp10(8);
+        amount.try_into().unwrap_or_default()
     }
 }
 
