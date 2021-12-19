@@ -437,8 +437,7 @@ pub fn testnet_genesis(
         uniques: Default::default(),
         vesting: Default::default(),
 
-        // airdrop: Default::default(),
-        // ad: Default::default(),
+        ad: Default::default(),
         advertiser: Default::default(),
         did: Default::default(),
         linker: Default::default(),

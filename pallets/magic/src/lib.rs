@@ -204,7 +204,7 @@ pub mod pallet {
                 Error::<T>::ControllerAccountUsed
             );
 
-            let old_controller = <ControllerAccountOf<T>>::get(magic_account)
+            let old_controller = <ControllerAccountOf<T>>::get(&magic_account)
                 .ok_or(Error::<T>::ObsoletedMagicAccount)?;
 
             let mut sa = <StableAccountOf<T>>::get(&old_controller)

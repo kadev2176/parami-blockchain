@@ -258,7 +258,10 @@ pub mod pallet {
         }
 
         /// Fragment the NFT and mint token.
-        #[pallet::weight(<T as Config>::WeightInfo::mint(name.len() as u32, symbol.len() as u32))]
+        #[pallet::weight(<T as Config>::WeightInfo::mint(
+            name.len() as u32,
+            symbol.len() as u32
+        ))]
         pub fn mint(origin: OriginFor<T>, name: Vec<u8>, symbol: Vec<u8>) -> DispatchResult {
             let limit = T::StringLimit::get() as usize - 4;
 

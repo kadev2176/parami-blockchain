@@ -54,6 +54,11 @@ default-features = false
 git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'
 
+[dependencies.hex]
+version = '0.4'
+default-features = false
+optional = true
+
 [dependencies.num-traits]
 version = '0.2'
 default-features = false
@@ -101,6 +106,7 @@ default = ['std']
 
 runtime-benchmarks = [
     'frame-benchmarking',
+    'hex/alloc',
     'parami-tag'
 ]
 
@@ -109,6 +115,7 @@ std = [
     'frame-benchmarking/std',
     'frame-support/std',
     'frame-system/std',
+    'hex/std',
     'image',
     'parami-did/std',
     'parami-tag/std',

@@ -4,6 +4,7 @@ use super::*;
 use crate::Pallet as Swap;
 use frame_benchmarking::{benchmarks, impl_benchmark_test_suite, whitelisted_caller};
 use frame_system::RawOrigin;
+use sp_runtime::traits::Saturating;
 
 benchmarks! {
     create {
@@ -16,7 +17,7 @@ benchmarks! {
         T::Assets::create(id, caller.clone(), true, min)?;
     }: _(RawOrigin::Signed(caller), id)
     verify {
-        let meta = Metadata::<T>::get(id).unwrap();
+        let meta = <Metadata<T>>::get(&id).unwrap();
         assert_eq!(meta.lp_token_id, T::AssetId::max_value());
     }
 
@@ -48,7 +49,7 @@ benchmarks! {
         )?;
     }: _(RawOrigin::Signed(caller.clone()), id, pot, min, max, deadline)
     verify {
-        let meta = Metadata::<T>::get(id).unwrap();
+        let meta = <Metadata<T>>::get(&id).unwrap();
         assert_eq!(T::Assets::balance(meta.lp_token_id, &caller), pot.saturating_mul(2u32.into()));
     }
 
@@ -79,7 +80,7 @@ benchmarks! {
         )?;
     }: _(RawOrigin::Signed(caller.clone()), id, pot, min, min, deadline)
     verify {
-        let meta = Metadata::<T>::get(id).unwrap();
+        let meta = <Metadata<T>>::get(&id).unwrap();
         assert_eq!(T::Assets::balance(meta.lp_token_id, &caller), Zero::zero());
     }
 

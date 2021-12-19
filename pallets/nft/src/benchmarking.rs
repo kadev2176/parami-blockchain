@@ -12,7 +12,7 @@ benchmarks! {
     back {
         let caller: T::AccountId = whitelisted_caller();
 
-        let kol: T::AccountId = account::<T::AccountId>("kol", 1, 1);
+        let kol: T::AccountId = account("kol", 1, 1);
 
         let max = BalanceOf::<T>::max_value();
         let min = T::Currency::minimum_balance();
@@ -40,7 +40,7 @@ benchmarks! {
 
         let caller: T::AccountId = whitelisted_caller();
 
-        let supporter: T::AccountId = account::<T::AccountId>("supporter", 1, 1);
+        let supporter: T::AccountId = account("supporter", 1, 1);
 
         let max = BalanceOf::<T>::max_value();
         let min = T::Currency::minimum_balance();
@@ -64,7 +64,7 @@ benchmarks! {
     claim {
         let caller: T::AccountId = whitelisted_caller();
 
-        let kol: T::AccountId = account::<T::AccountId>("kol", 1, 1);
+        let kol: T::AccountId = account("kol", 1, 1);
 
         let max = BalanceOf::<T>::max_value();
         let min = T::Currency::minimum_balance();

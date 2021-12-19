@@ -195,7 +195,10 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(<T as Config>::WeightInfo::create(tags.len() as u32))]
+        #[pallet::weight(<T as Config>::WeightInfo::create(
+            metadata.len() as u32,
+            tags.len() as u32
+        ))]
         pub fn create(
             origin: OriginFor<T>,
             #[pallet::compact] budget: BalanceOf<T>,
@@ -632,7 +635,7 @@ impl<T: Config> Pallet<T> {
     }
 
     fn ensure_owned(did: DidOf<T>, ad: HashOf<T>) -> Result<MetaOf<T>, DispatchError> {
-        let meta = <Metadata<T>>::get(ad).ok_or(Error::<T>::NotExists)?;
+        let meta = <Metadata<T>>::get(&ad).ok_or(Error::<T>::NotExists)?;
         ensure!(meta.creator == did, Error::<T>::NotOwned);
 
         Ok(meta)

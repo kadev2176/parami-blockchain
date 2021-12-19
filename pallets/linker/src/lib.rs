@@ -4,11 +4,17 @@ pub use btc::hashing;
 pub use ocw::images;
 pub use pallet::*;
 
+#[rustfmt::skip]
+pub mod weights;
+
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 mod btc;
 mod did;
@@ -28,6 +34,8 @@ use parami_did::{EnsureDid, Pallet as Did};
 use parami_traits::Tags;
 use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
+
+use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type BalanceOf<T> = <CurrencyOf<T> as Currency<AccountOf<T>>>::Balance;
@@ -75,6 +83,9 @@ pub mod pallet {
 
         /// The origin which may forcibly trust or block a registrar
         type ForceOrigin: EnsureOrigin<Self::Origin>;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -176,7 +187,7 @@ pub mod pallet {
         ///
         /// * `site` - Account type
         /// * `profile` - Profile URL
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::link_sociality(profile.len() as u32))]
         pub fn link_sociality(
             origin: OriginFor<T>,
             site: types::AccountType,
@@ -198,7 +209,7 @@ pub mod pallet {
         ///   * When dealing with ETH, the address should in the format of binary or hex
         /// * `signature` - Account signature
         ///   * When dealing with DOT, SOL, the signature should have a prefix of `0x00`
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::link_crypto())]
         pub fn link_crypto(
             origin: OriginFor<T>,
             crypto: types::AccountType,
@@ -218,7 +229,7 @@ pub mod pallet {
             Self::insert_link(did, crypto, address, did)
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::submit_link(profile.len() as u32))]
         pub fn submit_link(
             origin: OriginFor<T>,
             did: DidOf<T>,
@@ -250,7 +261,7 @@ pub mod pallet {
             Ok(().into())
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::submit_score(tag.len() as u32))]
         pub fn submit_score(
             origin: OriginFor<T>,
             did: DidOf<T>,
@@ -268,10 +279,12 @@ pub mod pallet {
 
             T::Tags::influence(&did, &tag, score)?;
 
+            // Self::deposit_event(Event::<T>::Scored(did, tag, score));
+
             Ok(().into())
         }
 
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::deposit())]
         pub fn deposit(
             origin: OriginFor<T>,
             #[pallet::compact] value: BalanceOf<T>,
@@ -292,7 +305,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::force_unlink())]
         pub fn force_unlink(
             origin: OriginFor<T>,
             did: DidOf<T>,
@@ -310,7 +323,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::force_trust())]
         pub fn force_trust(origin: OriginFor<T>, did: DidOf<T>) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
 
@@ -331,7 +344,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::force_block())]
         pub fn force_block(origin: OriginFor<T>, registrar: DidOf<T>) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
 

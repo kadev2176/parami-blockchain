@@ -352,7 +352,7 @@ fn should_recover_btc() {
         let address = b"1F3sAm6ZtwLAUnj7d38pGFxtP3RVEvtsbV".to_vec();
 
         let signature = "1cb5b2e3b269cd9b78c2fec806cf667f35ccbf8934bdcb8b125ed70d64e48c8b9c81853b2c0e905184e57add15874b0cffcc5fe0cce33f3a31f508bb569b19b4a2";
-        let signature = decode_hex(signature).unwrap();
+        let signature = hex::decode(signature).unwrap();
 
         let mut sig = [0u8; 65];
         sig.copy_from_slice(&signature);
@@ -373,7 +373,7 @@ fn should_recover_btc_segwit() {
         let address = b"bc1qug9quswyl8pxalrfudfr9p34mmjvj2f6tx6f0k".to_vec();
 
         let signature = "203b166d7adfe349fdae5b36e1262a979c70b1e041228df149d8b7d0d5278b6aad4b027693ae2eda794f13da93b928505c4b1d23da572ebeba9696edc4af57cf58";
-        let signature = decode_hex(signature).unwrap();
+        let signature = hex::decode(signature).unwrap();
 
         let mut sig = [0u8; 65];
         sig.copy_from_slice(&signature);
@@ -394,7 +394,7 @@ fn should_recover_dot() {
         let address = b"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY".to_vec();
 
         let signature = "00b019009d196eb10f3d7f46309b591d21950fa617ced4f0b01b908b472bf0566610691636fde1088383b2b8134e5aee1bf48b2f4b46056709f8f0d81f79ebe58b";
-        let signature = decode_hex(signature).unwrap();
+        let signature = hex::decode(signature).unwrap();
 
         let mut sig = [0u8; 65];
         sig.copy_from_slice(&signature);
@@ -413,10 +413,10 @@ fn should_recover_eth() {
     new_test_ext().execute_with(|| {
         // PK: be6383dad004f233317e46ddb46ad31b16064d14447a95cc1d8c8d4bc61c3728
         let address = "eb014f8c8b418db6b45774c326a0e64c78914dc0";
-        let address = decode_hex(address).unwrap();
+        let address = hex::decode(address).unwrap();
 
         let signature = "193883369b84888e1dded1e83a8fd92cdde41b9a9c977be5ddbbb259783a69d060d120704760eb82671889c664be25d6cf6f25b9efe781fb637bbd6097da0e621c";
-        let signature = decode_hex(signature).unwrap();
+        let signature = hex::decode(signature).unwrap();
 
         let mut sig = [0u8; 65];
         sig.copy_from_slice(&signature);
@@ -440,7 +440,7 @@ fn should_recover_sol() {
         let address = b"2q7pyhPwAwZ3QMfZrnAbDhnh9mDUqycszcpf86VgQxhF".to_vec();
 
         let signature = "00f94c93e56f6a07540ac21f95449eb308495048904ccfbdc9fe9a49b890da942ec3b1cd8cad30eef7e28437afa3463d389d75e0451d715997302cc2aaaa65630e";
-        let signature = decode_hex(signature).unwrap();
+        let signature = hex::decode(signature).unwrap();
 
         let mut sig = [0u8; 65];
         sig.copy_from_slice(&signature);
@@ -461,7 +461,7 @@ fn should_recover_trx() {
         let address = b"TPL66VK2gCXNCD7EJg9pgJRfqcRazjhUZY".to_vec();
 
         let signature = "4d423812706f526a546adc810968a87b361664097bfb9bf8c768089493eecb2d1cfdc4fcbc9705da2c3f0c81b6c52c3a3c334db6656e7671194647e0628f7deb1b";
-        let signature = decode_hex(signature).unwrap();
+        let signature = hex::decode(signature).unwrap();
 
         let mut sig = [0u8; 65];
         sig.copy_from_slice(&signature);

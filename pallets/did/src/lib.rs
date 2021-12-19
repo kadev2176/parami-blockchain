@@ -250,7 +250,10 @@ pub mod pallet {
         }
 
         /// Set metadata of a DID.
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(T::WeightInfo::set_metadata(
+            key.len() as u32,
+            value.len() as u32
+        ))]
         pub fn set_metadata(origin: OriginFor<T>, key: Vec<u8>, value: Vec<u8>) -> DispatchResult {
             let (did, _) = EnsureDid::<T>::ensure_origin(origin)?;
 

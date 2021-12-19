@@ -9,7 +9,6 @@ use sp_runtime::{
     testing::{Header, TestXt},
     traits::{BlakeTwo256, Extrinsic as ExtrinsicT, IdentifyAccount, Keccak256, Verify},
 };
-use sp_std::num::ParseIntError;
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
@@ -31,13 +30,6 @@ pub const DID_ALICE: H160 = H160([
 ]);
 
 pub const DID_BOB: H160 = H160([0xee; 20]);
-
-pub fn decode_hex(s: &str) -> Result<Vec<u8>, ParseIntError> {
-    (0..s.len())
-        .step_by(2)
-        .map(|i| u8::from_str_radix(&s[i..i + 2], 16))
-        .collect()
-}
 
 frame_support::construct_runtime!(
     pub enum Test where
@@ -177,6 +169,7 @@ impl parami_linker::Config for Test {
     type Slash = ();
     type Tags = Tag;
     type UnsignedPriority = UnsignedPriority;
+    type WeightInfo = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

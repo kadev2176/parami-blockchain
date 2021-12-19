@@ -1195,6 +1195,7 @@ impl parami_linker::Config for Runtime {
     type Slash = Treasury;
     type Tags = Tag;
     type UnsignedPriority = UnsignedPriority;
+    type WeightInfo = parami_linker::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1337,7 +1338,7 @@ construct_runtime!(
         Utility: pallet_utility::{Pallet, Call, Event},
         Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>},
 
-        Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
+        Ad: parami_ad::{Pallet, Call, Storage, Config, Event<T>},
         Advertiser: parami_advertiser::{Pallet, Call, Storage, Config<T>, Event<T>},
         ChainBridge: parami_chainbridge::{Pallet, Call, Storage, Event<T>},
         XAssets: parami_xassets::{Pallet, Call, Event<T>},
@@ -1725,6 +1726,7 @@ impl_runtime_apis! {
             list_benchmark!(list, extra, parami_ad, Ad);
             list_benchmark!(list, extra, parami_advertiser, Advertiser);
             list_benchmark!(list, extra, parami_did, Did);
+            list_benchmark!(list, extra, parami_linker, Linker);
             list_benchmark!(list, extra, parami_magic, Magic);
             list_benchmark!(list, extra, parami_nft, Nft);
             list_benchmark!(list, extra, parami_swap, Swap);
@@ -1788,6 +1790,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, parami_ad, Ad);
             add_benchmark!(params, batches, parami_advertiser, Advertiser);
             add_benchmark!(params, batches, parami_did, Did);
+            add_benchmark!(params, batches, parami_linker, Linker);
             add_benchmark!(params, batches, parami_magic, Magic);
             add_benchmark!(params, batches, parami_nft, Nft);
             add_benchmark!(params, batches, parami_swap, Swap);
