@@ -465,13 +465,19 @@ pub mod pallet {
 
             let mut socring = 5i32;
 
+            let tags = T::Tags::tags_of(&ad);
             let personas = T::Tags::personas_of(&visitor);
             let length = personas.len();
-            for (_, score) in personas {
-                socring.saturating_accrue(score);
+            for (tag, score) in personas {
+                let delta = if tags.contains_key(&tag) {
+                    score.saturating_mul(10)
+                } else {
+                    score
+                };
+                socring.saturating_accrue(delta);
             }
 
-            socring /= length.saturating_add(1) as i32;
+            socring /= length.saturating_mul(10).saturating_add(1) as i32;
 
             if socring < 0 {
                 socring = 0;

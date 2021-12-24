@@ -19,6 +19,7 @@ mod types;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
+    storage::PrefixIterator,
     traits::{Currency, ExistenceRequirement::KeepAlive, WithdrawReasons},
 };
 #[cfg(not(feature = "std"))]
@@ -26,7 +27,7 @@ use num_traits::Float;
 use parami_traits::Tags;
 use scale_info::TypeInfo;
 use sp_runtime::traits::{Hash, MaybeSerializeDeserialize, Member};
-use sp_std::prelude::*;
+use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 
 use weights::WeightInfo;
 
@@ -256,6 +257,21 @@ impl<T: Config> Pallet<T> {
         // MARK: due to rounding, the score won't exceed 100 or -100
         s.round() as i32 / 10
     }
+
+    fn storage_double_map_to_btree_map<TValue>(
+        iter: &mut PrefixIterator<TValue>,
+    ) -> BTreeMap<Vec<u8>, TValue> {
+        let mut hashes = BTreeMap::new();
+        while let Some(value) = iter.next() {
+            let prefix = iter.prefix();
+            let raw = iter.last_raw_key();
+            let hash = raw[prefix.len()..].to_vec();
+
+            hashes.insert(hash, value);
+        }
+
+        hashes
+    }
 }
 
 impl<T: Config> Tags for Pallet<T> {
@@ -273,19 +289,8 @@ impl<T: Config> Tags for Pallet<T> {
         <Metadata<T>>::contains_key(tag.as_ref())
     }
 
-    fn tags_of(id: &Self::Hash) -> Vec<Vec<u8>> {
-        let mut iter = <TagsOf<T>>::iter_prefix_values(id);
-
-        let mut hashes = vec![];
-        while let Some(_) = iter.next() {
-            let prefix = iter.prefix();
-            let raw = iter.last_raw_key();
-            let hash = raw[prefix.len()..].to_vec();
-
-            hashes.push(hash);
-        }
-
-        hashes
+    fn tags_of(id: &Self::Hash) -> BTreeMap<Vec<u8>, bool> {
+        Self::storage_double_map_to_btree_map(&mut <TagsOf<T>>::iter_prefix_values(id))
     }
 
     fn add_tag(id: &Self::Hash, tag: Vec<u8>) -> DispatchResult {
@@ -310,19 +315,8 @@ impl<T: Config> Tags for Pallet<T> {
         <TagsOf<T>>::contains_key(id, tag.as_ref())
     }
 
-    fn personas_of(did: &Self::DecentralizedId) -> Vec<(Vec<u8>, i32)> {
-        let mut iter = <PersonasOf<T>>::iter_prefix_values(did);
-
-        let mut tags = vec![];
-        while let Some(score) = iter.next() {
-            let prefix = iter.prefix();
-            let raw = iter.last_raw_key();
-            let hash = raw[prefix.len()..].to_vec();
-
-            tags.push((hash, score));
-        }
-
-        tags
+    fn personas_of(did: &Self::DecentralizedId) -> BTreeMap<Vec<u8>, i32> {
+        Self::storage_double_map_to_btree_map(&mut <PersonasOf<T>>::iter_prefix_values(did))
     }
 
     fn get_score<K: AsRef<Vec<u8>>>(did: &Self::DecentralizedId, tag: K) -> i32 {
@@ -341,19 +335,8 @@ impl<T: Config> Tags for Pallet<T> {
         Ok(())
     }
 
-    fn influences_of(kol: &Self::DecentralizedId) -> Vec<(Vec<u8>, i32)> {
-        let mut iter = <InfluencesOf<T>>::iter_prefix_values(kol);
-
-        let mut tags = vec![];
-        while let Some(score) = iter.next() {
-            let prefix = iter.prefix();
-            let raw = iter.last_raw_key();
-            let hash = raw[prefix.len()..].to_vec();
-
-            tags.push((hash, score));
-        }
-
-        tags
+    fn influences_of(kol: &Self::DecentralizedId) -> BTreeMap<Vec<u8>, i32> {
+        Self::storage_double_map_to_btree_map(&mut <InfluencesOf<T>>::iter_prefix_values(kol))
     }
 
     fn get_influence<K: AsRef<Vec<u8>>>(kol: &Self::DecentralizedId, tag: K) -> i32 {
