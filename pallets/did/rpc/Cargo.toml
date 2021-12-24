@@ -1,6 +1,6 @@
 [package]
 authors = ['Parami Devs <info@parami.io>']
-edition = '2018'
+edition = '2021'
 homepage = 'https://parami.io'
 license = 'GPL-3.0-only WITH Classpath-exception-2.0'
 name = 'parami-did-rpc'
@@ -11,31 +11,19 @@ version = '3.0.0'
 [package.metadata.docs.rs]
 targets = ['x86_64-unknown-linux-gnu']
 
-[dependencies.parami-did-utils]
-path = '../utils'
-
-[dependencies.parami-traits]
-path = '../../traits'
-
 [dependencies.codec]
 features = ['derive']
 package = 'parity-scale-codec'
 version = '2.2.0'
 
 [dependencies]
+parami-did-utils = { path = '../utils' }
+
 parking_lot = '0.11'
 jsonrpc-core = '18.0.0'
 jsonrpc-core-client = '18.0.0'
 jsonrpc-derive = '18.0.0'
 
-[dependencies.sp-core]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
-
-[dependencies.sp-offchain]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
-
-[dependencies.sp-rpc]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
+sp-core = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13' }
+sp-offchain = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13' }
+sp-rpc = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13' }

@@ -1,6 +1,6 @@
 [package]
 authors = ['Parami Devs <info@parami.io>']
-edition = '2018'
+edition = '2021'
 homepage = 'https://parami.io'
 license = 'GPL-3.0-only WITH Classpath-exception-2.0'
 name = 'parami-magic'
@@ -17,51 +17,26 @@ features = ['derive']
 package = 'parity-scale-codec'
 version = '2.2.0'
 
-[dependencies]
-serde = { version = '1.0', optional = true }
-
-[dependencies.frame-benchmarking]
-default-features = false
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
-optional = true
-
-[dependencies.frame-support]
-default-features = false
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
-
-[dependencies.frame-system]
-default-features = false
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
-
 [dependencies.scale-info]
 default-features = false
 features = ['derive']
 version = '1.0'
 
-[dependencies.sp-runtime]
-default-features = false
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
+[dependencies]
+serde = { version = '1.0', optional = true }
 
-[dependencies.sp-std]
-default-features = false
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
+sp-runtime = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
+sp-std = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 
-[dev-dependencies.pallet-balances]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
+frame-benchmarking = { git = 'https://github.com/paritytech/substrate', default-features = false, optional = true, branch = 'polkadot-v0.9.13' }
+frame-support = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
+frame-system = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 
-[dev-dependencies.sp-core]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
+[dev-dependencies]
+sp-core = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13' }
+sp-io = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13' }
 
-[dev-dependencies.sp-io]
-git = 'https://github.com/parami-protocol/substrate.git'
-branch = 'polkadot-v0.9.13'
+pallet-balances = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13' }
 
 [features]
 default = ['std']
@@ -69,14 +44,17 @@ default = ['std']
 runtime-benchmarks = ['frame-benchmarking']
 
 std = [
+    'serde',
+
     'codec/std',
+    'scale-info/std',
+
+    'sp-runtime/std',
+    'sp-std/std',
+
     'frame-benchmarking/std',
     'frame-support/std',
     'frame-system/std',
-    'scale-info/std',
-    'serde',
-    'sp-runtime/std',
-    'sp-std/std',
 ]
 
 try-runtime = ['frame-support/try-runtime']
