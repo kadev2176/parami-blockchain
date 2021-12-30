@@ -4,7 +4,7 @@ use sp_runtime::{
     traits::{MaybeSerializeDeserialize, Member},
     DispatchResult,
 };
-use sp_std::prelude::*;
+use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 
 pub trait Tags {
     type DecentralizedId: Parameter + Member + MaybeSerializeDeserialize + MaxEncodedLen;
@@ -42,7 +42,7 @@ pub trait Tags {
     /// # Returns
     ///
     /// List of tags of the advertisement
-    fn tags_of(id: &Self::Hash) -> Vec<Vec<u8>>;
+    fn tags_of(id: &Self::Hash) -> BTreeMap<Vec<u8>, bool>;
 
     /// Add a tag to an advertisement
     ///
@@ -103,7 +103,7 @@ pub trait Tags {
     ///
     /// * `hashed` - hashed tags
     /// * `score` - score of the DID
-    fn personas_of(did: &Self::DecentralizedId) -> Vec<(Vec<u8>, i32)>;
+    fn personas_of(did: &Self::DecentralizedId) -> BTreeMap<Vec<u8>, i32>;
 
     /// Get a persona's score
     ///
@@ -146,7 +146,7 @@ pub trait Tags {
     ///
     /// * `hashed` - hashed tags
     /// * `score` - score of the KOL
-    fn influences_of(kol: &Self::DecentralizedId) -> Vec<(Vec<u8>, i32)>;
+    fn influences_of(kol: &Self::DecentralizedId) -> BTreeMap<Vec<u8>, i32>;
 
     /// Get a KOL's score
     ///

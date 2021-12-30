@@ -28,22 +28,22 @@ pub enum AccountType {
     /// TRX Address
     Tron,
 
-    /// Telegram Profile
-    Telegram,
     /// Discord Profile
     Discord,
     /// Facebook Profile
     Facebook,
-    /// Mastodon Profile
-    Mastodon,
-    /// Twitter Profile
-    Twitter,
     /// Github Profile
     Github,
     /// Hacker News Profile
     HackerNews,
+    /// Mastodon Profile
+    Mastodon,
     /// Reddit Profile
     Reddit,
+    /// Telegram Profile
+    Telegram,
+    /// Twitter Profile
+    Twitter,
 }
 
 impl Default for AccountType {

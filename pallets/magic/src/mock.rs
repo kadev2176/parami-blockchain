@@ -1,5 +1,5 @@
 use crate as parami_magic;
-use frame_support::{parameter_types, PalletId};
+use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
 use frame_system as system;
 use sp_core::{sr25519, H256};
 use sp_runtime::{
@@ -9,6 +9,14 @@ use sp_runtime::{
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
+
+pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
+pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
+
+pub const MAGIC_ALICE: sr25519::Public = sr25519::Public([0xf; 32]);
+pub const MAGIC_BOB: sr25519::Public = sr25519::Public([0xe; 32]);
+
+pub const STASH_ALICE: sr25519::Public = sr25519::Public([0x0; 32]);
 
 frame_support::construct_runtime!(
     pub enum Test where
@@ -87,14 +95,23 @@ impl parami_magic::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let alice = sr25519::Public([0x1; 32]);
-
     let mut t = system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
 
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(alice, 100)],
+        balances: vec![
+            (ALICE, 40),
+            (MAGIC_ALICE, 50),
+            (STASH_ALICE, 10),
+            (BOB, 100),
+        ],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    parami_magic::GenesisConfig::<Test> {
+        accounts: vec![(MAGIC_ALICE, STASH_ALICE, ALICE)],
     }
     .assimilate_storage(&mut t)
     .unwrap();

@@ -4,11 +4,17 @@ pub use btc::hashing;
 pub use ocw::images;
 pub use pallet::*;
 
+#[rustfmt::skip]
+pub mod weights;
+
 #[cfg(test)]
 mod mock;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(feature = "runtime-benchmarks")]
+mod benchmarking;
 
 mod btc;
 mod did;
@@ -29,13 +35,7 @@ use parami_traits::Tags;
 use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
 
-macro_rules! is_task {
-    ($profile:expr, $prefix:expr) => {
-        $profile.starts_with($prefix) && $profile.last() != Some(&b'/')
-    };
-}
-
-pub(crate) use is_task;
+use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type BalanceOf<T> = <CurrencyOf<T> as Currency<AccountOf<T>>>::Balance;
@@ -83,6 +83,9 @@ pub mod pallet {
 
         /// The origin which may forcibly trust or block a registrar
         type ForceOrigin: EnsureOrigin<Self::Origin>;
+
+        /// Weight information for extrinsics in this pallet.
+        type WeightInfo: WeightInfo;
     }
 
     #[pallet::pallet]
@@ -134,8 +137,10 @@ pub mod pallet {
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
-        /// Account linked \[did, type, account\]
-        AccountLinked(DidOf<T>, types::AccountType, Vec<u8>),
+        /// Account linked \[did, type, account, by\]
+        AccountLinked(DidOf<T>, types::AccountType, Vec<u8>, DidOf<T>),
+        /// Account unlinked \[did, type, by\]
+        AccountUnlinked(DidOf<T>, types::AccountType, DidOf<T>),
         /// Registrar was blocked \[id\]
         Blocked(DidOf<T>),
         /// Registrar deposited \[id, value\]
@@ -176,60 +181,21 @@ pub mod pallet {
     impl<T: Config> Pallet<T> {
         /// Link a sociality account to a DID
         ///
-        /// Link will become pending, and will be checked with the offchain worker or a validator
+        /// Link will become pending, and will be checked with the offchain worker or a registrar
         ///
         /// # Arguments
         ///
         /// * `site` - Account type
         /// * `profile` - Profile URL
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::link_sociality(profile.len() as u32))]
         pub fn link_sociality(
             origin: OriginFor<T>,
             site: types::AccountType,
             profile: Vec<u8>,
         ) -> DispatchResult {
-            use sp_runtime::traits::Saturating;
-            use types::AccountType::*;
-
             let (did, _) = EnsureDid::<T>::ensure_origin(origin)?;
 
-            ensure!(!<LinksOf<T>>::contains_key(&did, &site), Error::<T>::Exists);
-            ensure!(
-                !<PendingOf<T>>::contains_key(&site, &did),
-                Error::<T>::Exists
-            );
-            ensure!(
-                !<Linked<T>>::contains_key(&site, &profile),
-                Error::<T>::Exists
-            );
-
-            match site {
-                Discord if is_task!(profile, b"https://discordapp.com/users/") => {}
-                Facebook if is_task!(profile, b"https://www.facebook.com/") => {}
-                Github if is_task!(profile, b"https://github.com/") => {}
-                HackerNews if is_task!(profile, b"https://news.ycombinator.com/user?id=") => {}
-                Mastodon => {}
-                Reddit if is_task!(profile, b"https://www.reddit.com/user/") => {}
-                Telegram if is_task!(profile, b"https://t.me/") => {}
-                Twitter if is_task!(profile, b"https://twitter.com/") => {}
-                _ => Err(Error::<T>::UnsupportedSite)?,
-            };
-
-            let created = <frame_system::Pallet<T>>::block_number();
-            let lifetime = T::PendingLifetime::get();
-            let deadline = created.saturating_add(lifetime);
-
-            <PendingOf<T>>::insert(
-                &site,
-                &did,
-                types::Pending {
-                    profile,
-                    deadline,
-                    created,
-                },
-            );
-
-            Ok(())
+            Self::insert_pending(did, site, profile)
         }
 
         /// Link a cryptographic account to a DID
@@ -243,7 +209,7 @@ pub mod pallet {
         ///   * When dealing with ETH, the address should in the format of binary or hex
         /// * `signature` - Account signature
         ///   * When dealing with DOT, SOL, the signature should have a prefix of `0x00`
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::link_crypto())]
         pub fn link_crypto(
             origin: OriginFor<T>,
             crypto: types::AccountType,
@@ -251,15 +217,6 @@ pub mod pallet {
             signature: types::Signature,
         ) -> DispatchResult {
             let (did, _) = EnsureDid::<T>::ensure_origin(origin)?;
-
-            ensure!(
-                !<LinksOf<T>>::contains_key(&did, &crypto),
-                Error::<T>::Exists
-            );
-            ensure!(
-                !<Linked<T>>::contains_key(&crypto, &address),
-                Error::<T>::Exists
-            );
 
             ensure!(address.len() >= 2, Error::<T>::InvalidAddress);
 
@@ -269,62 +226,42 @@ pub mod pallet {
 
             ensure!(recovered == address, Error::<T>::UnexpectedAddress);
 
-            <LinksOf<T>>::insert(&did, &crypto, address.clone());
-
-            <Linked<T>>::insert(&crypto, &address, true);
-
-            Self::deposit_event(Event::<T>::AccountLinked(did, crypto, address));
-
-            Ok(())
+            Self::insert_link(did, crypto, address, did)
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::submit_link(profile.len() as u32))]
         pub fn submit_link(
             origin: OriginFor<T>,
             did: DidOf<T>,
             site: types::AccountType,
             profile: Vec<u8>,
-            ok: bool,
+            validated: bool,
         ) -> DispatchResultWithPostInfo {
-            if let Err(_) = ensure_none(origin.clone()) {
+            let registrar = if let Err(_) = ensure_none(origin.clone()) {
                 let (registrar, _) = EnsureDid::<T>::ensure_origin(origin)?;
 
                 ensure!(
                     <Registrar<T>>::get(&registrar) == Some(true),
                     Error::<T>::Blocked
                 );
-            }
 
-            ensure!(!<LinksOf<T>>::contains_key(&did, &site), Error::<T>::Exists);
-            ensure!(
-                !<Linked<T>>::contains_key(&site, &profile),
-                Error::<T>::Exists
-            );
-
-            let task = <PendingOf<T>>::get(&site, &did).ok_or(Error::<T>::NotExists)?;
-
-            if ok {
-                ensure!(task.profile == profile, Error::<T>::UnexpectedAddress);
-
-                <LinksOf<T>>::insert(&did, &site, task.profile.clone());
-
-                <Linked<T>>::insert(&site, &task.profile, true);
-
-                Self::deposit_event(Event::<T>::AccountLinked(did, site.clone(), task.profile));
+                registrar
             } else {
-                Self::deposit_event(Event::<T>::ValidationFailed(
-                    did,
-                    site.clone(),
-                    task.profile,
-                ));
-            }
+                Did::<T>::zero()
+            };
 
-            <PendingOf<T>>::remove(&site, &did);
+            if validated {
+                Self::insert_link(did, site, profile, registrar)?;
+            } else {
+                <PendingOf<T>>::remove(&site, &did);
+
+                Self::deposit_event(Event::<T>::ValidationFailed(did, site, profile));
+            }
 
             Ok(().into())
         }
 
-        #[pallet::weight(10000)]
+        #[pallet::weight(<T as Config>::WeightInfo::submit_score(tag.len() as u32))]
         pub fn submit_score(
             origin: OriginFor<T>,
             did: DidOf<T>,
@@ -342,10 +279,12 @@ pub mod pallet {
 
             T::Tags::influence(&did, &tag, score)?;
 
+            // Self::deposit_event(Event::<T>::Scored(did, tag, score));
+
             Ok(().into())
         }
 
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::deposit())]
         pub fn deposit(
             origin: OriginFor<T>,
             #[pallet::compact] value: BalanceOf<T>,
@@ -366,7 +305,25 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::force_unlink())]
+        pub fn force_unlink(
+            origin: OriginFor<T>,
+            did: DidOf<T>,
+            site: types::AccountType,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+
+            let link = <LinksOf<T>>::get(&did, &site).ok_or(Error::<T>::NotExists)?;
+
+            <LinksOf<T>>::remove(&did, &site);
+            <Linked<T>>::remove(&site, &link);
+
+            Self::deposit_event(Event::<T>::AccountUnlinked(did, site, Did::<T>::zero()));
+
+            Ok(())
+        }
+
+        #[pallet::weight(<T as Config>::WeightInfo::force_trust())]
         pub fn force_trust(origin: OriginFor<T>, did: DidOf<T>) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
 
@@ -387,7 +344,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(1_000_000_000)]
+        #[pallet::weight(<T as Config>::WeightInfo::force_block())]
         pub fn force_block(origin: OriginFor<T>, registrar: DidOf<T>) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
 
@@ -408,11 +365,9 @@ pub mod pallet {
     }
 
     #[pallet::genesis_config]
-    pub struct GenesisConfig<T>
-    where
-        T: Config,
-    {
+    pub struct GenesisConfig<T: Config> {
         pub links: Vec<(DidOf<T>, types::AccountType, Vec<u8>)>,
+        pub registrars: Vec<DidOf<T>>,
     }
 
     #[cfg(feature = "std")]
@@ -420,6 +375,7 @@ pub mod pallet {
         fn default() -> Self {
             Self {
                 links: Default::default(),
+                registrars: Default::default(),
             }
         }
     }
@@ -430,6 +386,10 @@ pub mod pallet {
             for (did, typ, dat) in &self.links {
                 <LinksOf<T>>::insert(did, typ, dat);
                 <Linked<T>>::insert(typ, dat, true);
+            }
+
+            for registrar in &self.registrars {
+                <Registrar<T>>::insert(registrar, true);
             }
         }
     }

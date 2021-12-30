@@ -1,4 +1,4 @@
-use crate::{did, is_task, types, Call, Config, Error, Pallet, PendingOf};
+use crate::{did, types, Call, Config, Error, Pallet, PendingOf};
 use codec::Encode;
 use frame_system::offchain::{CreateSignedTransaction, SubmitTransaction};
 use sp_runtime::offchain::{http, Duration};
@@ -70,12 +70,8 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
                     .map_err(|_| Error::<T>::HttpFetchingError)?;
 
                 let result = match site {
-                    Telegram if is_task!(task.profile, b"https://t.me/") => {
-                        Self::ocw_verify_telegram(did, profile)
-                    }
-                    Twitter if is_task!(task.profile, b"https://twitter.com/") => {
-                        Self::ocw_verify_twitter(did, profile)
-                    }
+                    Telegram => Self::ocw_verify_telegram(did, profile),
+                    Twitter => Self::ocw_verify_twitter(did, profile),
                     _ => {
                         // drop unsupported sites
                         Self::ocw_submit_link(did, site, Vec::<u8>::new(), false);
@@ -97,13 +93,13 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
         did: T::DecentralizedId,
         site: types::AccountType,
         profile: Vec<u8>,
-        ok: bool,
+        validated: bool,
     ) {
         let call = Call::submit_link {
             did,
             site,
             profile,
-            ok,
+            validated,
         };
 
         let _ = submit_unsigned!(call);

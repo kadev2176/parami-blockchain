@@ -22,6 +22,7 @@ use frame_support::{
     traits::{Currency, EnsureOrigin, NamedReservableCurrency},
     PalletId,
 };
+use parami_did_utils::derive_storage_key;
 use scale_info::TypeInfo;
 use sp_runtime::{
     traits::{
@@ -121,8 +122,6 @@ pub mod pallet {
         Revoked(T::DecentralizedId),
         /// DID transferred \[did, from, to\]
         Transferred(T::DecentralizedId, AccountOf<T>, AccountOf<T>),
-        /// DID was updated \[did\]
-        Updated(T::DecentralizedId),
     }
 
     #[pallet::hooks]
@@ -250,34 +249,16 @@ pub mod pallet {
             Ok(())
         }
 
-        /// Set avatar of a DID.
-        #[pallet::weight(T::WeightInfo::set_avatar(avatar.len() as u32))]
-        pub fn set_avatar(origin: OriginFor<T>, avatar: Vec<u8>) -> DispatchResult {
+        /// Set metadata of a DID.
+        #[pallet::weight(T::WeightInfo::set_metadata(
+            key.len() as u32,
+            value.len() as u32
+        ))]
+        pub fn set_metadata(origin: OriginFor<T>, key: Vec<u8>, value: Vec<u8>) -> DispatchResult {
             let (did, _) = EnsureDid::<T>::ensure_origin(origin)?;
 
-            let mut meta = <Metadata<T>>::get(&did).ok_or(Error::<T>::NotExists)?;
-
-            meta.avatar = avatar;
-
-            <Metadata<T>>::insert(&did, meta);
-
-            Self::deposit_event(Event::<T>::Updated(did));
-
-            Ok(())
-        }
-
-        /// Set nickname of a DID.
-        #[pallet::weight(T::WeightInfo::set_nickname(nickname.len() as u32))]
-        pub fn set_nickname(origin: OriginFor<T>, nickname: Vec<u8>) -> DispatchResult {
-            let (did, _) = EnsureDid::<T>::ensure_origin(origin)?;
-
-            let mut meta = <Metadata<T>>::get(&did).ok_or(Error::<T>::NotExists)?;
-
-            meta.nickname = nickname;
-
-            <Metadata<T>>::insert(&did, meta);
-
-            Self::deposit_event(Event::<T>::Updated(did));
+            let key = derive_storage_key(&key, &did);
+            sp_io::offchain_index::set(&key, &value);
 
             Ok(())
         }
@@ -285,6 +266,7 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
+        /// \[ account, did, nft\]
         pub ids: Vec<(AccountOf<T>, T::DecentralizedId, Option<T::AssetId>)>,
     }
 
@@ -318,10 +300,6 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    pub fn zero() -> T::DecentralizedId {
-        Default::default()
-    }
-
     pub fn lookup_address(a: MultiAddress<AccountOf<T>, ()>) -> Option<AccountOf<T>> {
         match a {
             MultiAddress::Id(i) => Some(i),
@@ -349,6 +327,10 @@ impl<T: Config> Pallet<T> {
         assert!(len <= src.len());
         dest.as_mut().copy_from_slice(&src[(src.len() - len)..]);
         dest
+    }
+
+    pub fn zero() -> T::DecentralizedId {
+        Default::default()
     }
 }
 

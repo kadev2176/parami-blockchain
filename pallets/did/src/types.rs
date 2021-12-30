@@ -11,8 +11,6 @@ pub struct Metadata<A, N, T> {
     pub account: A,
     pub pot: A,
     pub nft: Option<T>,
-    pub avatar: Vec<u8>,
-    pub nickname: Vec<u8>,
     pub revoked: bool,
     pub created: N,
 }

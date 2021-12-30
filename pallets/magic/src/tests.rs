@@ -1,47 +1,38 @@
 use crate::{mock::*, ControllerAccountOf, Error, StableAccountOf};
 use frame_support::{assert_noop, assert_ok};
-use sp_core::sr25519;
 
 #[test]
 fn should_create() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([0x1; 32]);
-        let magic = sr25519::Public([0xe; 32]);
-
-        assert_eq!(Balances::free_balance(&alice), 100);
-        assert_eq!(Balances::total_issuance(), 100);
+        assert_eq!(Balances::free_balance(&BOB), 100);
 
         assert_ok!(Magic::create_stable_account(
-            Origin::signed(alice),
-            magic,
-            0
+            Origin::signed(BOB),
+            MAGIC_BOB,
+            10
         ));
 
-        assert_eq!(Balances::free_balance(&alice), 99);
-        assert_eq!(Balances::total_issuance(), 100);
+        assert_eq!(Balances::free_balance(&BOB), 100 - 50 - 10);
 
-        let maybe_stash = <StableAccountOf<Test>>::get(&alice);
+        let maybe_stash = <StableAccountOf<Test>>::get(&BOB);
         assert_ne!(maybe_stash, None);
 
         let stash = maybe_stash.unwrap();
-        assert_eq!(stash.controller_account, alice);
-        assert_eq!(stash.magic_account, magic);
+        assert_eq!(stash.controller_account, BOB);
+        assert_eq!(stash.magic_account, MAGIC_BOB);
 
-        assert_eq!(Balances::free_balance(&stash.stash_account), 0);
-        assert_eq!(Balances::free_balance(&magic), 1);
+        assert_eq!(Balances::free_balance(&stash.stash_account), 10);
+        assert_eq!(Balances::free_balance(&MAGIC_BOB), 50);
 
-        assert_eq!(<ControllerAccountOf<Test>>::get(&magic), Some(alice));
+        assert_eq!(<ControllerAccountOf<Test>>::get(&MAGIC_BOB), Some(BOB));
     });
 }
 
 #[test]
 fn should_fail_when_insufficient() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([0x1; 32]);
-        let magic = sr25519::Public([0xe; 32]);
-
         assert_noop!(
-            Magic::create_stable_account(Origin::signed(alice), magic, 100),
+            Magic::create_stable_account(Origin::signed(BOB), MAGIC_BOB, 100),
             Error::<Test>::InsufficientBalance
         );
     });
@@ -50,11 +41,8 @@ fn should_fail_when_insufficient() {
 #[test]
 fn should_fail_when_magic_is_controller() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([0x1; 32]);
-        let magic = sr25519::Public([0x1; 32]);
-
         assert_noop!(
-            Magic::create_stable_account(Origin::signed(alice), magic, 1),
+            Magic::create_stable_account(Origin::signed(BOB), BOB, 1),
             Error::<Test>::ControllerEqualToMagic
         );
     });
@@ -63,34 +51,21 @@ fn should_fail_when_magic_is_controller() {
 #[test]
 fn should_transfer() {
     new_test_ext().execute_with(|| {
-        let alice = sr25519::Public([0x1; 32]);
-        let bob = sr25519::Public([0x2; 32]);
+        assert_ok!(Magic::change_controller(Origin::signed(MAGIC_ALICE), BOB));
 
-        assert_eq!(Balances::free_balance(&bob), 0);
+        assert_eq!(<StableAccountOf<Test>>::get(&ALICE), None);
 
-        let magic = sr25519::Public([0xe; 32]);
-
-        assert_ok!(Magic::create_stable_account(
-            Origin::signed(alice),
-            magic,
-            1
-        ));
-
-        assert_ok!(Magic::change_controller(Origin::signed(magic), bob));
-
-        assert_eq!(<StableAccountOf<Test>>::get(&alice), None);
-
-        let maybe_stash = <StableAccountOf<Test>>::get(&bob);
+        let maybe_stash = <StableAccountOf<Test>>::get(&BOB);
         assert_ne!(maybe_stash, None);
 
         let stash = maybe_stash.unwrap();
-        assert_eq!(stash.controller_account, bob);
-        assert_eq!(stash.magic_account, magic);
+        assert_eq!(stash.controller_account, BOB);
+        assert_eq!(stash.magic_account, MAGIC_ALICE);
 
-        assert_eq!(Balances::free_balance(&stash.stash_account), 1);
-        assert_eq!(Balances::free_balance(&magic), 1);
-        assert_ne!(Balances::free_balance(&bob), 0);
+        assert_eq!(Balances::free_balance(&stash.stash_account), 10);
+        assert_eq!(Balances::free_balance(&MAGIC_ALICE), 50);
+        assert_eq!(Balances::free_balance(&BOB), 100 + 40);
 
-        assert_eq!(<ControllerAccountOf<Test>>::get(&magic), Some(bob));
+        assert_eq!(<ControllerAccountOf<Test>>::get(&MAGIC_ALICE), Some(BOB));
     });
 }

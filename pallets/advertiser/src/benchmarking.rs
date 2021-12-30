@@ -9,7 +9,10 @@ use parami_did::Pallet as Did;
 use sp_runtime::traits::{Bounded, Saturating};
 
 benchmarks! {
-    where_clause {where T: Config + parami_did::Config}
+    where_clause {
+        where
+        T: parami_did::Config
+    }
 
     deposit {
         let caller: T::AccountId = whitelisted_caller();
@@ -27,7 +30,7 @@ benchmarks! {
         assert_eq!(T::Currency::reserved_balance_named(&id.0, &caller), pot);
     }
 
-    block {
+    force_block {
         let caller: T::AccountId = whitelisted_caller();
 
         let min = T::Currency::minimum_balance();

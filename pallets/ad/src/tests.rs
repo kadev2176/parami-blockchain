@@ -5,6 +5,7 @@ use frame_support::{
 };
 use parami_traits::Tags;
 use sp_core::{sr25519, H160};
+use sp_std::collections::btree_map::BTreeMap;
 
 #[test]
 fn should_create() {
@@ -14,10 +15,10 @@ fn should_create() {
             vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
         ];
 
-        let mut hashes = vec![];
+        let mut hashes = BTreeMap::new();
         for tag in &tags {
             let hash = Tag::key(tag);
-            hashes.push(hash);
+            hashes.insert(hash, true);
         }
 
         let metadata = vec![0u8; 64];
@@ -133,10 +134,10 @@ fn should_update_tags() {
             vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
         ];
 
-        let mut hashes = vec![];
+        let mut hashes = BTreeMap::new();
         for tag in &tags {
             let hash = Tag::key(tag);
-            hashes.push(hash);
+            hashes.insert(hash, true);
         }
 
         assert_ok!(Ad::create(

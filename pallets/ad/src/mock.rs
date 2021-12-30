@@ -157,22 +157,10 @@ parameter_types! {
     pub const InitialMintingValueBase: Balance = 1_000_000;
 }
 
-pub struct FarmingCurve;
-impl parami_nft::FarmingCurve<Test> for FarmingCurve {
-    fn calculate_farming_reward(
-        _minted_height: BlockNumber,
-        _maximum_tokens: Balance,
-        _current_height: BlockNumber,
-        _started_supply: Balance,
-    ) -> Balance {
-        100
-    }
-}
-
 impl parami_nft::Config for Test {
     type Event = Event;
     type Assets = Assets;
-    type FarmingCurve = FarmingCurve;
+    type FarmingCurve = ();
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
@@ -250,7 +238,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .unwrap();
 
     parami_tag::GenesisConfig::<Test> {
-        tags: vec![
+        tag: vec![
             vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
             vec![5u8, 4u8, 3u8, 2u8, 1u8, 0u8],
         ],

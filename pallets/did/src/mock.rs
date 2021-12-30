@@ -1,7 +1,7 @@
 use crate as parami_did;
 use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
 use frame_system as system;
-use sp_core::{sr25519, H256};
+use sp_core::{sr25519, H160, H256};
 use sp_runtime::{
     testing::Header,
     traits::{BlakeTwo256, Keccak256},
@@ -9,6 +9,13 @@ use sp_runtime::{
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
+
+pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
+pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
+pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
+
+pub const DID_ALICE: H160 = H160([0xff; 20]);
+pub const DID_BOB: H160 = H160([0xee; 20]);
 
 frame_support::construct_runtime!(
     pub enum Test where
@@ -23,7 +30,6 @@ frame_support::construct_runtime!(
     }
 );
 
-pub type DID = <Test as parami_did::Config>::DecentralizedId;
 type AssetId = u64;
 type Balance = u128;
 
@@ -91,21 +97,18 @@ impl parami_did::Config for Test {
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
-    let alice = sr25519::Public([1; 32]);
-    let bob = sr25519::Public([2; 32]);
-
     let mut t = system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
 
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(alice, 100), (bob, 100)],
+        balances: vec![(ALICE, 100), (BOB, 100)],
     }
     .assimilate_storage(&mut t)
     .unwrap();
 
     parami_did::GenesisConfig::<Test> {
-        ids: vec![(alice, DID::from_slice(&[0xff; 20]), None)],
+        ids: vec![(ALICE, DID_ALICE, None)],
     }
     .assimilate_storage(&mut t)
     .unwrap();

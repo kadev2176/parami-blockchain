@@ -20,8 +20,9 @@ use frame_support::{
     traits::{
         tokens::{
             fungibles::{
-                metadata::Mutate as FungMetaMutate, Create as FungCreate, Inspect as FungInspect,
-                Mutate as FungMutate, Transfer as FungTransfer,
+                metadata::Mutate as FungMetaMutate, Create as FungCreate, Inspect as _,
+                InspectEnumerable as FungInspectEnumerable, Mutate as FungMutate,
+                Transfer as FungTransfer,
             },
             nonfungibles::{Create as NftCreate, Mutate as NftMutate},
         },
@@ -55,15 +56,29 @@ pub trait FarmingCurve<T: Config> {
     /// # Arguments
     ///
     /// * `minted_height` - The block number of the initial minting
+    /// * `started_supply` - the tokens amount of the initial minting
     /// * `maximum_tokens` - the maximum amount of tokens
     /// * `current_height` - the block number of current block
-    /// * `started_supply` - the tokens amount of the initial minting
+    /// * `current_supply` - the tokens amount before farming
     fn calculate_farming_reward(
         minted_height: HeightOf<T>,
+        started_supply: BalanceOf<T>,
         maximum_tokens: BalanceOf<T>,
         current_height: HeightOf<T>,
-        started_supply: BalanceOf<T>,
+        current_supply: BalanceOf<T>,
     ) -> BalanceOf<T>;
+}
+
+impl<T: Config> FarmingCurve<T> for () {
+    fn calculate_farming_reward(
+        _minted_height: HeightOf<T>,
+        _started_supply: BalanceOf<T>,
+        _maximum_tokens: BalanceOf<T>,
+        _current_height: HeightOf<T>,
+        _current_supply: BalanceOf<T>,
+    ) -> BalanceOf<T> {
+        Default::default()
+    }
 }
 
 #[frame_support::pallet]
@@ -80,6 +95,7 @@ pub mod pallet {
         /// The assets trait to create, mint, and transfer fragments (fungible token)
         /// it uses parami_did::Config::AssetId as AssetId
         type Assets: FungCreate<AccountOf<Self>, AssetId = Self::AssetId>
+            + FungInspectEnumerable<AccountOf<Self>>
             + FungMetaMutate<AccountOf<Self>, AssetId = Self::AssetId>
             + FungMutate<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>
             + FungTransfer<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>;
@@ -177,12 +193,16 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+    impl<T: Config> Hooks<HeightOf<T>> for Pallet<T> {
         fn on_initialize(n: HeightOf<T>) -> Weight {
-            Self::begin_block_for_farming_reward(n).unwrap_or_else(|e| {
-                sp_runtime::print(e);
-                0
-            })
+            let modu: u32 = n.try_into().map_or(100, |n: u32| n % 100);
+            match modu {
+                1 => Self::begin_block_for_farming_reward(n).unwrap_or_else(|e| {
+                    sp_runtime::print(e);
+                    0
+                }),
+                _ => 0,
+            }
         }
     }
 
@@ -238,7 +258,10 @@ pub mod pallet {
         }
 
         /// Fragment the NFT and mint token.
-        #[pallet::weight(<T as Config>::WeightInfo::mint(name.len() as u32, symbol.len() as u32))]
+        #[pallet::weight(<T as Config>::WeightInfo::mint(
+            name.len() as u32,
+            symbol.len() as u32
+        ))]
         pub fn mint(origin: OriginFor<T>, name: Vec<u8>, symbol: Vec<u8>) -> DispatchResult {
             let limit = T::StringLimit::get() as usize - 4;
 
@@ -363,9 +386,9 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        pub next_cid: T::AssetId,
         pub deposit: Vec<(T::DecentralizedId, BalanceOf<T>)>,
         pub deposits: Vec<(T::DecentralizedId, T::DecentralizedId, BalanceOf<T>)>,
+        pub next_class_id: T::AssetId,
     }
 
     #[cfg(feature = "std")]
@@ -374,7 +397,7 @@ pub mod pallet {
             Self {
                 deposit: Default::default(),
                 deposits: Default::default(),
-                next_cid: Default::default(),
+                next_class_id: Default::default(),
             }
         }
     }
@@ -382,7 +405,15 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            <NextClassId<T>>::put(self.next_cid);
+            <NextClassId<T>>::put(self.next_class_id);
+
+            let next_class_id: u32 = self.next_class_id.try_into().unwrap_or_default();
+            if next_class_id > 0 {
+                for token in 0u32..next_class_id {
+                    let token: T::AssetId = token.into();
+                    <Date<T>>::insert(token, T::InitialMintingLockupPeriod::get());
+                }
+            }
 
             for (kol, deposit) in &self.deposit {
                 <Deposit<T>>::insert(kol, deposit);
@@ -396,7 +427,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    fn begin_block_for_farming_reward(now: HeightOf<T>) -> Result<Weight, DispatchError> {
+    fn begin_block_for_farming_reward(height: HeightOf<T>) -> Result<Weight, DispatchError> {
         let weight = 1_000_000_000;
 
         // TODO: weight benchmark
@@ -416,21 +447,29 @@ impl<T: Config> Pallet<T> {
             }
             let minted_block_number = minted_block_number.unwrap();
 
+            let supply = T::Assets::total_issuance(token_id);
+
             let amount = T::FarmingCurve::calculate_farming_reward(
                 minted_block_number,
-                maximum,
-                now,
                 started,
+                maximum,
+                height,
+                supply,
             );
 
-            let amount = if amount < maximum { amount } else { maximum };
+            let left = maximum - supply;
+            let amount = if amount < left { amount } else { left };
+
+            if amount < One::one() {
+                continue;
+            }
 
             let liquidity = T::Assets::total_issuance(lp_token_id);
 
             let amount: U512 = Self::try_into(amount)?;
             let liquidity: U512 = Self::try_into(liquidity)?;
 
-            for holder in T::Swaps::iter_holder(token_id) {
+            for holder in T::Assets::accounts(&lp_token_id) {
                 let hold = T::Assets::balance(lp_token_id, &holder);
 
                 let hold: U512 = Self::try_into(hold)?;
@@ -438,6 +477,10 @@ impl<T: Config> Pallet<T> {
                 let value = amount * hold / liquidity;
 
                 let value = Self::try_into(value)?;
+
+                if value < One::one() {
+                    continue;
+                }
 
                 T::Assets::mint_into(token_id, &holder, value)?;
             }

@@ -1,7 +1,7 @@
 [package]
 authors = ['Parami Devs <info@parami.io>']
 description = 'AD3 Pallet Traits'
-edition = '2018'
+edition = '2021'
 homepage = 'https://parami.io'
 license = 'GPL-3.0-only WITH Classpath-exception-2.0'
 name = 'parami-traits'
@@ -18,33 +18,26 @@ features = ['derive']
 package = 'parity-scale-codec'
 version = '2.2.0'
 
-[dependencies.frame-support]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
-
 [dependencies.scale-info]
 default-features = false
 features = ['derive']
 version = '1.0'
 
-[dependencies.sp-runtime]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+[dependencies]
+sp-runtime = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
+sp-std = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 
-[dependencies.sp-std]
-default-features = false
-git = 'https://github.com/paritytech/substrate.git'
-rev = '69e384bae9f6189089d2136edb560644964b8788'
+frame-support = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 
 [features]
 default = ['std']
 
 std = [
     'codec/std',
-    'frame-support/std',
     'scale-info/std',
+
     'sp-runtime/std',
     'sp-std/std',
+
+    'frame-support/std',
 ]

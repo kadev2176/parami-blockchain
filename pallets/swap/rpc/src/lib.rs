@@ -2,7 +2,8 @@ pub use self::gen_client::Client as SwapClient;
 use codec::Codec;
 use jsonrpc_core::{Error as RpcError, ErrorCode, Result};
 use jsonrpc_derive::rpc;
-pub use parami_swap_rpc_runtime_api::{BalanceWrapper, SwapRuntimeApi};
+use parami_primitives::BalanceWrapper;
+pub use parami_swap_rpc_runtime_api::SwapRuntimeApi;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{

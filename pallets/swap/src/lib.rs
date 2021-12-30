@@ -19,7 +19,6 @@ mod types;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
-    storage::PrefixIterator,
     traits::{
         tokens::fungibles::{
             metadata::Mutate as FungMetaMutate, Create as FungCreate, Inspect as FungInspect,
@@ -34,7 +33,7 @@ use frame_support::{
 use parami_traits::Swaps;
 use sp_core::U512;
 use sp_runtime::{
-    traits::{AccountIdConversion, AtLeast32BitUnsigned, Bounded, One, Saturating, Zero},
+    traits::{AccountIdConversion, AtLeast32BitUnsigned, Bounded, One, Zero},
     DispatchError,
 };
 use sp_std::{
@@ -96,32 +95,31 @@ pub mod pallet {
     #[pallet::getter(fn meta)]
     pub(super) type Metadata<T: Config> = StorageMap<_, Twox64Concat, T::AssetId, SwapOf<T>>;
 
-    /// Holders of liquidity
-    #[pallet::storage]
-    #[pallet::getter(fn liquidity_of)]
-    pub(super) type LiquidityOf<T: Config> = StorageDoubleMap<
-        _,
-        Twox64Concat,
-        T::AssetId, // Swap ID
-        Identity,
-        AccountOf<T>, // Holder Account ID
-        BalanceOf<T>,
-        ValueQuery,
-    >;
-
     #[pallet::event]
     #[pallet::generate_deposit(pub fn deposit_event)]
     pub enum Event<T: Config> {
-        /// New swap pair created \[id\]
-        Created(T::AssetId),
+        /// New swap pair created \[id, lp_token_id\]
+        Created(T::AssetId, T::AssetId),
         /// Liquidity add \[id, account, liquidity, currency, tokens\]
-        LiquidityAdded(T::AssetId, AccountOf<T>, BalanceOf<T>, BalanceOf<T>),
-        /// Liquidity removed \[id, account, currency, tokens\]
-        LiquidityRemoved(T::AssetId, AccountOf<T>, BalanceOf<T>, BalanceOf<T>),
+        LiquidityAdded(
+            T::AssetId,
+            AccountOf<T>,
+            BalanceOf<T>,
+            BalanceOf<T>,
+            BalanceOf<T>,
+        ),
+        /// Liquidity removed \[id, account, liquidity, currency, tokens\]
+        LiquidityRemoved(
+            T::AssetId,
+            AccountOf<T>,
+            BalanceOf<T>,
+            BalanceOf<T>,
+            BalanceOf<T>,
+        ),
         /// Tokens bought \[id, account, tokens, currency\]
-        SwapBuy(T::AssetId, AccountOf<T>, BalanceOf<T>, BalanceOf<T>),
+        TokenBought(T::AssetId, AccountOf<T>, BalanceOf<T>, BalanceOf<T>),
         /// Tokens sold \[id, account, tokens, currency\]
-        SwapSell(T::AssetId, AccountOf<T>, BalanceOf<T>, BalanceOf<T>),
+        TokenSold(T::AssetId, AccountOf<T>, BalanceOf<T>, BalanceOf<T>),
     }
 
     #[pallet::hooks]
@@ -161,9 +159,9 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            let swap_id = Self::new(&who, token_id)?;
+            let (token_id, lp_token_id) = Self::new(&who, token_id)?;
 
-            Self::deposit_event(Event::Created(swap_id));
+            Self::deposit_event(Event::Created(token_id, lp_token_id));
 
             Ok(())
         }
@@ -191,7 +189,7 @@ pub mod pallet {
 
             let who = ensure_signed(origin)?;
 
-            let (currency, tokens) = Self::mint(
+            let (liquidity, tokens) = Self::mint(
                 &who,
                 token_id,
                 currency,
@@ -200,7 +198,9 @@ pub mod pallet {
                 true, // keep alive
             )?;
 
-            Self::deposit_event(Event::LiquidityAdded(token_id, who, currency, tokens));
+            Self::deposit_event(Event::LiquidityAdded(
+                token_id, who, liquidity, currency, tokens,
+            ));
 
             Ok(())
         }
@@ -234,7 +234,9 @@ pub mod pallet {
                 min_tokens,
             )?;
 
-            Self::deposit_event(Event::LiquidityRemoved(token_id, who, currency, tokens));
+            Self::deposit_event(Event::LiquidityRemoved(
+                token_id, who, liquidity, currency, tokens,
+            ));
 
             Ok(())
         }
@@ -260,7 +262,7 @@ pub mod pallet {
 
             let (tokens, currency) = Self::token_out(&who, token_id, tokens, max_currency, true)?;
 
-            Self::deposit_event(Event::SwapBuy(token_id, who, tokens, currency));
+            Self::deposit_event(Event::TokenBought(token_id, who, tokens, currency));
 
             Ok(())
         }
@@ -286,7 +288,7 @@ pub mod pallet {
 
             let (tokens, currency) = Self::token_in(&who, token_id, tokens, min_currency, false)?;
 
-            Self::deposit_event(Event::SwapSell(token_id, who, tokens, currency));
+            Self::deposit_event(Event::TokenSold(token_id, who, tokens, currency));
 
             Ok(())
         }
@@ -312,7 +314,7 @@ pub mod pallet {
 
             let (currency, tokens) = Self::quote_in(&who, token_id, currency, min_tokens, true)?;
 
-            Self::deposit_event(Event::SwapBuy(token_id, who, tokens, currency));
+            Self::deposit_event(Event::TokenBought(token_id, who, tokens, currency));
 
             Ok(())
         }
@@ -338,7 +340,7 @@ pub mod pallet {
 
             let (currency, tokens) = Self::quote_out(&who, token_id, currency, max_tokens, false)?;
 
-            Self::deposit_event(Event::SwapSell(token_id, who, tokens, currency));
+            Self::deposit_event(Event::TokenSold(token_id, who, tokens, currency));
 
             Ok(())
         }
@@ -524,54 +526,17 @@ impl<T: Config> Pallet<T> {
         input_reserve: BalanceOf<T>,
         output_reserve: BalanceOf<T>,
     ) -> Result<BalanceOf<T>, Error<T>> {
-        ensure!(
-            input_reserve > input_amount,
-            Error::<T>::InsufficientLiquidity
-        );
-
         let input_amount: U512 = Self::try_into(input_amount)?;
         let input_reserve: U512 = Self::try_into(input_reserve)?;
         let output_reserve: U512 = Self::try_into(output_reserve)?;
 
         let result = Self::calculate_price_sell(input_amount, input_reserve, output_reserve);
 
+        ensure!(output_reserve > result, Error::<T>::InsufficientLiquidity);
+
         let result = Self::try_into(result)?;
 
         Ok(result)
-    }
-}
-
-pub struct HolderIterator<T: Config>(PrefixIterator<(AccountOf<T>, BalanceOf<T>)>);
-
-impl<T: Config> HolderIterator<T> {
-    pub fn new(token_id: T::AssetId) -> Self {
-        Self(<LiquidityOf<T>>::iter_prefix(token_id))
-    }
-}
-
-impl<T: Config> Iterator for HolderIterator<T> {
-    type Item = AccountOf<T>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0.next().map(|(account, _)| account)
-    }
-}
-
-pub struct SwapIterator<T: Config>(PrefixIterator<(T::AssetId, SwapOf<T>)>);
-
-impl<T: Config> SwapIterator<T> {
-    pub fn new() -> Self {
-        Self(<Metadata<T>>::iter())
-    }
-}
-
-impl<T: Config> Iterator for SwapIterator<T> {
-    type Item = (T::AssetId, T::AssetId, AccountOf<T>);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.0
-            .next()
-            .map(|(token_id, swap)| (token_id, swap.lp_token_id, swap.pot))
     }
 }
 
@@ -582,17 +547,13 @@ impl<T: Config> Swaps for Pallet<T> {
     type TokenBalance = BalanceOf<T>;
 
     fn iter() -> Box<dyn Iterator<Item = (Self::AssetId, Self::AssetId, Self::AccountId)>> {
-        Box::new(SwapIterator::<T>::new())
-    }
-
-    fn iter_holder(token_id: Self::AssetId) -> Box<dyn Iterator<Item = Self::AccountId>> {
-        Box::new(HolderIterator::<T>::new(token_id))
+        Box::new(<Metadata<T>>::iter().map(|(id, meta)| (id, meta.lp_token_id, meta.pot)))
     }
 
     fn new(
         _who: &Self::AccountId,
         token_id: Self::AssetId,
-    ) -> Result<Self::AssetId, DispatchError> {
+    ) -> Result<(Self::AssetId, Self::AssetId), DispatchError> {
         ensure!(!<Metadata<T>>::contains_key(&token_id), Error::<T>::Exists);
 
         let mut name = T::Assets::name(&token_id);
@@ -609,7 +570,7 @@ impl<T: Config> Swaps for Pallet<T> {
 
         let pot: AccountOf<T> = T::PalletId::get().into_sub_account(token_id);
 
-        // 2. create lp token
+        // 2. create liquidity provider token
 
         T::Assets::create(lp_token_id, pot.clone(), true, One::one())?;
         T::Assets::set(lp_token_id, &pot, name, symbol, 18)?;
@@ -625,7 +586,7 @@ impl<T: Config> Swaps for Pallet<T> {
             },
         );
 
-        Ok(token_id)
+        Ok((token_id, lp_token_id))
     }
 
     fn mint_dry(
@@ -641,9 +602,9 @@ impl<T: Config> Swaps for Pallet<T> {
         ),
         DispatchError,
     > {
-        let (tokens, lp, meta) = Self::calculate_liquidity(token_id, currency, max_tokens)?;
+        let (tokens, liquidity, meta) = Self::calculate_liquidity(token_id, currency, max_tokens)?;
 
-        Ok((token_id, tokens, meta.lp_token_id, lp))
+        Ok((token_id, tokens, meta.lp_token_id, liquidity))
     }
 
     fn mint(
@@ -653,15 +614,15 @@ impl<T: Config> Swaps for Pallet<T> {
         min_liquidity: Self::TokenBalance,
         max_tokens: Self::TokenBalance,
         keep_alive: bool,
-    ) -> Result<(Self::QuoteBalance, Self::TokenBalance), DispatchError> {
+    ) -> Result<(Self::TokenBalance, Self::TokenBalance), DispatchError> {
         ensure!(currency > Zero::zero(), Error::<T>::ZeroCurrency);
         ensure!(min_liquidity > Zero::zero(), Error::<T>::ZeroLiquidity);
         ensure!(max_tokens > Zero::zero(), Error::<T>::ZeroTokens);
 
-        let (tokens, lp, meta) = Self::calculate_liquidity(token_id, currency, max_tokens)?;
+        let (tokens, liquidity, meta) = Self::calculate_liquidity(token_id, currency, max_tokens)?;
 
         ensure!(max_tokens >= tokens, Error::<T>::TooExpensiveCurrency);
-        ensure!(lp >= min_liquidity, Error::<T>::TooLowLiquidity);
+        ensure!(liquidity >= min_liquidity, Error::<T>::TooLowLiquidity);
 
         if keep_alive {
             ensure!(
@@ -687,13 +648,9 @@ impl<T: Config> Swaps for Pallet<T> {
         )?;
         T::Assets::transfer(token_id, &who, &meta.pot, tokens, false)?;
 
-        T::Assets::mint_into(meta.lp_token_id, &who, lp)?;
+        T::Assets::mint_into(meta.lp_token_id, &who, liquidity)?;
 
-        <LiquidityOf<T>>::mutate(&token_id, &who, |holding| {
-            holding.saturating_accrue(lp);
-        });
-
-        Ok((currency, tokens))
+        Ok((liquidity, tokens))
     }
 
     fn burn_dry(
@@ -731,10 +688,6 @@ impl<T: Config> Swaps for Pallet<T> {
 
         T::Assets::transfer(token_id, &meta.pot, &who, tokens, false)?;
         T::Currency::transfer(&meta.pot, &who, currency, AllowDeath)?;
-
-        <LiquidityOf<T>>::mutate(&token_id, &who, |holding| {
-            holding.saturating_reduce(liquidity);
-        });
 
         Ok((currency, tokens))
     }

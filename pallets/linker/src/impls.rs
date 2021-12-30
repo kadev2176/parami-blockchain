@@ -1,15 +1,48 @@
 use crate::{
-    btc,
-    types::{AccountType, Signature},
-    witness::WitnessProgram,
-    Config, Error, Pallet,
+    btc, types, witness::WitnessProgram, Config, DidOf, Error, Event, Linked, LinksOf, Pallet,
+    PendingOf,
 };
 
 use base58::ToBase58;
 use codec::Encode;
+use frame_support::ensure;
+use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 
+macro_rules! is_task {
+    ($profile:expr, $prefix:expr) => {
+        $profile.starts_with($prefix) && $profile.len() > $prefix.len()
+    };
+}
+
 impl<T: Config> Pallet<T> {
+    fn ensure_profile(did: &DidOf<T>, site: &types::AccountType, profile: &[u8]) -> DispatchResult {
+        use types::AccountType::*;
+
+        ensure!(!<LinksOf<T>>::contains_key(did, site), Error::<T>::Exists);
+        ensure!(
+            !<Linked<T>>::contains_key(site, profile),
+            Error::<T>::Exists
+        );
+
+        match site {
+            Binance | Bitcoin | Eosio | Ethereum | Kusama | Polkadot | Solana | Tron | Unknown => {}
+
+            Discord if is_task!(profile, b"https://discordapp.com/users/") => {}
+            Facebook if is_task!(profile, b"https://www.facebook.com/") => {}
+            Github if is_task!(profile, b"https://github.com/") => {}
+            HackerNews if is_task!(profile, b"https://news.ycombinator.com/user?id=") => {}
+            Mastodon => {}
+            Reddit if is_task!(profile, b"https://www.reddit.com/user/") => {}
+            Telegram if is_task!(profile, b"https://t.me/") => {}
+            Twitter if is_task!(profile, b"https://twitter.com/") => {}
+
+            _ => Err(Error::<T>::UnsupportedSite)?,
+        };
+
+        Ok(())
+    }
+
     pub fn generate_message(did: &T::DecentralizedId) -> Vec<u8> {
         let mut bytes = b"Link: ".to_vec();
 
@@ -24,27 +57,80 @@ impl<T: Config> Pallet<T> {
         bytes
     }
 
+    pub fn insert_link(
+        did: DidOf<T>,
+        site: types::AccountType,
+        profile: Vec<u8>,
+        registrar: DidOf<T>,
+    ) -> DispatchResult {
+        Self::ensure_profile(&did, &site, &profile)?;
+
+        <PendingOf<T>>::remove(&site, &did);
+
+        <Linked<T>>::insert(&site, &profile, true);
+
+        <LinksOf<T>>::insert(&did, &site, profile.clone());
+
+        Self::deposit_event(Event::<T>::AccountLinked(did, site, profile, registrar));
+
+        Ok(())
+    }
+
+    pub fn insert_pending(
+        did: DidOf<T>,
+        site: types::AccountType,
+        profile: Vec<u8>,
+    ) -> DispatchResult {
+        use frame_support::traits::Get;
+        use sp_runtime::traits::Saturating;
+
+        Self::ensure_profile(&did, &site, &profile)?;
+
+        ensure!(
+            !<PendingOf<T>>::contains_key(&site, &did),
+            Error::<T>::Exists
+        );
+
+        let created = <frame_system::Pallet<T>>::block_number();
+        let lifetime = T::PendingLifetime::get();
+        let deadline = created.saturating_add(lifetime);
+
+        <PendingOf<T>>::insert(
+            &site,
+            &did,
+            types::Pending {
+                profile,
+                deadline,
+                created,
+            },
+        );
+
+        Ok(())
+    }
+
     pub fn recover_address(
-        crypto: AccountType,
+        crypto: types::AccountType,
         address: Vec<u8>,
-        signature: Signature,
+        signature: types::Signature,
         bytes: Vec<u8>,
     ) -> Result<Vec<u8>, Error<T>> {
+        use types::AccountType::*;
+
         match crypto {
-            AccountType::Unknown => Ok(address),
-            AccountType::Binance => Self::recover_address_eth(address, signature, bytes),
-            AccountType::Bitcoin => Self::recover_address_btc(address, signature, bytes),
-            AccountType::Ethereum => Self::recover_address_eth(address, signature, bytes),
-            AccountType::Polkadot => Self::recover_address_dot(address, signature, bytes),
-            AccountType::Solana => Self::recover_address_sol(address, signature, bytes),
-            AccountType::Tron => Self::recover_address_trx(address, signature, bytes),
+            Unknown => Ok(address),
+            Binance => Self::recover_address_eth(address, signature, bytes),
+            Bitcoin => Self::recover_address_btc(address, signature, bytes),
+            Ethereum => Self::recover_address_eth(address, signature, bytes),
+            Polkadot => Self::recover_address_dot(address, signature, bytes),
+            Solana => Self::recover_address_sol(address, signature, bytes),
+            Tron => Self::recover_address_trx(address, signature, bytes),
             _ => Err(Error::<T>::UnsupportedSite),
         }
     }
 
     fn recover_address_btc(
         address: Vec<u8>,
-        signature: Signature,
+        signature: types::Signature,
         mut bytes: Vec<u8>,
     ) -> Result<Vec<u8>, Error<T>> {
         let mut length = (bytes.len() as u8).encode();
@@ -53,7 +139,7 @@ impl<T: Config> Pallet<T> {
         data.append(&mut bytes);
         let hash = btc::sha256d(&data);
 
-        let mut sig: Signature = [0u8; 65];
+        let mut sig: types::Signature = [0u8; 65];
         sig[64] = (signature[0] - 27) & 3;
         sig[..64].copy_from_slice(&signature[1..65]);
 
@@ -94,7 +180,7 @@ impl<T: Config> Pallet<T> {
 
     fn recover_address_dot(
         raw: Vec<u8>,
-        signature: Signature,
+        signature: types::Signature,
         bytes: Vec<u8>,
     ) -> Result<Vec<u8>, Error<T>> {
         use base58::FromBase58;
@@ -121,7 +207,7 @@ impl<T: Config> Pallet<T> {
 
     fn recover_address_eth(
         _address: Vec<u8>,
-        signature: Signature,
+        signature: types::Signature,
         mut bytes: Vec<u8>,
     ) -> Result<Vec<u8>, Error<T>> {
         let mut length = Self::usize_to_u8_array(bytes.len());
@@ -139,7 +225,7 @@ impl<T: Config> Pallet<T> {
 
     fn recover_address_sol(
         raw: Vec<u8>,
-        signature: Signature,
+        signature: types::Signature,
         bytes: Vec<u8>,
     ) -> Result<Vec<u8>, Error<T>> {
         use base58::FromBase58;
@@ -166,7 +252,7 @@ impl<T: Config> Pallet<T> {
 
     fn recover_address_trx(
         _address: Vec<u8>,
-        signature: Signature,
+        signature: types::Signature,
         mut bytes: Vec<u8>,
     ) -> Result<Vec<u8>, Error<T>> {
         let mut data = b"\x19TRON Signed Message:\n32".encode();

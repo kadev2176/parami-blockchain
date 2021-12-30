@@ -9,7 +9,7 @@ use sc_service::PartialComponents;
 
 impl SubstrateCli for Cli {
     fn impl_name() -> String {
-        "Substrate Node".into()
+        "Parami Dana Node".into()
     }
 
     fn impl_version() -> String {
@@ -25,20 +25,17 @@ impl SubstrateCli for Cli {
     }
 
     fn support_url() -> String {
-        "support.anonymous.an".into()
+        "https://github.com/parami-protocol/parami-blockchain/issues/new".into()
     }
 
     fn copyright_start_year() -> i32 {
-        2017
+        2020
     }
 
     fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
         Ok(match id {
             "dev" => Box::new(chain_spec::development_config()),
-            "local" => Box::new(chain_spec::local_testnet_config()),
-            "" | "dana" | "parami-dana" | "testnet" | "parami-testnet" | "stage" | "staging" => {
-                Box::new(chain_spec::staging_testnet_config())
-            }
+            "" | "local" => Box::new(chain_spec::local_testnet_config()),
             path => Box::new(chain_spec::ChainSpec::from_json_file(
                 std::path::PathBuf::from(path),
             )?),
