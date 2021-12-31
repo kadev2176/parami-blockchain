@@ -4,7 +4,7 @@ description = 'Parami Dana Runtime.'
 edition = '2021'
 homepage = 'https://parami.io'
 license = 'GPL-3.0-only WITH Classpath-exception-2.0'
-name = 'parami-runtime'
+name = 'parami-para-runtime'
 publish = false
 repository = 'https://github.com/parami-protocol/parami-blockchain/'
 version = '3.0.0'
@@ -13,7 +13,7 @@ version = '3.0.0'
 targets = ['x86_64-unknown-linux-gnu']
 
 [build-dependencies.substrate-wasm-builder]
-git = 'https://github.com/parami-protocol/substrate.git'
+git = 'https://github.com/paritytech/substrate'
 branch = 'polkadot-v0.9.13'
 
 [dependencies.codec]
@@ -30,21 +30,22 @@ version = '1.0'
 [dependencies]
 hex-literal = { version = '0.3', optional = true }
 serde = { version = '1.0', optional = true, features = ['derive'] }
+smallvec = '1.6'
 
 # Local Dependencies
-parami-primitives = { path = '../primitives', default-features = false }
-parami-ad = { path = '../pallets/ad', default-features = false }
-parami-advertiser = { path = '../pallets/advertiser', default-features = false }
-parami-chainbridge = { path = '../pallets/chainbridge', default-features = false }
-parami-xassets = { path = '../pallets/xassets', default-features = false }
-parami-did = { path = '../pallets/did', default-features = false }
-parami-linker = { path = '../pallets/linker', default-features = false }
-parami-magic = { path = '../pallets/magic', default-features = false }
-parami-nft = { path = '../pallets/nft', default-features = false }
-parami-swap = { path = '../pallets/swap', default-features = false }
-parami-swap-rpc-runtime-api = { path = '../pallets/swap/rpc/runtime-api', default-features = false }
-parami-tag = { path = '../pallets/tag', default-features = false }
-parami-traits = { path = '../pallets/traits', default-features = false }
+parami-primitives = { path = '../../primitives', default-features = false }
+parami-ad = { path = '../../pallets/ad', default-features = false }
+parami-advertiser = { path = '../../pallets/advertiser', default-features = false }
+parami-chainbridge = { path = '../../pallets/chainbridge', default-features = false }
+parami-xassets = { path = '../../pallets/xassets', default-features = false }
+parami-did = { path = '../../pallets/did', default-features = false }
+parami-linker = { path = '../../pallets/linker', default-features = false }
+parami-magic = { path = '../../pallets/magic', default-features = false }
+parami-nft = { path = '../../pallets/nft', default-features = false }
+parami-swap = { path = '../../pallets/swap', default-features = false }
+parami-swap-rpc-runtime-api = { path = '../../pallets/swap/rpc/runtime-api', default-features = false }
+parami-tag = { path = '../../pallets/tag', default-features = false }
+parami-traits = { path = '../../pallets/traits', default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -86,7 +87,6 @@ pallet-contracts-rpc-runtime-api = { git = 'https://github.com/paritytech/substr
 pallet-democracy = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-election-provider-multi-phase = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-elections-phragmen = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
-pallet-grandpa = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-im-online = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-membership = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-mmr = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
@@ -110,6 +110,27 @@ pallet-treasury = { git = 'https://github.com/paritytech/substrate', branch = 'p
 pallet-uniques = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-utility = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-vesting = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
+
+# Cumulus dependencies
+cumulus-pallet-aura-ext = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+cumulus-pallet-dmp-queue = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+cumulus-pallet-parachain-system = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+cumulus-pallet-session-benchmarking = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false, version = '3.0.0' }
+cumulus-pallet-xcm = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+cumulus-pallet-xcmp-queue = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+cumulus-primitives-core = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+cumulus-primitives-timestamp = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+cumulus-primitives-utility = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+pallet-collator-selection = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+parachain-info = { git = 'https://github.com/paritytech/cumulus', branch = 'polkadot-v0.9.13', default-features = false }
+
+# Polkadot Dependencies
+pallet-xcm = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.13', default-features = false }
+polkadot-parachain = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.13', default-features = false }
+polkadot-runtime-common = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.13', default-features = false }
+xcm = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.13', default-features = false }
+xcm-builder = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.13', default-features = false }
+xcm-executor = { git = 'https://github.com/paritytech/polkadot', branch = 'release-v0.9.13', default-features = false }
 
 [features]
 default = ['std']
@@ -166,7 +187,6 @@ std = [
     'pallet-democracy/std',
     'pallet-election-provider-multi-phase/std',
     'pallet-elections-phragmen/std',
-    'pallet-grandpa/std',
     'pallet-im-online/std',
     'pallet-membership/std',
     'pallet-mmr/std',
@@ -187,6 +207,24 @@ std = [
     'pallet-uniques/std',
     'pallet-utility/std',
     'pallet-vesting/std',
+
+    'cumulus-pallet-aura-ext/std',
+    'cumulus-pallet-dmp-queue/std',
+    'cumulus-pallet-parachain-system/std',
+    'cumulus-pallet-xcm/std',
+    'cumulus-pallet-xcmp-queue/std',
+    'cumulus-primitives-core/std',
+    'cumulus-primitives-timestamp/std',
+    'cumulus-primitives-utility/std',
+    'pallet-collator-selection/std',
+    'parachain-info/std',
+
+    'pallet-xcm/std',
+    'polkadot-parachain/std',
+    'polkadot-runtime-common/std',
+    'xcm/std',
+    'xcm-builder/std',
+    'xcm-executor/std',
 ]
 
 runtime-benchmarks = [
@@ -211,15 +249,15 @@ runtime-benchmarks = [
     'frame-system/runtime-benchmarks',
     'frame-election-provider-support/runtime-benchmarks',
 
-    'pallet-assets/runtime-benchmarks',
     'pallet-balances/runtime-benchmarks',
+    'pallet-timestamp/runtime-benchmarks',
+    'pallet-assets/runtime-benchmarks',
     'pallet-bounties/runtime-benchmarks',
     'pallet-collective/runtime-benchmarks',
     'pallet-contracts/runtime-benchmarks',
     'pallet-democracy/runtime-benchmarks',
     'pallet-election-provider-multi-phase/runtime-benchmarks',
     'pallet-elections-phragmen/runtime-benchmarks',
-    'pallet-grandpa/runtime-benchmarks',
     'pallet-im-online/runtime-benchmarks',
     'pallet-membership/runtime-benchmarks',
     'pallet-mmr/runtime-benchmarks',
@@ -230,10 +268,14 @@ runtime-benchmarks = [
     'pallet-session-benchmarking',
     'pallet-society/runtime-benchmarks',
     'pallet-staking/runtime-benchmarks',
-    'pallet-timestamp/runtime-benchmarks',
     'pallet-tips/runtime-benchmarks',
     'pallet-treasury/runtime-benchmarks',
     'pallet-uniques/runtime-benchmarks',
     'pallet-utility/runtime-benchmarks',
     'pallet-vesting/runtime-benchmarks',
+
+    'cumulus-pallet-session-benchmarking/runtime-benchmarks',
+    'pallet-collator-selection/runtime-benchmarks',
+    'pallet-xcm/runtime-benchmarks',
+    'xcm-builder/runtime-benchmarks',
 ]
