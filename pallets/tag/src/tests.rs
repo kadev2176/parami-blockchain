@@ -2,6 +2,7 @@ use crate::{mock::*, Error, HashOf, Metadata};
 use frame_support::{assert_noop, assert_ok, traits::Currency};
 use sp_core::sr25519;
 use sp_runtime::DispatchError;
+use sp_std::collections::btree_map::BTreeMap;
 
 #[test]
 fn should_create() {
@@ -92,28 +93,34 @@ fn tags_trait() {
         let ad = <HashOf<Test>>::default();
 
         assert_ok!(Tag::add_tag(&ad, tag1.clone()));
-        assert_eq!(Tag::tags_of(&ad), vec![hash1.clone()]);
+        assert_eq!(Tag::tags_of(&ad), BTreeMap::from([(hash1.clone(), true)]));
         assert_eq!(Tag::has_tag(&ad, &tag1), true);
 
         assert_ok!(Tag::add_tag(&ad, tag2.clone()));
-        assert_eq!(Tag::tags_of(&ad), vec![hash2.clone(), hash1.clone()]);
+        assert_eq!(
+            Tag::tags_of(&ad),
+            BTreeMap::from([(hash2.clone(), true), (hash1.clone(), true)])
+        );
 
         assert_ok!(Tag::del_tag(&ad, &tag2));
-        assert_eq!(Tag::tags_of(&ad), vec![hash1.clone()]);
+        assert_eq!(Tag::tags_of(&ad), BTreeMap::from([(hash1.clone(), true)]));
 
         assert_ok!(Tag::clr_tag(&ad));
-        assert_eq!(Tag::tags_of(&ad), Vec::<Vec<u8>>::new());
+        assert_eq!(Tag::tags_of(&ad), BTreeMap::new());
 
         let did = DID::from_slice(&[0xff; 20]);
 
         assert_ok!(Tag::influence(&did, &tag1, 5));
-        assert_eq!(Tag::personas_of(&did), vec![(hash1.clone(), 5)]);
+        assert_eq!(Tag::personas_of(&did), BTreeMap::from([(hash1.clone(), 5)]));
         assert_eq!(Tag::get_score(&did, &tag1), 5);
 
         let did = DID::from_slice(&[0xff; 20]);
 
         assert_ok!(Tag::impact(&did, &tag1, 3));
-        assert_eq!(Tag::influences_of(&did), vec![(hash1.clone(), 3)]);
+        assert_eq!(
+            Tag::influences_of(&did),
+            BTreeMap::from([(hash1.clone(), 3)])
+        );
         assert_eq!(Tag::get_influence(&did, &tag1), 3);
     });
 }
