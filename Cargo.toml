@@ -2,7 +2,14 @@
 panic = 'unwind'
 
 [workspace]
-members = ['node', 'pallets/*', 'primitives', 'runtime']
+members = [
+    'nodes/dana',
+    'nodes/para',
+    'pallets/*',
+    'primitives',
+    'runtimes/dana',
+    'runtimes/para',
+]
 
 [patch.'https://github.com/paritytech/substrate']
 beefy-gadget = { git = 'https://github.com/parami-protocol/substrate', branch = 'polkadot-v0.9.13' }
