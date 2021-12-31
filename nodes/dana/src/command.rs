@@ -3,7 +3,7 @@ use crate::{
     cli::{Cli, Subcommand},
     service,
 };
-use parami_runtime::Block;
+use parami_dana_runtime::Block;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 use sc_service::PartialComponents;
 
@@ -43,7 +43,7 @@ impl SubstrateCli for Cli {
     }
 
     fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-        &parami_runtime::VERSION
+        &parami_dana_runtime::VERSION
     }
 }
 

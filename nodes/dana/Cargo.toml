@@ -5,7 +5,7 @@ description = 'Parami Dana Node.'
 edition = '2021'
 homepage = 'https://parami.io'
 license = 'GPL-3.0-only WITH Classpath-exception-2.0'
-name = 'parami'
+name = 'parami-dana'
 repository = 'https://github.com/parami-protocol/parami-blockchain/'
 version = '3.0.0'
 
@@ -17,11 +17,11 @@ git = 'https://github.com/parami-protocol/substrate.git'
 branch = 'polkadot-v0.9.13'
 
 [[bin]]
-name = 'parami'
+name = 'parami-dana'
 path = 'src/main.rs'
 
 [features]
-runtime-benchmarks = ['parami-runtime/runtime-benchmarks']
+runtime-benchmarks = ['parami-dana-runtime/runtime-benchmarks']
 
 [dependencies]
 rand = '0.7'
@@ -32,10 +32,11 @@ structopt = '0.3'
 jsonrpc-core = '18.0'
 
 # Local Dependencies
-parami-did-rpc = { path = '../pallets/did/rpc' }
-parami-linker = { path = '../pallets/linker' }
-parami-runtime = { path = '../runtime' }
-parami-swap-rpc = { path = '../pallets/swap/rpc' }
+parami-dana-runtime = { path = '../../runtimes/dana' }
+
+parami-did-rpc = { path = '../../pallets/did/rpc' }
+parami-linker = { path = '../../pallets/linker' }
+parami-swap-rpc = { path = '../../pallets/swap/rpc' }
 
 # Substrate Dependencies
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13' }

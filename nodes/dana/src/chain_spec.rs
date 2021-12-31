@@ -1,4 +1,4 @@
-use parami_runtime::{AccountId, AuraId, GenesisConfig, ImOnlineId, Signature, StakerStatus};
+use parami_dana_runtime::{AccountId, AuraId, GenesisConfig, ImOnlineId, Signature, StakerStatus};
 use sc_service::ChainType;
 use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{sr25519, Pair, Public};
@@ -60,8 +60,8 @@ fn session_keys(
     grandpa: GrandpaId,
     im_online: ImOnlineId,
     authority_discovery: AuthorityDiscoveryId,
-) -> parami_runtime::SessionKeys {
-    parami_runtime::SessionKeys {
+) -> parami_dana_runtime::SessionKeys {
+    parami_dana_runtime::SessionKeys {
         aura,
         grandpa,
         im_online,
@@ -152,8 +152,8 @@ fn testnet_genesis(
     initial_nominators: Vec<AccountId>,
     root_key: AccountId,
     endowed_accounts: Option<Vec<AccountId>>,
-) -> parami_runtime::GenesisConfig {
-    let wasm_binary = parami_runtime::WASM_BINARY
+) -> parami_dana_runtime::GenesisConfig {
+    let wasm_binary = parami_dana_runtime::WASM_BINARY
         .ok_or_else(|| "Development wasm not available".to_string())
         .unwrap();
 
@@ -189,7 +189,8 @@ fn testnet_genesis(
         .map(|x| (x.0.clone(), x.1.clone(), STASH, StakerStatus::Validator))
         .chain(initial_nominators.iter().map(|x| {
             use rand::{seq::SliceRandom, Rng};
-            let limit = (parami_runtime::MAX_NOMINATIONS as usize).min(initial_authorities.len());
+            let limit =
+                (parami_dana_runtime::MAX_NOMINATIONS as usize).min(initial_authorities.len());
             let count = rng.gen::<usize>() % limit;
             let nominations = initial_authorities
                 .as_slice()
@@ -208,15 +209,15 @@ fn testnet_genesis(
 
     let num_endowed_accounts = endowed_accounts.len();
 
-    const ENDOWMENT: parami_runtime::Balance = 10_000_000 * parami_runtime::DOLLARS;
-    const STASH: parami_runtime::Balance = ENDOWMENT / 1000;
+    const ENDOWMENT: parami_dana_runtime::Balance = 10_000_000 * parami_dana_runtime::DOLLARS;
+    const STASH: parami_dana_runtime::Balance = ENDOWMENT / 1000;
 
-    parami_runtime::GenesisConfig {
-        system: parami_runtime::SystemConfig {
+    parami_dana_runtime::GenesisConfig {
+        system: parami_dana_runtime::SystemConfig {
             code: wasm_binary.to_vec(),
         },
 
-        balances: parami_runtime::BalancesConfig {
+        balances: parami_dana_runtime::BalancesConfig {
             balances: endowed_accounts
                 .iter()
                 .cloned()
@@ -226,7 +227,7 @@ fn testnet_genesis(
         assets: Default::default(),
         uniques: Default::default(),
 
-        session: parami_runtime::SessionConfig {
+        session: parami_dana_runtime::SessionConfig {
             keys: initial_authorities
                 .iter()
                 .map(|x| {
@@ -243,7 +244,7 @@ fn testnet_genesis(
 
         im_online: Default::default(),
         authority_discovery: Default::default(),
-        staking: parami_runtime::StakingConfig {
+        staking: parami_dana_runtime::StakingConfig {
             validator_count: initial_authorities.len() as u32,
             minimum_validator_count: initial_authorities.len() as u32,
             invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),
@@ -252,7 +253,7 @@ fn testnet_genesis(
             ..Default::default()
         },
 
-        phragmen_election: parami_runtime::PhragmenElectionConfig {
+        phragmen_election: parami_dana_runtime::PhragmenElectionConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
@@ -260,7 +261,7 @@ fn testnet_genesis(
                 .map(|member| (member, STASH))
                 .collect(),
         },
-        society: parami_runtime::SocietyConfig {
+        society: parami_dana_runtime::SocietyConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
@@ -272,7 +273,7 @@ fn testnet_genesis(
 
         democracy: Default::default(),
         council: Default::default(),
-        technical_committee: parami_runtime::TechnicalCommitteeConfig {
+        technical_committee: parami_dana_runtime::TechnicalCommitteeConfig {
             members: endowed_accounts
                 .iter()
                 .take((num_endowed_accounts + 1) / 2)
@@ -283,7 +284,7 @@ fn testnet_genesis(
         technical_membership: Default::default(),
         treasury: Default::default(),
 
-        sudo: parami_runtime::SudoConfig { key: root_key },
+        sudo: parami_dana_runtime::SudoConfig { key: root_key },
         vesting: Default::default(),
 
         ad: Default::default(),

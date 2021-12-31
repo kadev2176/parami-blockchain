@@ -1,6 +1,6 @@
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
-use parami_runtime::{self, opaque::Block, RuntimeApi};
+use parami_dana_runtime::{self, opaque::Block, RuntimeApi};
 use sc_client_api::ExecutorProvider;
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 pub use sc_executor::NativeElseWasmExecutor;
@@ -31,11 +31,11 @@ impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
     );
 
     fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
-        parami_runtime::api::dispatch(method, data)
+        parami_dana_runtime::api::dispatch(method, data)
     }
 
     fn native_version() -> sc_executor::NativeVersion {
-        parami_runtime::native_version()
+        parami_dana_runtime::native_version()
     }
 }
 
