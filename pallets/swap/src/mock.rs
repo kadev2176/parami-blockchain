@@ -28,6 +28,7 @@ frame_support::construct_runtime!(
 
 type AssetId = u64;
 type Balance = u128;
+type BlockNumber = u64;
 
 parameter_types! {
     pub const BlockHashCount: u64 = 250;
@@ -42,7 +43,7 @@ impl system::Config for Test {
     type Origin = Origin;
     type Call = Call;
     type Index = u64;
-    type BlockNumber = u64;
+    type BlockNumber = BlockNumber;
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = sr25519::Public;
@@ -106,11 +107,24 @@ parameter_types! {
     pub const SwapPalletId: PalletId = PalletId(*b"prm/swap");
 }
 
+pub struct FarmingCurve;
+impl parami_swap::FarmingCurve<Test> for FarmingCurve {
+    fn calculate_farming_reward(
+        _created_height: BlockNumber,
+        _staked_height: BlockNumber,
+        _current_height: BlockNumber,
+        _total_supply: Balance,
+    ) -> Balance {
+        100
+    }
+}
+
 impl parami_swap::Config for Test {
     type Event = Event;
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
+    type FarmingCurve = FarmingCurve;
     type PalletId = SwapPalletId;
     type WeightInfo = ();
 }
@@ -127,11 +141,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .unwrap();
 
     pallet_assets::GenesisConfig::<Test> {
-        assets: vec![(1, ALICE, false, 1), (9, ALICE, false, 1)],
-        metadata: vec![
-            (1, b"Test Token".to_vec(), b"XTT".to_vec(), 18),
-            (9, b"Mock Token".to_vec(), b"XMT".to_vec(), 18),
-        ],
+        assets: vec![(1, ALICE, false, 1)],
+        metadata: vec![(1, b"Test Token".to_vec(), b"XTT".to_vec(), 18)],
         accounts: vec![(1, ALICE, 44)],
     }
     .assimilate_storage(&mut t)

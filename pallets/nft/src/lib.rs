@@ -20,8 +20,7 @@ use frame_support::{
     traits::{
         tokens::{
             fungibles::{
-                metadata::Mutate as FungMetaMutate, Create as FungCreate, Inspect as _,
-                InspectEnumerable as FungInspectEnumerable, Mutate as FungMutate,
+                metadata::Mutate as FungMetaMutate, Create as FungCreate, Mutate as FungMutate,
                 Transfer as FungTransfer,
             },
             nonfungibles::{Create as NftCreate, Mutate as NftMutate},
@@ -30,7 +29,6 @@ use frame_support::{
         ExistenceRequirement::KeepAlive,
         Get,
     },
-    weights::Weight,
 };
 use parami_did::{EnsureDid, Pallet as Did};
 use parami_traits::Swaps;
@@ -50,37 +48,6 @@ type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type BalanceOf<T> = <<T as parami_did::Config>::Currency as Currency<AccountOf<T>>>::Balance;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 
-pub trait FarmingCurve<T: Config> {
-    /// Calculate the farming value for a given block height
-    ///
-    /// # Arguments
-    ///
-    /// * `minted_height` - The block number of the initial minting
-    /// * `started_supply` - the tokens amount of the initial minting
-    /// * `maximum_tokens` - the maximum amount of tokens
-    /// * `current_height` - the block number of current block
-    /// * `current_supply` - the tokens amount before farming
-    fn calculate_farming_reward(
-        minted_height: HeightOf<T>,
-        started_supply: BalanceOf<T>,
-        maximum_tokens: BalanceOf<T>,
-        current_height: HeightOf<T>,
-        current_supply: BalanceOf<T>,
-    ) -> BalanceOf<T>;
-}
-
-impl<T: Config> FarmingCurve<T> for () {
-    fn calculate_farming_reward(
-        _minted_height: HeightOf<T>,
-        _started_supply: BalanceOf<T>,
-        _maximum_tokens: BalanceOf<T>,
-        _current_height: HeightOf<T>,
-        _current_supply: BalanceOf<T>,
-    ) -> BalanceOf<T> {
-        Default::default()
-    }
-}
-
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
@@ -95,13 +62,9 @@ pub mod pallet {
         /// The assets trait to create, mint, and transfer fragments (fungible token)
         /// it uses parami_did::Config::AssetId as AssetId
         type Assets: FungCreate<AccountOf<Self>, AssetId = Self::AssetId>
-            + FungInspectEnumerable<AccountOf<Self>>
             + FungMetaMutate<AccountOf<Self>, AssetId = Self::AssetId>
             + FungMutate<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>
             + FungTransfer<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>;
-
-        /// The curve for seasoned orffering
-        type FarmingCurve: FarmingCurve<Self>;
 
         /// The ICO baseline of donation for currency
         #[pallet::constant]
@@ -193,18 +156,7 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<HeightOf<T>> for Pallet<T> {
-        fn on_initialize(n: HeightOf<T>) -> Weight {
-            let modu: u32 = n.try_into().map_or(100, |n: u32| n % 100);
-            match modu {
-                1 => Self::begin_block_for_farming_reward(n).unwrap_or_else(|e| {
-                    sp_runtime::print(e);
-                    0
-                }),
-                _ => 0,
-            }
-        }
-    }
+    impl<T: Config> Hooks<HeightOf<T>> for Pallet<T> {}
 
     #[pallet::error]
     pub enum Error<T> {
@@ -325,8 +277,8 @@ pub mod pallet {
 
             // 4. transfer third of initial minting to swap
 
-            T::Swaps::new(&meta.pot, cid)?;
-            T::Swaps::mint(&meta.pot, cid, deposit, deposit, initial, false)?;
+            T::Swaps::new(cid)?;
+            T::Swaps::mint(meta.pot.clone(), cid, deposit, deposit, initial, false)?;
 
             meta.nft = Some(cid);
 
@@ -427,75 +379,15 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    fn begin_block_for_farming_reward(height: HeightOf<T>) -> Result<Weight, DispatchError> {
-        let weight = 1_000_000_000;
-
-        // TODO: weight benchmark
-
-        let initial = T::InitialMintingValueBase::get();
-
-        let started = initial.saturating_mul(3u32.into());
-        let maximum = initial.saturating_mul(10u32.into());
-
-        for swap in T::Swaps::iter() {
-            let token_id = swap.0;
-            let lp_token_id = swap.1;
-
-            let minted_block_number = <Date<T>>::get(&token_id);
-            if minted_block_number.is_none() {
-                continue;
-            }
-            let minted_block_number = minted_block_number.unwrap();
-
-            let supply = T::Assets::total_issuance(token_id);
-
-            let amount = T::FarmingCurve::calculate_farming_reward(
-                minted_block_number,
-                started,
-                maximum,
-                height,
-                supply,
-            );
-
-            let left = maximum - supply;
-            let amount = if amount < left { amount } else { left };
-
-            if amount < One::one() {
-                continue;
-            }
-
-            let liquidity = T::Assets::total_issuance(lp_token_id);
-
-            let amount: U512 = Self::try_into(amount)?;
-            let liquidity: U512 = Self::try_into(liquidity)?;
-
-            for holder in T::Assets::accounts(&lp_token_id) {
-                let hold = T::Assets::balance(lp_token_id, &holder);
-
-                let hold: U512 = Self::try_into(hold)?;
-
-                let value = amount * hold / liquidity;
-
-                let value = Self::try_into(value)?;
-
-                if value < One::one() {
-                    continue;
-                }
-
-                T::Assets::mint_into(token_id, &holder, value)?;
-            }
-        }
-
-        Ok(weight)
-    }
-
-    fn try_into<S, D>(value: S) -> Result<D, Error<T>>
+    fn try_into<S, D>(value: S) -> Result<D, DispatchError>
     where
         S: TryInto<u128>,
         D: TryFrom<u128>,
     {
         let value: u128 = value.try_into().map_err(|_| Error::<T>::Overflow)?;
 
-        value.try_into().map_err(|_| Error::<T>::Overflow)
+        let value: D = value.try_into().map_err(|_| Error::<T>::Overflow)?;
+
+        Ok(value)
     }
 }

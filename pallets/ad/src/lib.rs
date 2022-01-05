@@ -612,7 +612,13 @@ impl<T: Config> Pallet<T> {
     fn drawback(kol: &DidOf<T>, slot: &SlotMetaOf<T>) -> Result<BalanceOf<T>, DispatchError> {
         let mut meta = <Metadata<T>>::get(slot.ad).ok_or(Error::<T>::NotExists)?;
 
-        let (_, amount) = T::Swaps::token_in(&meta.pot, slot.nft, slot.tokens, One::one(), false)?;
+        let amount = T::Swaps::token_in(
+            meta.pot.clone(), //
+            slot.nft,
+            slot.tokens,
+            One::one(),
+            false,
+        )?;
 
         meta.remain.saturating_accrue(slot.remain);
         meta.remain.saturating_accrue(amount);
@@ -647,15 +653,11 @@ impl<T: Config> Pallet<T> {
         slot: &mut SlotMetaOf<T>,
         least: BalanceOf<T>,
     ) -> DispatchResult {
-        let (cost, tokens) = T::Swaps::quote_in(
-            &meta.pot,
-            slot.nft,
-            slot.budget / 10u32.into(), // swap per 10%
-            least,
-            false,
-        )?;
+        // swap per 10%
+        let amount = slot.budget / 10u32.into();
+        let tokens = T::Swaps::quote_in(meta.pot.clone(), slot.nft, amount, least, false)?;
 
-        slot.remain.saturating_reduce(cost);
+        slot.remain.saturating_reduce(amount);
         slot.tokens.saturating_accrue(tokens);
 
         Self::deposit_event(Event::SwapTriggered(slot.ad, kol, slot.remain));

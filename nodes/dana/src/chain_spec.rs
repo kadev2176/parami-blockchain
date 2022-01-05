@@ -225,7 +225,6 @@ fn testnet_genesis(
                 .collect(),
         },
         assets: Default::default(),
-        uniques: Default::default(),
 
         session: parami_dana_runtime::SessionConfig {
             keys: initial_authorities

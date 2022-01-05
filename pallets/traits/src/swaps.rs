@@ -1,5 +1,5 @@
 use codec::MaxEncodedLen;
-use frame_support::{traits::tokens::Balance, Parameter};
+use frame_support::{dispatch::DispatchResult, traits::tokens::Balance, Parameter};
 use sp_runtime::{
     traits::{
         AtLeast32BitUnsigned, Bounded, MaybeSerializeDeserialize, Member, UniqueSaturatedInto,
@@ -30,25 +30,59 @@ pub trait Swaps {
         + UniqueSaturatedInto<Self::QuoteBalance>;
 
     /// Iterate over the swaps
-    fn iter() -> Box<dyn Iterator<Item = (Self::AssetId, Self::AssetId, Self::AccountId)>>;
+    fn iter() -> Box<dyn Iterator<Item = Self::AssetId>>;
+
+    /// Iterate over the liquidity providers
+    ///
+    /// # Arguments
+    ///
+    /// * `token_id` - The Asset ID
+    fn iter_providers(token_id: Self::AssetId) -> Box<dyn Iterator<Item = Self::AccountId>>;
+
+    /// Get total liquidity for a given pair
+    ///
+    /// # Arguments
+    ///
+    /// * `token_id` - The Asset ID
+    ///
+    /// # Returns
+    ///
+    /// total liquidity tokens issued for the pair
+    fn total_liquidity(token_id: Self::AssetId) -> Self::TokenBalance;
+
+    /// Get total liquidity for a given pair provided by a given account
+    ///
+    /// # Arguments
+    ///
+    /// * `token_id` - The Asset ID
+    /// * `who` - The account ID
+    ///
+    /// # Returns
+    ///
+    /// total liquidity tokens the account holds for the pair
+    fn liquidity(token_id: Self::AssetId, who: &Self::AccountId) -> Self::TokenBalance;
 
     /// Create new swap pair
     ///
     /// # Arguments
     ///
-    /// * `who` - The account ID of the operator
     /// * `token_id` - The Asset ID
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (token_id, lp_token_id)
+    /// wether the swap pair was created or not
+    fn new(token_id: Self::AssetId) -> DispatchResult;
+
+    /// Get pot account ID for a given pair
+    ///
+    /// # Arguments
     ///
     /// * `token_id` - The Asset ID
-    /// * `lp_token_id` - The Asset ID of the liquidity provider token
-    fn new(
-        who: &Self::AccountId,
-        token_id: Self::AssetId,
-    ) -> Result<(Self::AssetId, Self::AssetId), DispatchError>;
+    ///
+    /// # Returns
+    ///
+    /// account ID of the pot account
+    fn get_pool_account(token_id: Self::AssetId) -> Self::AccountId;
 
     /// Get dry-run result of mint
     ///
@@ -58,27 +92,17 @@ pub trait Swaps {
     /// * `currency` - The currency to be involved in the swap
     /// * `max_tokens` - The maximum amount of tokens to be involved in the swap
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (token_id, tokens, lp_token_id, liquidity)
+    /// tuple of (tokens, liquidity)
     ///
-    /// * `token_id` - The Asset ID
     /// * `tokens` - The amount of tokens to be involved in the swap
-    /// * `lp_token_id` - The Asset ID of the liquidity provider token
     /// * `liquidity` - The amount of liquidity to be minted
     fn mint_dry(
         token_id: Self::AssetId,
         currency: Self::QuoteBalance,
         max_tokens: Self::TokenBalance,
-    ) -> Result<
-        (
-            Self::AssetId,
-            Self::TokenBalance,
-            Self::AssetId,
-            Self::TokenBalance,
-        ),
-        DispatchError,
-    >;
+    ) -> Result<(Self::TokenBalance, Self::TokenBalance), DispatchError>;
 
     /// Add Liquidity
     ///
@@ -91,14 +115,14 @@ pub trait Swaps {
     /// * `max_tokens` - The maximum amount of tokens to be involved in the swap
     /// * `keep_alive` - Whether to keep the account alive
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (currency, tokens)
+    /// tuple of (tokens, liquidity)
     ///
-    /// * `liquidity` - The amount of liquidity minted
     /// * `tokens` - The amount of tokens involved
+    /// * `liquidity` - The amount of liquidity minted
     fn mint(
-        who: &Self::AccountId,
+        who: Self::AccountId,
         token_id: Self::AssetId,
         currency: Self::QuoteBalance,
         min_liquidity: Self::TokenBalance,
@@ -110,25 +134,23 @@ pub trait Swaps {
     ///
     /// # Arguments
     ///
+    /// * `lp_token_id` - The Liquidity Provider Token ID
+    ///
+    /// # Returns
+    ///
+    /// tuple of (token_id, liquidity, tokens, currency)
+    ///
     /// * `token_id` - The Asset ID
-    /// * `liquidity` - The amount of liquidity to be removed
-    ///
-    /// # Results
-    ///
-    /// tuple of (token_id, tokens, lp_token_id, currency)
-    ///
-    /// * `token_id` - The Asset ID
-    /// * `tokens` - The amount of tokens to be returned
-    /// * `lp_token_id` - The Asset ID of the liquidity provider token
-    /// * `currency` - The currency to be returned
+    /// * `liquidity` - The amount of liquidity removed
+    /// * `tokens` - The amount of tokens returned
+    /// * `currency` - The currency returned
     fn burn_dry(
-        token_id: Self::AssetId,
-        liquidity: Self::TokenBalance,
+        lp_token_id: Self::AssetId,
     ) -> Result<
         (
             Self::AssetId,
             Self::TokenBalance,
-            Self::AssetId,
+            Self::TokenBalance,
             Self::QuoteBalance,
         ),
         DispatchError,
@@ -137,24 +159,32 @@ pub trait Swaps {
     /// Remove Liquidity
     ///
     /// * `who` - The account ID of the operator
-    /// * `token_id` - The Asset ID
-    /// * `liquidity` - The amount of liquidity to be removed
+    /// * `lp_token_id` - The Liquidity Provider Token ID
     /// * `min_currency` - The minimum currency to be returned
     /// * `min_tokens` - The minimum amount of tokens to be returned
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (currency, tokens)
+    /// tuple of (token_id, liquidity, tokens, currency)
     ///
-    /// * `currency` - The currency returned
+    /// * `token_id` - The Asset ID
+    /// * `liquidity` - The amount of liquidity removed
     /// * `tokens` - The amount of tokens returned
+    /// * `currency` - The currency returned
     fn burn(
-        who: &Self::AccountId,
-        token_id: Self::AssetId,
-        liquidity: Self::TokenBalance,
+        who: Self::AccountId,
+        lp_token_id: Self::AssetId,
         min_currency: Self::QuoteBalance,
         min_tokens: Self::TokenBalance,
-    ) -> Result<(Self::QuoteBalance, Self::TokenBalance), DispatchError>;
+    ) -> Result<
+        (
+            Self::AssetId,
+            Self::TokenBalance,
+            Self::TokenBalance,
+            Self::QuoteBalance,
+        ),
+        DispatchError,
+    >;
 
     /// Get dry-run result of token_out
     ///
@@ -163,7 +193,7 @@ pub trait Swaps {
     /// * `token_id` - The Asset ID
     /// * `tokens` - The amount of tokens to be bought
     ///
-    /// # Results
+    /// # Returns
     ///
     /// The currency needed
     fn token_out_dry(
@@ -179,19 +209,16 @@ pub trait Swaps {
     /// * `max_currency` - The maximum currency to be spent
     /// * `keep_alive` - Whether to keep the account alive
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (tokens, currency)
-    ///
-    /// * `tokens` - The amount of tokens bought
-    /// * `currency` - The currency spent
+    /// The currency spent
     fn token_out(
-        who: &Self::AccountId,
+        who: Self::AccountId,
         token_id: Self::AssetId,
         tokens: Self::TokenBalance,
         max_currency: Self::QuoteBalance,
         keep_alive: bool,
-    ) -> Result<(Self::TokenBalance, Self::QuoteBalance), DispatchError>;
+    ) -> Result<Self::QuoteBalance, DispatchError>;
 
     /// Get dry-run result of token_in
     ///
@@ -200,7 +227,7 @@ pub trait Swaps {
     /// * `token_id` - The Asset ID
     /// * `tokens` - The amount of tokens to be sold
     ///
-    /// # Results
+    /// # Returns
     ///
     /// The currency to be gained
     fn token_in_dry(
@@ -216,19 +243,16 @@ pub trait Swaps {
     /// * `min_currency` - The maximum currency to be gained
     /// * `keep_alive` - Whether to keep the account alive
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (tokens, currency)
-    ///
-    /// * `tokens` - The amount of tokens sold
-    /// * `currency` - The currency gained
+    /// The currency gained
     fn token_in(
-        who: &Self::AccountId,
+        who: Self::AccountId,
         token_id: Self::AssetId,
         tokens: Self::TokenBalance,
         min_currency: Self::QuoteBalance,
         keep_alive: bool,
-    ) -> Result<(Self::TokenBalance, Self::QuoteBalance), DispatchError>;
+    ) -> Result<Self::QuoteBalance, DispatchError>;
 
     /// Get dry-run result of quote_in
     ///
@@ -237,7 +261,7 @@ pub trait Swaps {
     /// * `token_id` - The Asset ID
     /// * `currency` - The currency to be sold
     ///
-    /// # Results
+    /// # Returns
     ///
     /// The amount of tokens to be gained
     fn quote_in_dry(
@@ -253,19 +277,16 @@ pub trait Swaps {
     /// * `min_tokens` - The minimum amount of tokens to be gained
     /// * `keep_alive` - Whether to keep the account alive
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (currency, tokens)
-    ///
-    /// * `currency` - The currency sold
-    /// * `tokens` - The amount of tokens gained
+    /// The amount of tokens gained
     fn quote_in(
-        who: &Self::AccountId,
+        who: Self::AccountId,
         token_id: Self::AssetId,
         currency: Self::QuoteBalance,
         min_tokens: Self::TokenBalance,
         keep_alive: bool,
-    ) -> Result<(Self::QuoteBalance, Self::TokenBalance), DispatchError>;
+    ) -> Result<Self::TokenBalance, DispatchError>;
 
     /// Get dry-run result of quote_out
     ///
@@ -274,7 +295,7 @@ pub trait Swaps {
     /// * `token_id` - The Asset ID
     /// * `currency` - The currency to be bought
     ///
-    /// # Results
+    /// # Returns
     ///
     /// The amount of tokens needed
     fn quote_out_dry(
@@ -290,17 +311,14 @@ pub trait Swaps {
     /// * `max_tokens` - The maximum amount of tokens to be spent
     /// * `keep_alive` - Whether to keep the account alive
     ///
-    /// # Results
+    /// # Returns
     ///
-    /// tuple of (currency, tokens)
-    ///
-    /// * `currency` - The currency bought
-    /// * `tokens` - The amount of tokens spent
+    /// The amount of tokens spent
     fn quote_out(
-        who: &Self::AccountId,
+        who: Self::AccountId,
         token_id: Self::AssetId,
         currency: Self::QuoteBalance,
         max_tokens: Self::TokenBalance,
         keep_alive: bool,
-    ) -> Result<(Self::QuoteBalance, Self::TokenBalance), DispatchError>;
+    ) -> Result<Self::TokenBalance, DispatchError>;
 }

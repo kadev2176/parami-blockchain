@@ -160,7 +160,6 @@ parameter_types! {
 impl parami_nft::Config for Test {
     type Event = Event;
     type Assets = Assets;
-    type FarmingCurve = ();
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
@@ -179,6 +178,7 @@ impl parami_swap::Config for Test {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
+    type FarmingCurve = ();
     type PalletId = SwapPalletId;
     type WeightInfo = ();
 }

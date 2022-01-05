@@ -244,7 +244,6 @@ fn testnet_genesis(
                 .collect(),
         },
         assets: Default::default(),
-        uniques: Default::default(),
 
         collator_selection: parami_para_runtime::CollatorSelectionConfig {
             invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),

@@ -15,7 +15,7 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{
     crypto::KeyTypeId,
     u32_trait::{_1, _2, _3, _4, _5},
-    OpaqueMetadata,
+    OpaqueMetadata, U512,
 };
 use sp_io::hashing::blake2_128;
 use sp_runtime::{
@@ -1414,49 +1414,9 @@ parameter_types! {
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
 }
 
-pub struct FarmingCurve;
-impl parami_nft::FarmingCurve<Runtime> for FarmingCurve {
-    fn calculate_farming_reward(
-        minted_height: BlockNumber,
-        started_supply: Balance,
-        maximum_tokens: Balance,
-        current_height: BlockNumber,
-        _current_supply: Balance,
-    ) -> Balance {
-        use core::f64::consts::E;
-        use sp_core::U512;
-
-        // DAYS is the block number of a day
-        const PERIOD: f64 = 3f64 * 365.25f64 * DAYS as f64;
-        const E1: f64 = E - 1f64;
-
-        // Divide[1,x+1]                : y = 1 / (x + 1)
-        // Integrate[y=Divide[1,x+1],x] : y' = log(x + 1)
-        // Log[n+1] = 1                 : y' = 1
-        // n = e - 1
-        //
-        // r = 1 / (x / m * n + 1) / m * n
-        //   = 1 / (x / m * (e - 1) + 1) / m * (e - 1)
-        //   = (e - 1) / (m + (e - 1) x)
-        let x = (current_height - minted_height) as f64;
-
-        let r = E1 / (PERIOD + E1 * x) * 100_000_000f64;
-
-        let r = r as Balance;
-        let r: U512 = r.try_into().unwrap_or(U512::zero());
-
-        let left = maximum_tokens - started_supply;
-        let left: U512 = left.try_into().unwrap_or(U512::one());
-
-        let amount = r * left / U512::exp10(8);
-        amount.try_into().unwrap_or_default()
-    }
-}
-
 impl parami_nft::Config for Runtime {
     type Event = Event;
     type Assets = Assets;
-    type FarmingCurve = FarmingCurve;
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
@@ -1470,11 +1430,62 @@ parameter_types! {
     pub const SwapPalletId: PalletId = PalletId(*names::SWAP);
 }
 
+pub struct FarmingCurve;
+impl parami_swap::FarmingCurve<Runtime> for FarmingCurve {
+    fn calculate_farming_reward(
+        created_height: BlockNumber,
+        staked_height: BlockNumber,
+        current_height: BlockNumber,
+        total_supply: Balance,
+    ) -> Balance {
+        if total_supply >= 7u128 * InitialMintingValueBase::get() {
+            return 0;
+        }
+
+        let x_lower = staked_height - created_height;
+        let x_upper = current_height - created_height;
+
+        let x_lower: U512 = x_lower.into();
+        let x_upper: U512 = x_upper.into();
+
+        // we use a linear curve for farming reward
+        // y = a * x + b
+
+        // we will issue 100 dollars in the first block
+        let base = U512::from(100u128 * DOLLARS);
+        // b = 100DOLLARS
+
+        // our goal is to issue 7,000,000 dollars in 3 years
+        // DAYS is the block number of a day
+        // const PERIOD: f64 = 3f64 * 365.25f64 * DAYS as f64;
+        // PERIOD = 3 * 365.25 * (60000 / 12000 * 60 * 24) = 7889400
+
+        // to calculate the total supply, we use integral
+        // Y = Integrate[-ax + 100DOLLARS]
+
+        // ∵ Integrate[-ax + 100DOLLARS, {x, 0, PERIOD}] = 7_000_000DOLLARS
+        // ∴ a = 39_097_000_000_000_000_000_000 / 1556065809
+        // ∴ Y = 100DOLLARS x - 19_548_500_000_000_000_000_000 * Power[x,2] / 1_556_065_809
+        // Y ≈ 100DOLLARS x - 12_562_772_015_768 * Power[x,2]
+        let c = U512::from(12_562_772_015_768u128);
+
+        // reward = Integrate[-ax + b, {x, staked_height, current_height}]
+        // cuz Newton-Leibniz formula
+        // reward = Y(x_upper) - Y(x_lower)
+
+        let reward = (base * x_upper - c * x_upper.pow(U512::from(2u32)))
+            - (base * x_lower - c * x_lower.pow(U512::from(2u32)));
+
+        reward.try_into().unwrap_or_default()
+    }
+}
+
 impl parami_swap::Config for Runtime {
     type Event = Event;
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
+    type FarmingCurve = FarmingCurve;
     type PalletId = SwapPalletId;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
 }
@@ -1513,7 +1524,7 @@ construct_runtime!(
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 11,
         Assets: pallet_assets::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
-        Uniques: pallet_uniques::{Pallet, Storage, Config<T>, Event<T>} = 13,
+        Uniques: pallet_uniques::{Pallet, Storage, Event<T>} = 13,
 
         // Collator support. The order of these 4 are important and shall not change.
         Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
@@ -1738,30 +1749,22 @@ impl_runtime_apis! {
             currency: BalanceWrapper<Balance>,
             max_tokens: BalanceWrapper<Balance>,
         ) -> Result<(
-            AssetId,
             BalanceWrapper<Balance>,
-            AssetId,
             BalanceWrapper<Balance>,
         ), DispatchError> {
             Swap::mint_dry(token_id, currency.into(), max_tokens.into())
-                .map(|(token_id, tokens, lp_token_id, liquidity)| {
-                    (token_id, tokens.into(), lp_token_id, liquidity.into())
-                })
+                .map(|(tokens, liquidity)| (tokens.into(), liquidity.into()))
         }
 
-        fn dryly_remove_liquidity(
-            token_id: AssetId,
-            liquidity: BalanceWrapper<Balance>,
-        ) -> Result<(
+        fn dryly_remove_liquidity(lp_token_id: AssetId) -> Result<(
             AssetId,
             BalanceWrapper<Balance>,
-            AssetId,
+            BalanceWrapper<Balance>,
             BalanceWrapper<Balance>,
         ), DispatchError> {
-            Swap::burn_dry(token_id, liquidity.into())
-                .map(|(token_id, tokens, lp_token_id, currency)| {
-                    (token_id, tokens.into(), lp_token_id, currency.into())
-                })
+            Swap::burn_dry(lp_token_id).map(|(token_id, liquidity, tokens, currency)| {
+                (token_id, liquidity.into(), tokens.into(), currency.into())
+            })
         }
 
         fn dryly_buy_tokens(
@@ -1794,6 +1797,13 @@ impl_runtime_apis! {
         ) -> Result<BalanceWrapper<Balance>, DispatchError> {
             Swap::quote_out_dry(token_id, currency.into())
                 .map(|tokens| tokens.into())
+        }
+
+        fn calculate_reward(
+            lp_token_id: AssetId,
+        ) -> Result<BalanceWrapper<Balance>, DispatchError> {
+            Swap::calculate_reward(lp_token_id)
+                .map(|(_, reward)| reward.into())
         }
     }
 
