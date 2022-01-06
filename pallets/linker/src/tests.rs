@@ -42,7 +42,7 @@ fn should_link() {
             profile.clone(),
         ));
 
-        let maybe_pending = <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE);
+        let maybe_pending = <PendingOf<Test>>::get(AccountType::Telegram, &DID_ALICE);
         assert_ne!(maybe_pending, None);
 
         let pending = maybe_pending.unwrap();
@@ -57,14 +57,14 @@ fn should_link() {
         ));
 
         assert_eq!(
-            <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE),
+            <PendingOf<Test>>::get(AccountType::Telegram, &DID_ALICE),
             None
         );
 
-        assert!(<Linked<Test>>::get(&AccountType::Telegram, &profile));
+        assert!(<Linked<Test>>::get(AccountType::Telegram, &profile));
 
         assert_eq!(
-            <LinksOf<Test>>::get(&DID_ALICE, &AccountType::Telegram),
+            <LinksOf<Test>>::get(&DID_ALICE, AccountType::Telegram),
             Some(profile)
         );
     })
@@ -151,10 +151,10 @@ fn should_submit() {
             true,
         ));
 
-        assert!(<Linked<Test>>::get(&AccountType::Telegram, &profile));
+        assert!(<Linked<Test>>::get(AccountType::Telegram, &profile));
 
         assert_eq!(
-            <LinksOf<Test>>::get(&DID_ALICE, &AccountType::Telegram),
+            <LinksOf<Test>>::get(&DID_ALICE, AccountType::Telegram),
             Some(profile)
         );
     })
@@ -172,7 +172,7 @@ fn should_submit_when_pending() {
         ));
 
         assert_ne!(
-            <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE),
+            <PendingOf<Test>>::get(AccountType::Telegram, &DID_ALICE),
             None
         );
 
@@ -185,7 +185,7 @@ fn should_submit_when_pending() {
         ));
 
         assert_eq!(
-            <PendingOf<Test>>::get(&AccountType::Telegram, &DID_ALICE),
+            <PendingOf<Test>>::get(AccountType::Telegram, &DID_ALICE),
             None
         );
     })
@@ -336,10 +336,10 @@ fn should_link_crypto() {
             signature,
         ));
 
-        assert!(<Linked<Test>>::get(&AccountType::Unknown, &address));
+        assert!(<Linked<Test>>::get(AccountType::Unknown, &address));
 
         assert_eq!(
-            <LinksOf<Test>>::get(&DID_ALICE, &AccountType::Unknown),
+            <LinksOf<Test>>::get(&DID_ALICE, AccountType::Unknown),
             Some(address)
         );
     });

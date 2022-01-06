@@ -253,7 +253,7 @@ pub mod pallet {
             if validated {
                 Self::insert_link(did, site, profile, registrar)?;
             } else {
-                <PendingOf<T>>::remove(&site, &did);
+                <PendingOf<T>>::remove(site, &did);
 
                 Self::deposit_event(Event::<T>::ValidationFailed(did, site, profile));
             }
@@ -313,10 +313,10 @@ pub mod pallet {
         ) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
 
-            let link = <LinksOf<T>>::get(&did, &site).ok_or(Error::<T>::NotExists)?;
+            let link = <LinksOf<T>>::get(&did, site).ok_or(Error::<T>::NotExists)?;
 
-            <LinksOf<T>>::remove(&did, &site);
-            <Linked<T>>::remove(&site, &link);
+            <LinksOf<T>>::remove(&did, site);
+            <Linked<T>>::remove(site, &link);
 
             Self::deposit_event(Event::<T>::AccountUnlinked(did, site, Did::<T>::zero()));
 

@@ -1295,8 +1295,8 @@ construct_runtime!(
     {
         // System support stuff.
         System: frame_system::{Pallet, Call, Config, Storage, Event<T>} = 0,
-        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 1,
-        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 2,
+        Scheduler: pallet_scheduler::{Pallet, Call, Storage, Event<T>} = 2,
+        Timestamp: pallet_timestamp::{Pallet, Call, Storage, Inherent} = 3,
 
         // Monetary stuff.
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
@@ -1306,37 +1306,37 @@ construct_runtime!(
 
         // Collator support. The order of these 4 are important and shall not change.
         Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
-        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 21,
-        Aura: pallet_aura::{Pallet, Storage, Config<T>} = 22,
-        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 23,
+        Session: pallet_session::{Pallet, Call, Storage, Event, Config<T>} = 22,
+        Aura: pallet_aura::{Pallet, Storage, Config<T>} = 23,
+        Grandpa: pallet_grandpa::{Pallet, Call, Storage, Config, Event, ValidateUnsigned} = 25,
 
-        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, Config<T>} = 24,
-        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 25,
-        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 26,
-        Offences: pallet_offences::{Pallet, Storage, Event} = 27,
-        Historical: pallet_session::historical::{Pallet} = 28,
+        ImOnline: pallet_im_online::{Pallet, Call, Storage, Event<T>, Config<T>} = 30,
+        AuthorityDiscovery: pallet_authority_discovery::{Pallet, Config} = 31,
+        Staking: pallet_staking::{Pallet, Call, Config<T>, Storage, Event<T>} = 32,
+        Offences: pallet_offences::{Pallet, Storage, Event} = 33,
+        Historical: pallet_session::historical::{Pallet} = 34,
 
         // Governance stuff; uncallable initially.
-        Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 30,
-        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 31,
-        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 32,
-        PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 33,
-        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 34,
-        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 35,
+        Democracy: pallet_democracy::{Pallet, Call, Storage, Config<T>, Event<T>} = 50,
+        Council: pallet_collective::<Instance1>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 51,
+        TechnicalCommittee: pallet_collective::<Instance2>::{Pallet, Call, Storage, Origin<T>, Event<T>, Config<T>} = 52,
+        PhragmenElection: pallet_elections_phragmen::{Pallet, Call, Storage, Event<T>, Config<T>} = 53,
+        TechnicalMembership: pallet_membership::<Instance1>::{Pallet, Call, Storage, Event<T>, Config<T>} = 54,
+        Treasury: pallet_treasury::{Pallet, Call, Storage, Config, Event<T>} = 55,
 
         // Miscellaneous.
-        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 40,
-        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 41,
-        ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 42,
-        Mmr: pallet_mmr::{Pallet, Storage} = 43,
-        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 44,
-        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 45,
-        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 46,
-        Society: pallet_society::{Pallet, Call, Storage, Event<T>, Config<T>} = 47,
-        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 48,
-        Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 49,
-        Utility: pallet_utility::{Pallet, Call, Event} = 50,
-        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 51,
+        Bounties: pallet_bounties::{Pallet, Call, Storage, Event<T>} = 60,
+        Contracts: pallet_contracts::{Pallet, Call, Storage, Event<T>} = 61,
+        ElectionProviderMultiPhase: pallet_election_provider_multi_phase::{Pallet, Call, Storage, Event<T>, ValidateUnsigned} = 62,
+        Mmr: pallet_mmr::{Pallet, Storage} = 63,
+        Multisig: pallet_multisig::{Pallet, Call, Storage, Event<T>} = 64,
+        RandomnessCollectiveFlip: pallet_randomness_collective_flip::{Pallet, Storage} = 65,
+        Recovery: pallet_recovery::{Pallet, Call, Storage, Event<T>} = 66,
+        Society: pallet_society::{Pallet, Call, Storage, Event<T>, Config<T>} = 67,
+        Sudo: pallet_sudo::{Pallet, Call, Config<T>, Storage, Event<T>} = 68,
+        Tips: pallet_tips::{Pallet, Call, Storage, Event<T>} = 69,
+        Utility: pallet_utility::{Pallet, Call, Event} = 70,
+        Vesting: pallet_vesting::{Pallet, Call, Storage, Event<T>, Config<T>} = 71,
 
         // Parami pallets.
         Ad: parami_ad::{Pallet, Call, Storage, Config, Event<T>} = 100,
