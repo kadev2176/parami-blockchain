@@ -20,7 +20,7 @@ pub trait DidApi<DecentralizedId> {
     ///
     /// the requested metadata
     #[rpc(name = "did_getMetadata")]
-    fn get_metadata(&self, did: DecentralizedId, key: Vec<u8>) -> Result<String>;
+    fn get_metadata(&self, did: DecentralizedId, key: String) -> Result<String>;
 
     /// Batch get metadata of a DID
     ///
@@ -33,7 +33,7 @@ pub trait DidApi<DecentralizedId> {
     ///
     /// the requested metadata
     #[rpc(name = "did_batchGetMetadata")]
-    fn batch_get_metadata(&self, did: DecentralizedId, keys: Vec<Vec<u8>>) -> Result<Vec<String>>;
+    fn batch_get_metadata(&self, did: DecentralizedId, keys: Vec<String>) -> Result<Vec<String>>;
 }
 
 pub struct DidRpcHandler<T: OffchainStorage, DecentralizedId> {
@@ -59,13 +59,13 @@ where
     T: OffchainStorage + 'static,
     DecentralizedId: Codec + Send + Sync + 'static,
 {
-    fn get_metadata(&self, did: DecentralizedId, key: Vec<u8>) -> Result<String> {
+    fn get_metadata(&self, did: DecentralizedId, key: String) -> Result<String> {
         let metadata = self
             .storage
             .read()
             .get(
                 sp_offchain::STORAGE_PREFIX,
-                &*derive_storage_key(&key, &did),
+                &*derive_storage_key(key.as_bytes(), &did),
             )
             .map(from_utf8)
             .unwrap_or_default();
@@ -73,7 +73,7 @@ where
         Ok(metadata)
     }
 
-    fn batch_get_metadata(&self, did: DecentralizedId, keys: Vec<Vec<u8>>) -> Result<Vec<String>> {
+    fn batch_get_metadata(&self, did: DecentralizedId, keys: Vec<String>) -> Result<Vec<String>> {
         let mut result = Vec::new();
 
         for key in keys {
@@ -82,7 +82,7 @@ where
                 .read()
                 .get(
                     sp_offchain::STORAGE_PREFIX,
-                    &*derive_storage_key(&key, &did),
+                    &*derive_storage_key(key.as_bytes(), &did),
                 )
                 .map(from_utf8)
                 .unwrap_or_default();

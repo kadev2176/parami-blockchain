@@ -253,9 +253,7 @@ pub mod pallet {
             if validated {
                 Self::insert_link(did, site, profile, registrar)?;
             } else {
-                <PendingOf<T>>::remove(site, &did);
-
-                Self::deposit_event(Event::<T>::ValidationFailed(did, site, profile));
+                Self::veto_pending(did, site, profile)?;
             }
 
             Ok(().into())

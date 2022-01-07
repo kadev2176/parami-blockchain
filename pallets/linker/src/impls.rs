@@ -6,7 +6,7 @@ use crate::{
 use base58::ToBase58;
 use codec::Encode;
 use frame_support::ensure;
-use sp_runtime::DispatchResult;
+use sp_runtime::{DispatchError, DispatchResult};
 use sp_std::prelude::*;
 
 macro_rules! is_task {
@@ -55,6 +55,18 @@ impl<T: Config> Pallet<T> {
         bytes.append(&mut prefix);
         bytes.append(&mut did);
         bytes
+    }
+
+    pub fn veto_pending(
+        did: DidOf<T>,
+        site: types::AccountType,
+        profile: Vec<u8>,
+    ) -> DispatchResult {
+        <PendingOf<T>>::remove(site, &did);
+
+        Self::deposit_event(Event::<T>::ValidationFailed(did, site, profile));
+
+        Ok(())
     }
 
     pub fn insert_link(
@@ -113,7 +125,7 @@ impl<T: Config> Pallet<T> {
         address: Vec<u8>,
         signature: types::Signature,
         bytes: Vec<u8>,
-    ) -> Result<Vec<u8>, Error<T>> {
+    ) -> Result<Vec<u8>, DispatchError> {
         use types::AccountType::*;
 
         match crypto {
@@ -124,7 +136,7 @@ impl<T: Config> Pallet<T> {
             Polkadot => Self::recover_address_dot(address, signature, bytes),
             Solana => Self::recover_address_sol(address, signature, bytes),
             Tron => Self::recover_address_trx(address, signature, bytes),
-            _ => Err(Error::<T>::UnsupportedSite),
+            _ => Err(Error::<T>::UnsupportedSite)?,
         }
     }
 
@@ -132,7 +144,7 @@ impl<T: Config> Pallet<T> {
         address: Vec<u8>,
         signature: types::Signature,
         mut bytes: Vec<u8>,
-    ) -> Result<Vec<u8>, Error<T>> {
+    ) -> Result<Vec<u8>, DispatchError> {
         let mut length = (bytes.len() as u8).encode();
         let mut data = b"\x18Bitcoin Signed Message:\n".encode();
         data.append(&mut length);
@@ -182,7 +194,7 @@ impl<T: Config> Pallet<T> {
         raw: Vec<u8>,
         signature: types::Signature,
         bytes: Vec<u8>,
-    ) -> Result<Vec<u8>, Error<T>> {
+    ) -> Result<Vec<u8>, DispatchError> {
         use base58::FromBase58;
         use sp_core::sr25519;
         use sp_std::str;
@@ -209,7 +221,7 @@ impl<T: Config> Pallet<T> {
         _address: Vec<u8>,
         signature: types::Signature,
         mut bytes: Vec<u8>,
-    ) -> Result<Vec<u8>, Error<T>> {
+    ) -> Result<Vec<u8>, DispatchError> {
         let mut length = Self::usize_to_u8_array(bytes.len());
         let mut data = b"\x19Ethereum Signed Message:\n".encode();
         data.append(&mut length);
@@ -227,7 +239,7 @@ impl<T: Config> Pallet<T> {
         raw: Vec<u8>,
         signature: types::Signature,
         bytes: Vec<u8>,
-    ) -> Result<Vec<u8>, Error<T>> {
+    ) -> Result<Vec<u8>, DispatchError> {
         use base58::FromBase58;
         use sp_core::ed25519;
         use sp_std::str;
@@ -254,7 +266,7 @@ impl<T: Config> Pallet<T> {
         _address: Vec<u8>,
         signature: types::Signature,
         mut bytes: Vec<u8>,
-    ) -> Result<Vec<u8>, Error<T>> {
+    ) -> Result<Vec<u8>, DispatchError> {
         let mut data = b"\x19TRON Signed Message:\n32".encode();
         data.append(&mut bytes);
         let hash = sp_io::hashing::keccak_256(&data);

@@ -18,7 +18,7 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
 
         let min = T::Currency::minimum_balance();
-        let pot = min.saturating_mul(1_000_000u32.into());
+        let pot = min.saturating_mul(1_000_000_000u32.into());
 
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
@@ -34,7 +34,7 @@ benchmarks! {
         let caller: T::AccountId = whitelisted_caller();
 
         let min = T::Currency::minimum_balance();
-        let pot = min.saturating_mul(1_000_000u32.into());
+        let pot = min.saturating_mul(1_000_000_000u32.into());
 
         T::Currency::make_free_balance_be(&caller, BalanceOf::<T>::max_value());
 
