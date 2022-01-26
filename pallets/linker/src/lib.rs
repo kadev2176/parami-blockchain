@@ -247,7 +247,7 @@ pub mod pallet {
 
                 registrar
             } else {
-                Did::<T>::zero()
+                DidOf::<T>::default()
             };
 
             if validated {
@@ -316,7 +316,11 @@ pub mod pallet {
             <LinksOf<T>>::remove(&did, site);
             <Linked<T>>::remove(site, &link);
 
-            Self::deposit_event(Event::<T>::AccountUnlinked(did, site, Did::<T>::zero()));
+            Self::deposit_event(Event::<T>::AccountUnlinked(
+                did,
+                site,
+                DidOf::<T>::default(),
+            ));
 
             Ok(())
         }

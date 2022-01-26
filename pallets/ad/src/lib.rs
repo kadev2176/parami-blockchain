@@ -107,13 +107,18 @@ pub mod pallet {
     #[pallet::getter(fn ads_of)]
     pub(super) type AdsOf<T: Config> = StorageMap<_, Identity, DidOf<T>, Vec<HashOf<T>>>;
 
-    /// Deadline of an advertisement in slot
+    /// End time of an advertisement
+    #[pallet::storage]
+    #[pallet::getter(fn endtime_of)]
+    pub(super) type EndtimeOf<T: Config> = StorageMap<_, Identity, HashOf<T>, HeightOf<T>>;
+
+    /// Deadline of an advertisement in a slot
     #[pallet::storage]
     #[pallet::getter(fn deadline_of)]
     pub(super) type DeadlineOf<T: Config> = StorageDoubleMap<
         _,
         Identity,
-        DidOf<T>, // use default value for the ad itself
+        DidOf<T>, // Slot (KOL DID)
         Identity,
         HashOf<T>,
         HeightOf<T>,
@@ -248,7 +253,7 @@ pub mod pallet {
                 },
             );
 
-            <DeadlineOf<T>>::insert(&Did::<T>::zero(), &id, deadline);
+            <EndtimeOf<T>>::insert(&id, deadline);
 
             <AdsOf<T>>::mutate(&creator, |maybe| {
                 if let Some(ads) = maybe {
@@ -276,11 +281,10 @@ pub mod pallet {
         ) -> DispatchResult {
             let (did, _) = T::CallOrigin::ensure_origin(origin)?;
 
-            let deadline = <DeadlineOf<T>>::get(&Did::<T>::zero(), &ad) //
-                .ok_or(Error::<T>::NotExists)?;
-
             let height = <frame_system::Pallet<T>>::block_number();
-            ensure!(deadline > height, Error::<T>::Deadline);
+
+            let endtime = <EndtimeOf<T>>::get(&ad).ok_or(Error::<T>::NotExists)?;
+            ensure!(endtime > height, Error::<T>::Deadline);
 
             let mut meta = Self::ensure_owned(did, ad)?;
 
@@ -301,11 +305,10 @@ pub mod pallet {
         ) -> DispatchResult {
             let (did, _) = T::CallOrigin::ensure_origin(origin)?;
 
-            let deadline = <DeadlineOf<T>>::get(&Did::<T>::zero(), &ad) //
-                .ok_or(Error::<T>::NotExists)?;
-
             let height = <frame_system::Pallet<T>>::block_number();
-            ensure!(deadline > height, Error::<T>::Deadline);
+
+            let endtime = <EndtimeOf<T>>::get(&ad).ok_or(Error::<T>::NotExists)?;
+            ensure!(endtime > height, Error::<T>::Deadline);
 
             let _ = Self::ensure_owned(did, ad)?;
 
@@ -331,11 +334,10 @@ pub mod pallet {
         ) -> DispatchResult {
             let (did, who) = T::CallOrigin::ensure_origin(origin)?;
 
-            let deadline = <DeadlineOf<T>>::get(&Did::<T>::zero(), &ad) //
-                .ok_or(Error::<T>::NotExists)?;
-
             let height = <frame_system::Pallet<T>>::block_number();
-            ensure!(deadline > height, Error::<T>::Deadline);
+
+            let endtime = <EndtimeOf<T>>::get(&ad).ok_or(Error::<T>::NotExists)?;
+            ensure!(endtime > height, Error::<T>::Deadline);
 
             let mut meta = Self::ensure_owned(did, ad)?;
 
@@ -360,11 +362,10 @@ pub mod pallet {
         ) -> DispatchResult {
             let (did, _) = T::CallOrigin::ensure_origin(origin)?;
 
-            let deadline = <DeadlineOf<T>>::get(&Did::<T>::zero(), &ad) //
-                .ok_or(Error::<T>::NotExists)?;
-
             let height = <frame_system::Pallet<T>>::block_number();
-            ensure!(deadline > height, Error::<T>::Deadline);
+
+            let endtime = <EndtimeOf<T>>::get(&ad).ok_or(Error::<T>::NotExists)?;
+            ensure!(endtime > height, Error::<T>::Deadline);
 
             let mut meta = Self::ensure_owned(did, ad)?;
 
@@ -399,8 +400,8 @@ pub mod pallet {
 
             let lifetime = T::SlotLifetime::get();
             let slotlife = created.saturating_add(lifetime);
-            let deadline = if slotlife > deadline {
-                deadline
+            let deadline = if slotlife > endtime {
+                endtime
             } else {
                 slotlife
             };
@@ -450,10 +451,12 @@ pub mod pallet {
 
             let (did, _) = T::CallOrigin::ensure_origin(origin)?;
 
-            let deadline = <DeadlineOf<T>>::get(&Did::<T>::zero(), &ad) //
-                .ok_or(Error::<T>::NotExists)?;
-
             let height = <frame_system::Pallet<T>>::block_number();
+
+            let endtime = <EndtimeOf<T>>::get(&ad).ok_or(Error::<T>::NotExists)?;
+            ensure!(endtime > height, Error::<T>::Deadline);
+
+            let deadline = <DeadlineOf<T>>::get(&kol, &ad).ok_or(Error::<T>::NotExists)?;
             ensure!(deadline > height, Error::<T>::Deadline);
 
             let meta = Self::ensure_owned(did, ad)?;
@@ -561,18 +564,10 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
     fn begin_block(now: HeightOf<T>) -> Result<Weight, DispatchError> {
-        use sp_std::collections::btree_set::BTreeSet;
-
         let weight = 1_000_000_000;
 
-        let mut ads = BTreeSet::new();
-        for (kol, ad, deadline) in <DeadlineOf<T>>::iter() {
-            if deadline > now {
-                continue;
-            }
-
-            if kol == Did::<T>::zero() {
-                ads.insert(ad);
+        for (kol, ad, endtime) in <DeadlineOf<T>>::iter() {
+            if endtime > now {
                 continue;
             }
 
@@ -586,7 +581,11 @@ impl<T: Config> Pallet<T> {
             }
         }
 
-        for ad in ads {
+        for (ad, deadline) in <EndtimeOf<T>>::iter() {
+            if deadline > now {
+                continue;
+            }
+
             let meta = <Metadata<T>>::get(ad);
             if meta.is_none() {
                 continue;
@@ -604,6 +603,8 @@ impl<T: Config> Pallet<T> {
             meta.remain = Zero::zero();
 
             <Metadata<T>>::insert(&ad, meta);
+
+            <EndtimeOf<T>>::remove(&ad);
         }
 
         Ok(weight)

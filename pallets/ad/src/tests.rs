@@ -1,4 +1,4 @@
-use crate::{mock::*, AdsOf, Config, DeadlineOf, Did, Error, Metadata, SlotOf};
+use crate::{mock::*, AdsOf, Config, DeadlineOf, Did, EndtimeOf, Error, Metadata, SlotOf};
 use frame_support::{
     assert_noop, assert_ok,
     traits::{Currency, Hooks},
@@ -46,7 +46,7 @@ fn should_create() {
         assert_eq!(meta.reward_rate, 1);
         assert_eq!(meta.created, 0);
 
-        assert_eq!(<DeadlineOf<Test>>::get(&Did::<Test>::zero(), &ad), Some(1));
+        assert_eq!(<EndtimeOf<Test>>::get(&ad), Some(1));
 
         assert_eq!(Balances::free_balance(&ALICE), 100 - meta.budget);
 
