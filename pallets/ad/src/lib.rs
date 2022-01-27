@@ -564,28 +564,60 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
     fn begin_block(now: HeightOf<T>) -> Result<Weight, DispatchError> {
-        let weight = 1_000_000_000;
+        use frame_support::traits::Get;
 
-        for (kol, ad, endtime) in <DeadlineOf<T>>::iter() {
-            if endtime > now {
+        let mut read = 0;
+        let mut write = 0;
+
+        let mut amount = 0;
+
+        for (kol, ad, deadline) in <DeadlineOf<T>>::iter() {
+            read += 1;
+
+            if amount >= 100 {
+                break;
+            }
+
+            if deadline > now {
                 continue;
             }
 
+            read += 1;
             let slot = <SlotOf<T>>::get(kol);
             if let Some(slot) = slot {
                 if slot.ad != ad {
                     continue;
                 }
 
+                read += 2;
+                write += 4;
                 let _ = Self::drawback(&kol, &slot);
+
+                amount += 1;
             }
         }
 
-        for (ad, deadline) in <EndtimeOf<T>>::iter() {
-            if deadline > now {
+        let mut amount = 0;
+
+        for (ad, endtime) in <EndtimeOf<T>>::iter() {
+            read += 1;
+
+            if amount >= 100 {
+                break;
+            }
+
+            if endtime > now {
                 continue;
             }
 
+            read += 1;
+            if let Some(slots) = <SlotsOf<T>>::get(ad) {
+                if slots.len() > 0 {
+                    continue;
+                }
+            }
+
+            read += 1;
             let meta = <Metadata<T>>::get(ad);
             if meta.is_none() {
                 continue;
@@ -602,12 +634,14 @@ impl<T: Config> Pallet<T> {
 
             meta.remain = Zero::zero();
 
-            <Metadata<T>>::insert(&ad, meta);
+            write += 2;
+            <Metadata<T>>::insert(ad, meta);
+            <EndtimeOf<T>>::remove(ad);
 
-            <EndtimeOf<T>>::remove(&ad);
+            amount += 1;
         }
 
-        Ok(weight)
+        Ok(T::DbWeight::get().reads_writes(read as Weight, write as Weight))
     }
 
     fn drawback(kol: &DidOf<T>, slot: &SlotMetaOf<T>) -> Result<BalanceOf<T>, DispatchError> {

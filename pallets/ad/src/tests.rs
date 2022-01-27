@@ -240,6 +240,7 @@ fn should_bid() {
 
         // ensure: deadline, slot, remain
 
+        assert_eq!(<EndtimeOf<Test>>::get(&ad1), Some(43200));
         assert_eq!(<DeadlineOf<Test>>::get(&DID_ALICE, &ad1), Some(43200));
 
         let maybe_slot = <SlotOf<Test>>::get(&DID_ALICE);
@@ -267,6 +268,7 @@ fn should_bid() {
 
         // ensure: deadline, slot, remain
 
+        assert_eq!(<EndtimeOf<Test>>::get(&ad2), Some(1));
         assert_eq!(<DeadlineOf<Test>>::get(&DID_ALICE, &ad1), None);
         assert_eq!(<DeadlineOf<Test>>::get(&DID_ALICE, &ad2), Some(1));
 
