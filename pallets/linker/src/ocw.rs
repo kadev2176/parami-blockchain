@@ -51,7 +51,7 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
         use types::AccountType::*;
 
         for site in [Telegram, Twitter] {
-            let pending = <PendingOf<T>>::iter_prefix(&site);
+            let pending = <PendingOf<T>>::iter_prefix(site);
 
             for (did, task) in pending {
                 if task.deadline <= block_number {

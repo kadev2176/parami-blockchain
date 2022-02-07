@@ -332,7 +332,7 @@ pub mod pallet {
 
             Did::<T>::set_meta(&did, meta);
 
-            <Date<T>>::insert(&cid, minted);
+            <Date<T>>::insert(cid, minted);
 
             <Deposits<T>>::mutate(&did, &did, |maybe| {
                 *maybe = Some(deposit);
@@ -355,7 +355,7 @@ pub mod pallet {
             let cid = meta.nft.ok_or(Error::<T>::NotExists)?;
 
             if kol == did {
-                let minted_block_number = <Date<T>>::get(&cid).ok_or(Error::<T>::NotExists)?;
+                let minted_block_number = <Date<T>>::get(cid).ok_or(Error::<T>::NotExists)?;
                 ensure!(
                     height - minted_block_number >= T::InitialMintingLockupPeriod::get(),
                     Error::<T>::NoToken

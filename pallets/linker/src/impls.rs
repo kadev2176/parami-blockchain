@@ -16,7 +16,7 @@ macro_rules! is_task {
 }
 
 impl<T: Config> Pallet<T> {
-    fn ensure_profile(did: &DidOf<T>, site: &types::AccountType, profile: &[u8]) -> DispatchResult {
+    fn ensure_profile(did: &DidOf<T>, site: types::AccountType, profile: &[u8]) -> DispatchResult {
         use types::AccountType::*;
 
         ensure!(!<LinksOf<T>>::contains_key(did, site), Error::<T>::Exists);
@@ -63,13 +63,13 @@ impl<T: Config> Pallet<T> {
         profile: Vec<u8>,
         registrar: DidOf<T>,
     ) -> DispatchResult {
-        Self::ensure_profile(&did, &site, &profile)?;
+        Self::ensure_profile(&did, site, &profile)?;
 
-        <PendingOf<T>>::remove(&site, &did);
+        <PendingOf<T>>::remove(site, &did);
 
-        <Linked<T>>::insert(&site, &profile, true);
+        <Linked<T>>::insert(site, &profile, true);
 
-        <LinksOf<T>>::insert(&did, &site, profile.clone());
+        <LinksOf<T>>::insert(&did, site, profile.clone());
 
         Self::deposit_event(Event::<T>::AccountLinked(did, site, profile, registrar));
 
@@ -84,10 +84,10 @@ impl<T: Config> Pallet<T> {
         use frame_support::traits::Get;
         use sp_runtime::traits::Saturating;
 
-        Self::ensure_profile(&did, &site, &profile)?;
+        Self::ensure_profile(&did, site, &profile)?;
 
         ensure!(
-            !<PendingOf<T>>::contains_key(&site, &did),
+            !<PendingOf<T>>::contains_key(site, &did),
             Error::<T>::Exists
         );
 
@@ -96,7 +96,7 @@ impl<T: Config> Pallet<T> {
         let deadline = created.saturating_add(lifetime);
 
         <PendingOf<T>>::insert(
-            &site,
+            site,
             &did,
             types::Pending {
                 profile,
