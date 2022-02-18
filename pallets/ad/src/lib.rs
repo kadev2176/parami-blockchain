@@ -28,6 +28,7 @@ use frame_support::{
     PalletId,
 };
 use parami_did::Pallet as Did;
+use parami_magic::Pallet as Magic;
 use parami_traits::{Swaps, Tags};
 use sp_runtime::{
     traits::{AccountIdConversion, Hash, One, Saturating, Zero},
@@ -53,12 +54,16 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + parami_did::Config {
+    pub trait Config: frame_system::Config + parami_did::Config + parami_magic::Config {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         /// The assets trait to pay rewards
         type Assets: Transfer<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>;
+
+        /// The minimum fee balance required to keep alive an ad
+        #[pallet::constant]
+        type MinimumFeeBalance: Get<BalanceOf<Self>>;
 
         /// The pallet id, used for deriving "pot" accounts of budgets
         #[pallet::constant]
@@ -235,7 +240,7 @@ pub mod pallet {
 
             // 2. deposit budget
 
-            T::Currency::transfer(&who, &pot, budget, KeepAlive)?;
+            <T as parami_did::Config>::Currency::transfer(&who, &pot, budget, KeepAlive)?;
 
             // 3. insert metadata, ads_of, tags_of
 
@@ -341,7 +346,7 @@ pub mod pallet {
 
             let mut meta = Self::ensure_owned(did, ad)?;
 
-            T::Currency::transfer(&who, &meta.pot, value, KeepAlive)?;
+            <T as parami_did::Config>::Currency::transfer(&who, &meta.pot, value, KeepAlive)?;
 
             meta.budget.saturating_accrue(value);
             meta.remain.saturating_accrue(value);
@@ -449,7 +454,7 @@ pub mod pallet {
         ) -> DispatchResult {
             ensure!(!scores.is_empty(), Error::<T>::EmptyTags);
 
-            let (did, _) = T::CallOrigin::ensure_origin(origin)?;
+            let (did, who) = T::CallOrigin::ensure_origin(origin)?;
 
             let height = <frame_system::Pallet<T>>::block_number();
 
@@ -542,6 +547,20 @@ pub mod pallet {
 
             Self::deposit_event(Event::Paid(ad, slot.nft, visitor, reward, referer, award));
 
+            // 5. drawback if advertiser does not have enough fees
+
+            let controller = match Magic::<T>::controller(&who) {
+                Some(c) => c,
+                None => who,
+            };
+
+            let balance = <T as parami_did::Config>::Currency::free_balance(&controller);
+            if balance - <T as parami_did::Config>::Currency::minimum_balance()
+                < T::MinimumFeeBalance::get()
+            {
+                let _ = Self::drawback(&kol, &slot);
+            }
+
             Ok(())
         }
     }
@@ -630,7 +649,12 @@ impl<T: Config> Pallet<T> {
             }
             let creator = creator.unwrap();
 
-            let _ = T::Currency::transfer(&meta.pot, &creator.account, meta.remain, AllowDeath);
+            let _ = <T as parami_did::Config>::Currency::transfer(
+                &meta.pot,
+                &creator.account,
+                meta.remain,
+                AllowDeath,
+            );
 
             meta.remain = Zero::zero();
 

@@ -31,6 +31,7 @@ frame_support::construct_runtime!(
 
         Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
         Did: parami_did::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Magic: parami_magic::{Pallet, Call, Storage, Event<T>},
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>},
@@ -152,6 +153,18 @@ impl parami_did::Config for Test {
 }
 
 parameter_types! {
+    pub const MagicPalletId: PalletId = PalletId(*b"prm/stab");
+}
+
+impl parami_magic::Config for Test {
+    type Event = Event;
+    type Currency = Balances;
+    type Call = Call;
+    type PalletId = MagicPalletId;
+    type WeightInfo = ();
+}
+
+parameter_types! {
     pub const InitialMintingDeposit: Balance = 1_000_000;
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
     pub const InitialMintingValueBase: Balance = 1_000_000;
@@ -199,6 +212,7 @@ impl parami_tag::Config for Test {
 
 parameter_types! {
     pub const AdPalletId: PalletId = PalletId(*b"prm/ad  ");
+    pub const AdvertiserMinimumFee: Balance = 1;
     pub const PayoutBase: Balance = 1;
     pub const SlotLifetime: BlockNumber = 43200;
 }
@@ -206,6 +220,7 @@ parameter_types! {
 impl parami_ad::Config for Test {
     type Event = Event;
     type Assets = Assets;
+    type MinimumFeeBalance = AdvertiserMinimumFee;
     type PalletId = AdPalletId;
     type PayoutBase = PayoutBase;
     type SlotLifetime = SlotLifetime;
