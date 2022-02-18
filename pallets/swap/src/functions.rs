@@ -21,6 +21,8 @@ impl<T: Config> Pallet<T> {
         Ok(value)
     }
 
+    /// Calculate how many tokens should be involved
+    /// and how many the liquidity should be minted
     pub(super) fn calculate_liquidity(
         token_id: AssetOf<T>,
         currency: BalanceOf<T>,
@@ -53,6 +55,7 @@ impl<T: Config> Pallet<T> {
         Ok((tokens, liquidity, meta))
     }
 
+    /// Calculate how many tokens and currency should be returned
     pub(super) fn calculate_solidness(
         token_id: AssetOf<T>,
         liquidity: BalanceOf<T>,
@@ -82,20 +85,21 @@ impl<T: Config> Pallet<T> {
         Ok((tokens, currency, meta))
     }
 
+    /// Calculate buy price in U512
     pub(crate) fn calculate_price_buy(
         output_amount: U512,
         input_reserve: U512,
         output_reserve: U512,
     ) -> U512 {
-        let p1 = output_reserve / 10;
+        let ten_percent = output_reserve / 10;
 
-        if output_amount > p1 {
-            let d = Self::calculate_price_buy(p1, input_reserve, output_reserve);
+        if output_amount > ten_percent {
+            let d = Self::calculate_price_buy(ten_percent, input_reserve, output_reserve);
 
             d + Self::calculate_price_buy(
-                output_amount - p1,
+                output_amount - ten_percent,
                 input_reserve + d,
-                output_reserve - p1,
+                output_reserve - ten_percent,
             )
         } else {
             let numerator = input_reserve * output_amount * U512::from(1000);
@@ -106,19 +110,20 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    /// Calculate sell price in U512
     pub(crate) fn calculate_price_sell(
         input_amount: U512,
         input_reserve: U512,
         output_reserve: U512,
     ) -> U512 {
-        let p1 = input_reserve / 10;
+        let ten_percent = input_reserve / 10;
 
-        if input_amount > p1 {
-            let d = Self::calculate_price_sell(p1, input_reserve, output_reserve);
+        if input_amount > ten_percent {
+            let d = Self::calculate_price_sell(ten_percent, input_reserve, output_reserve);
 
             d + Self::calculate_price_sell(
-                input_amount - p1,
-                input_reserve + p1,
+                input_amount - ten_percent,
+                input_reserve + ten_percent,
                 output_reserve - d,
             )
         } else {
@@ -131,6 +136,7 @@ impl<T: Config> Pallet<T> {
         }
     }
 
+    /// Calculate buy price with assertion
     pub(super) fn price_buy(
         output_amount: BalanceOf<T>,
         input_reserve: BalanceOf<T>,
@@ -152,6 +158,7 @@ impl<T: Config> Pallet<T> {
         Ok(result)
     }
 
+    /// Calculate sell price with assertion
     pub(super) fn price_sell(
         input_amount: BalanceOf<T>,
         input_reserve: BalanceOf<T>,

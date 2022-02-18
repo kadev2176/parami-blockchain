@@ -1,6 +1,6 @@
 use crate::{
-    types, Account, AccountOf, AssetOf, BalanceOf, Config, Error, Event, Liquidity, Metadata,
-    NextTokenId, Pallet, Provider,
+    types, Account, AccountOf, AssetOf, BalanceOf, Config, Error, Event, HeightOf, Liquidity,
+    Metadata, NextTokenId, Pallet, Provider,
 };
 
 use frame_support::{
@@ -134,7 +134,7 @@ impl<T: Config> Swaps for Pallet<T> {
                 minted,
             },
         );
-        <Account<T>>::insert(&who, lp_token_id, BalanceOf::<T>::zero());
+        <Account<T>>::insert(&who, lp_token_id, HeightOf::<T>::zero());
 
         <Provider<T>>::mutate(token_id, &who, |holding| {
             holding.saturating_accrue(liquidity);

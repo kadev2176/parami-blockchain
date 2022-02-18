@@ -68,6 +68,7 @@ pub use parami_primitives::{
     deposit, names, AccountId, Address, AssetId, Balance, BalanceWrapper, BlockNumber,
     DecentralizedId, Hash, Header, Index, Moment, Signature,
 };
+use parami_swap::LinearFarmingCurve;
 use parami_traits::Swaps;
 
 /// We allow for 0.5 of a second of compute with a 12 second average block time.
@@ -1222,57 +1223,8 @@ impl parami_nft::Config for Runtime {
 }
 
 parameter_types! {
+    pub const InitialFarmingReward: Balance = 100 * DOLLARS;
     pub const SwapPalletId: PalletId = PalletId(*names::SWAP);
-}
-
-pub struct FarmingCurve;
-impl parami_swap::FarmingCurve<Runtime> for FarmingCurve {
-    fn calculate_farming_reward(
-        created_height: BlockNumber,
-        staked_height: BlockNumber,
-        current_height: BlockNumber,
-        total_supply: Balance,
-    ) -> Balance {
-        if total_supply >= 7u128 * InitialMintingValueBase::get() {
-            return 0;
-        }
-
-        let x_lower = staked_height - created_height;
-        let x_upper = current_height - created_height;
-
-        let x_lower: U512 = x_lower.into();
-        let x_upper: U512 = x_upper.into();
-
-        // we use a linear curve for farming reward
-        // y = a * x + b
-
-        // we will issue 100 dollars in the first block
-        let base = U512::from(100u128 * DOLLARS);
-        // b = 100DOLLARS
-
-        // our goal is to issue 7,000,000 dollars in 3 years
-        // DAYS is the block number of a day
-        // const PERIOD: f64 = 3f64 * 365.25f64 * DAYS as f64;
-        // PERIOD = 3 * 365.25 * (60000 / 12000 * 60 * 24) = 7889400
-
-        // to calculate the total supply, we use integral
-        // Y = Integrate[-ax + 100DOLLARS]
-
-        // ∵ Integrate[-ax + 100DOLLARS, {x, 0, PERIOD}] = 7_000_000DOLLARS
-        // ∴ a = 39_097_000_000_000_000_000_000 / 1556065809
-        // ∴ Y = 100DOLLARS x - 19_548_500_000_000_000_000_000 * Power[x,2] / 1_556_065_809
-        // Y ≈ 100DOLLARS x - 12_562_772_015_768 * Power[x,2]
-        let c = U512::from(12_562_772_015_768u128);
-
-        // reward = Integrate[-ax + b, {x, staked_height, current_height}]
-        // cuz Newton-Leibniz formula
-        // reward = Y(x_upper) - Y(x_lower)
-
-        let reward = (base * x_upper - c * x_upper.pow(U512::from(2u32)))
-            - (base * x_lower - c * x_lower.pow(U512::from(2u32)));
-
-        reward.try_into().unwrap_or_default()
-    }
 }
 
 impl parami_swap::Config for Runtime {
@@ -1280,7 +1232,7 @@ impl parami_swap::Config for Runtime {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
-    type FarmingCurve = FarmingCurve;
+    type FarmingCurve = LinearFarmingCurve<Runtime, InitialFarmingReward, InitialMintingValueBase>;
     type PalletId = SwapPalletId;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
 }

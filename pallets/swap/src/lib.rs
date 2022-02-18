@@ -1,6 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use farming::FarmingCurve;
+pub use farming::{FarmingCurve, LinearFarmingCurve};
 pub use pallet::*;
 
 #[rustfmt::skip]
@@ -32,7 +32,7 @@ use frame_support::{
     PalletId,
 };
 use parami_traits::Swaps;
-use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Saturating};
+use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded};
 use sp_std::prelude::*;
 
 use weights::WeightInfo;
@@ -120,8 +120,8 @@ pub mod pallet {
         Twox64Concat,
         AccountOf<T>, // Provider Account
         Twox64Concat,
-        AssetOf<T>,   // LP Token ID
-        BalanceOf<T>, // Claimed reward
+        AssetOf<T>,  // LP Token ID
+        HeightOf<T>, // Last Claimed
     >;
 
     /// Next Liquidity Provider Token ID
@@ -368,13 +368,8 @@ pub mod pallet {
 
             T::Assets::mint_into(liquidity.token_id, &who, reward)?;
 
-            <Account<T>>::mutate(&who, lp_token_id, |maybe| {
-                if let Some(minted) = maybe {
-                    minted.saturating_accrue(reward);
-                } else {
-                    *maybe = Some(reward);
-                }
-            });
+            let claimed = <frame_system::Pallet<T>>::block_number();
+            <Account<T>>::insert(&who, lp_token_id, claimed);
 
             Ok(())
         }
