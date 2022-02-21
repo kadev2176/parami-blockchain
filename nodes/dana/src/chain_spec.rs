@@ -132,7 +132,7 @@ pub fn local_testnet_config() -> ChainSpec {
         // Telemetry
         None,
         // Protocol ID
-        Some("template-local"),
+        Some("ad3"),
         // Properties
         Some(properties),
         // Extensions
@@ -225,7 +225,6 @@ fn testnet_genesis(
                 .collect(),
         },
         assets: Default::default(),
-        uniques: Default::default(),
 
         session: parami_dana_runtime::SessionConfig {
             keys: initial_authorities

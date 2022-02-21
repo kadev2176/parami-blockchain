@@ -81,6 +81,15 @@ pub mod pallet {
     pub(super) type ControllerAccountOf<T: Config> =
         StorageMap<_, Blake2_256, AccountOf<T>, AccountOf<T>>;
 
+    /// map from stash account to controller account
+    #[pallet::storage]
+    #[pallet::getter(fn controller)]
+    pub(super) type Controller<T: Config> = StorageMap<_, Blake2_256, AccountOf<T>, AccountOf<T>>;
+
+    /// Storage version of the pallet
+    #[pallet::storage]
+    pub(crate) type StorageVersion<T: Config> = StorageValue<_, types::Releases, ValueQuery>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -93,7 +102,25 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> Weight {
+            if <StorageVersion<T>>::get() == types::Releases::V1 {
+                return 0;
+            }
+
+            let mut count = 0;
+
+            for sa in <StableAccountOf<T>>::iter_values() {
+                <Controller<T>>::insert(sa.stash_account, sa.controller_account);
+
+                count += 1;
+            }
+
+            <StorageVersion<T>>::set(types::Releases::V1);
+
+            T::DbWeight::get().reads_writes(count as Weight + 1, count as Weight + 1)
+        }
+    }
 
     #[pallet::error]
     pub enum Error<T> {
@@ -177,6 +204,7 @@ pub mod pallet {
 
             <StableAccountOf<T>>::insert(&sa.controller_account, &sa);
             <ControllerAccountOf<T>>::insert(&sa.magic_account, &sa.controller_account);
+            <Controller<T>>::insert(&sa.stash_account, &sa.controller_account);
 
             Self::deposit_event(Event::Created(sa.stash_account, sa.controller_account));
 
@@ -225,6 +253,8 @@ pub mod pallet {
             <ControllerAccountOf<T>>::mutate(&sa.magic_account, |maybe| {
                 *maybe = Some(new_controller)
             });
+
+            <Controller<T>>::insert(&sa.stash_account, &sa.controller_account);
 
             Self::deposit_event(Event::Changed(sa.stash_account, sa.controller_account));
 
@@ -294,6 +324,7 @@ pub mod pallet {
 
                 <StableAccountOf<T>>::insert(&sa.controller_account, &sa);
                 <ControllerAccountOf<T>>::insert(&sa.magic_account, &sa.controller_account);
+                <Controller<T>>::insert(&sa.stash_account, &sa.controller_account);
             }
         }
     }

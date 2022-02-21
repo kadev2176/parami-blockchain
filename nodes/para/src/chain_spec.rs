@@ -86,8 +86,8 @@ fn session_keys(
 pub fn development_config() -> ChainSpec {
     // Give your base currency a unit name and decimal places
     let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "UNIT".into());
-    properties.insert("tokenDecimals".into(), 12.into());
+    properties.insert("tokenSymbol".into(), "AD3".into());
+    properties.insert("tokenDecimals".into(), 18.into());
     properties.insert("ss58Format".into(), 42.into());
 
     ChainSpec::from_genesis(
@@ -119,8 +119,8 @@ pub fn development_config() -> ChainSpec {
 pub fn local_testnet_config() -> ChainSpec {
     // Give your base currency a unit name and decimal places
     let mut properties = sc_chain_spec::Properties::new();
-    properties.insert("tokenSymbol".into(), "UNIT".into());
-    properties.insert("tokenDecimals".into(), 12.into());
+    properties.insert("tokenSymbol".into(), "AD3".into());
+    properties.insert("tokenDecimals".into(), 18.into());
     properties.insert("ss58Format".into(), 42.into());
 
     ChainSpec::from_genesis(
@@ -146,7 +146,7 @@ pub fn local_testnet_config() -> ChainSpec {
         // Telemetry
         None,
         // Protocol ID
-        Some("template-local"),
+        Some("ad3"),
         // Properties
         Some(properties),
         // Extensions
@@ -244,7 +244,6 @@ fn testnet_genesis(
                 .collect(),
         },
         assets: Default::default(),
-        uniques: Default::default(),
 
         collator_selection: parami_para_runtime::CollatorSelectionConfig {
             invulnerables: initial_authorities.iter().map(|x| x.0.clone()).collect(),

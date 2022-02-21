@@ -247,15 +247,13 @@ pub mod pallet {
 
                 registrar
             } else {
-                Did::<T>::zero()
+                DidOf::<T>::default()
             };
 
             if validated {
                 Self::insert_link(did, site, profile, registrar)?;
             } else {
-                <PendingOf<T>>::remove(site, &did);
-
-                Self::deposit_event(Event::<T>::ValidationFailed(did, site, profile));
+                Self::veto_pending(did, site, profile)?;
             }
 
             Ok(().into())
@@ -318,7 +316,11 @@ pub mod pallet {
             <LinksOf<T>>::remove(&did, site);
             <Linked<T>>::remove(site, &link);
 
-            Self::deposit_event(Event::<T>::AccountUnlinked(did, site, Did::<T>::zero()));
+            Self::deposit_event(Event::<T>::AccountUnlinked(
+                did,
+                site,
+                DidOf::<T>::default(),
+            ));
 
             Ok(())
         }

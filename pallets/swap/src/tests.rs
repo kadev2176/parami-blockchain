@@ -1,8 +1,9 @@
-use crate::{mock::*, Config, Error, Metadata};
+use crate::{mock::*, Account, Error, Liquidity, Metadata, Provider};
 use frame_support::{
     assert_noop, assert_ok,
     traits::{tokens::fungibles::Mutate as FungMutate, Currency},
 };
+use parami_traits::Swaps;
 
 #[test]
 fn should_create() {
@@ -14,28 +15,7 @@ fn should_create() {
         let maybe_meta = <Metadata<Test>>::get(&token);
         assert_ne!(maybe_meta, None);
 
-        let meta = maybe_meta.unwrap();
-
         assert_eq!(token, token);
-        assert_eq!(
-            meta.lp_token_id,
-            <Test as Config>::AssetId::max_value() - token
-        );
-
-        let token = 9;
-
-        assert_ok!(Swap::create(Origin::signed(ALICE), token));
-
-        let maybe_meta = <Metadata<Test>>::get(&token);
-        assert_ne!(maybe_meta, None);
-
-        let meta = maybe_meta.unwrap();
-
-        assert_eq!(token, token);
-        assert_eq!(
-            meta.lp_token_id,
-            <Test as Config>::AssetId::max_value() - token
-        );
     });
 }
 
@@ -70,12 +50,23 @@ fn should_add_liquidity() {
         ));
 
         let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 200);
-        assert_eq!(Assets::balance(token, &meta.pot), 20);
+        assert_eq!(meta.liquidity, 200);
+
+        let pot = Swap::get_pool_account(token);
+        assert_eq!(Balances::free_balance(&pot), 200);
+        assert_eq!(Assets::balance(token, &pot), 20);
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 200);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 20);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 200);
+
+        assert_eq!(<Provider<Test>>::get(token, &ALICE), 200);
+        assert_eq!(<Account<Test>>::get(&ALICE, 0), Some(0));
+
+        let liquidity = <Liquidity<Test>>::get(0);
+        assert_ne!(liquidity, None);
+        let liquidity = liquidity.unwrap();
+        assert_eq!(liquidity.token_id, token);
+        assert_eq!(liquidity.amount, 200);
 
         assert_noop!(
             Swap::add_liquidity(Origin::signed(ALICE), token, 100, 101, 10, 100),
@@ -92,12 +83,22 @@ fn should_add_liquidity() {
         ));
 
         let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 300);
-        assert_eq!(Assets::balance(token, &meta.pot), 30);
+        assert_eq!(meta.liquidity, 200 + 100);
+
+        assert_eq!(Balances::free_balance(&pot), 200 + 100);
+        assert_eq!(Assets::balance(token, &pot), 20 + 10);
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 200 - 100);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 20 - 10);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 300);
+
+        assert_eq!(<Provider<Test>>::get(token, &ALICE), 200 + 100);
+        assert_eq!(<Account<Test>>::get(&ALICE, 1), Some(0));
+
+        let liquidity = <Liquidity<Test>>::get(1);
+        assert_ne!(liquidity, None);
+        let liquidity = liquidity.unwrap();
+        assert_eq!(liquidity.token_id, token);
+        assert_eq!(liquidity.amount, 100);
     });
 }
 
@@ -109,8 +110,8 @@ fn should_remove_liquidity() {
         assert_ok!(Swap::create(Origin::signed(ALICE), token));
 
         assert_noop!(
-            Swap::remove_liquidity(Origin::signed(ALICE), token, 200, 200, 20, 100),
-            Error::<Test>::NoLiquidity
+            Swap::remove_liquidity(Origin::signed(ALICE), 0, 200, 20, 100),
+            Error::<Test>::NotExists
         );
 
         assert_ok!(Swap::add_liquidity(
@@ -122,41 +123,37 @@ fn should_remove_liquidity() {
             100,
         ));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 200);
-        assert_eq!(Assets::balance(token, &meta.pot), 20);
-
         assert_noop!(
-            Swap::remove_liquidity(Origin::signed(ALICE), token, 0, 0, 0, 100),
-            Error::<Test>::ZeroLiquidity
-        );
-
-        assert_noop!(
-            Swap::remove_liquidity(Origin::signed(ALICE), token, 200, 2000, 0, 100),
+            Swap::remove_liquidity(Origin::signed(ALICE), 0, 2000, 0, 100),
             Error::<Test>::TooLowCurrency
         );
 
         assert_noop!(
-            Swap::remove_liquidity(Origin::signed(ALICE), token, 200, 0, 2000, 100),
+            Swap::remove_liquidity(Origin::signed(ALICE), 0, 0, 2000, 100),
             Error::<Test>::TooLowTokens
         );
 
         assert_ok!(Swap::remove_liquidity(
             Origin::signed(ALICE),
-            token,
-            200,
+            0,
             200,
             20,
             100,
         ));
 
         let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 0);
-        assert_eq!(Assets::balance(token, &meta.pot), 0);
+        assert_eq!(meta.liquidity, 0);
+
+        let pot = Swap::get_pool_account(token);
+        assert_eq!(Balances::free_balance(&pot), 0);
+        assert_eq!(Assets::balance(token, &pot), 0);
 
         assert_eq!(Balances::free_balance(&ALICE), 10000);
         assert_eq!(Assets::balance(token, &ALICE), 44);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 0);
+
+        assert_eq!(<Provider<Test>>::get(token, &ALICE), 0);
+        assert_eq!(<Account<Test>>::get(&ALICE, 0), None);
+        assert_eq!(<Liquidity<Test>>::get(0), None);
     });
 }
 
@@ -176,9 +173,9 @@ fn should_buy_tokens() {
             100,
         ));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420);
-        assert_eq!(Assets::balance(token, &meta.pot), 42);
+        let pot = Swap::get_pool_account(token);
+        assert_eq!(Balances::free_balance(&pot), 420);
+        assert_eq!(Assets::balance(token, &pot), 42);
 
         assert_noop!(
             Swap::buy_tokens(Origin::signed(ALICE), token, 17, 200, 100),
@@ -187,13 +184,11 @@ fn should_buy_tokens() {
 
         assert_ok!(Swap::buy_tokens(Origin::signed(ALICE), token, 17, 300, 100));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420 + 290);
-        assert_eq!(Assets::balance(token, &meta.pot), 42 - 17);
+        assert_eq!(Balances::free_balance(&pot), 420 + 290);
+        assert_eq!(Assets::balance(token, &pot), 42 - 17);
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 420 - 290);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 42 + 17);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 420);
     });
 }
 
@@ -213,9 +208,9 @@ fn should_sell_tokens() {
             100,
         ));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420);
-        assert_eq!(Assets::balance(token, &meta.pot), 42);
+        let pot = Swap::get_pool_account(token);
+        assert_eq!(Balances::free_balance(&pot), 420);
+        assert_eq!(Assets::balance(token, &pot), 42);
 
         assert_ok!(Assets::mint_into(token, &ALICE, 42));
 
@@ -226,13 +221,11 @@ fn should_sell_tokens() {
 
         assert_ok!(Swap::sell_tokens(Origin::signed(ALICE), token, 20, 1, 100));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420 - 133);
-        assert_eq!(Assets::balance(token, &meta.pot), 42 + 20);
+        assert_eq!(Balances::free_balance(&pot), 420 - 133);
+        assert_eq!(Assets::balance(token, &pot), 42 + 20);
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 420 + 133);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 42 + 42 - 20);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 420);
     });
 }
 
@@ -252,9 +245,9 @@ fn should_sell_currency() {
             100,
         ));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420);
-        assert_eq!(Assets::balance(token, &meta.pot), 42);
+        let pot = Swap::get_pool_account(token);
+        assert_eq!(Balances::free_balance(&pot), 420);
+        assert_eq!(Assets::balance(token, &pot), 42);
 
         assert_noop!(
             Swap::sell_currency(Origin::signed(ALICE), token, 300, 40, 100),
@@ -269,13 +262,11 @@ fn should_sell_currency() {
             100
         ));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420 + 300);
-        assert_eq!(Assets::balance(token, &meta.pot), 42 - 14);
+        assert_eq!(Balances::free_balance(&pot), 420 + 300);
+        assert_eq!(Assets::balance(token, &pot), 42 - 14);
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 420 - 300);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 42 + 14);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 420);
     });
 }
 
@@ -295,9 +286,9 @@ fn should_buy_currency() {
             100,
         ));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420);
-        assert_eq!(Assets::balance(token, &meta.pot), 42);
+        let pot = Swap::get_pool_account(token);
+        assert_eq!(Balances::free_balance(&pot), 420);
+        assert_eq!(Assets::balance(token, &pot), 42);
 
         assert_ok!(Assets::mint_into(token, &ALICE, 42));
 
@@ -314,13 +305,11 @@ fn should_buy_currency() {
             100
         ));
 
-        let meta = <Metadata<Test>>::get(&token).unwrap();
-        assert_eq!(Balances::free_balance(&meta.pot), 420 - 135);
-        assert_eq!(Assets::balance(token, &meta.pot), 42 + 22);
+        assert_eq!(Balances::free_balance(&pot), 420 - 135);
+        assert_eq!(Assets::balance(token, &pot), 42 + 22);
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 420 + 135);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 42 + 42 - 22);
-        assert_eq!(Assets::balance(meta.lp_token_id, &ALICE), 420);
     });
 }
 
@@ -444,8 +433,7 @@ fn should_not_overflow_when_calculating_price() {
 
         assert_ok!(Swap::remove_liquidity(
             Origin::signed(ALICE),
-            token,
-            2_000_000_000_000_000_000_000_000_000u128,
+            0,
             2_000_000_000_000_000_000_000_000_000u128,
             200_000_000_000_000_000_000_000_000u128,
             100,

@@ -27,11 +27,9 @@ where
     ///
     /// # Results
     ///
-    /// tuple of (token_id, tokens, lp_token_id, liquidity)
+    /// tuple of (tokens, liquidity)
     ///
-    /// * `token_id` - The Asset ID
     /// * `tokens` - The amount of tokens to be involved in the swap
-    /// * `lp_token_id` - The Asset ID of the liquidity provider token
     /// * `liquidity` - The amount of liquidity to be minted
     #[rpc(name = "swap_drylyAddLiquidity")]
     fn dryly_add_liquidity(
@@ -40,38 +38,31 @@ where
         currency: BalanceWrapper<Balance>,
         max_tokens: BalanceWrapper<Balance>,
         at: Option<BlockHash>,
-    ) -> Result<(
-        AssetId,
-        BalanceWrapper<Balance>,
-        AssetId,
-        BalanceWrapper<Balance>,
-    )>;
+    ) -> Result<(BalanceWrapper<Balance>, BalanceWrapper<Balance>)>;
 
     /// Get dry-run result of remove_liquidity
     ///
     /// # Arguments
     ///
-    /// * `token_id` - The Asset ID
-    /// * `liquidity` - The amount of liquidity to be removed
+    /// * `lp_token_id` - The Liquidity Provider Token ID
     ///
     /// # Results
     ///
-    /// tuple of (token_id, tokens, lp_token_id, currency)
+    /// tuple of (token_id, liquidity, tokens, currency)
     ///
     /// * `token_id` - The Asset ID
+    /// * `liquidity` - The amount of liquidity removed
     /// * `tokens` - The amount of tokens to be returned
-    /// * `lp_token_id` - The Asset ID of the liquidity provider token
     /// * `currency` - The currency to be returned
     #[rpc(name = "swap_drylyRemoveLiquidity")]
     fn dryly_remove_liquidity(
         &self,
-        token_id: AssetId,
-        liquidity: BalanceWrapper<Balance>,
+        lp_token_id: AssetId,
         at: Option<BlockHash>,
     ) -> Result<(
         AssetId,
         BalanceWrapper<Balance>,
-        AssetId,
+        BalanceWrapper<Balance>,
         BalanceWrapper<Balance>,
     )>;
 
@@ -146,6 +137,22 @@ where
         currency: BalanceWrapper<Balance>,
         at: Option<BlockHash>,
     ) -> Result<BalanceWrapper<Balance>>;
+
+    /// Calculate staking reward
+    ///
+    /// # Arguments
+    ///
+    /// * `lp_token_id` - The Liquidity Provider Token ID
+    ///
+    /// # Results
+    ///
+    /// The amount of reward tokens
+    #[rpc(name = "swap_calculateReward")]
+    fn calculate_reward(
+        &self,
+        lp_token_id: AssetId,
+        at: Option<BlockHash>,
+    ) -> Result<BalanceWrapper<Balance>>;
 }
 
 pub struct SwapsRpcHandler<C, Block, AssetId, Balance> {
@@ -177,12 +184,7 @@ where
         currency: BalanceWrapper<Balance>,
         max_tokens: BalanceWrapper<Balance>,
         at: Option<<Block as BlockT>::Hash>,
-    ) -> Result<(
-        AssetId,
-        BalanceWrapper<Balance>,
-        AssetId,
-        BalanceWrapper<Balance>,
-    )> {
+    ) -> Result<(BalanceWrapper<Balance>, BalanceWrapper<Balance>)> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
@@ -203,20 +205,19 @@ where
 
     fn dryly_remove_liquidity(
         &self,
-        token_id: AssetId,
-        liquidity: BalanceWrapper<Balance>,
+        lp_token_id: AssetId,
         at: Option<<Block as BlockT>::Hash>,
     ) -> Result<(
         AssetId,
         BalanceWrapper<Balance>,
-        AssetId,
+        BalanceWrapper<Balance>,
         BalanceWrapper<Balance>,
     )> {
         let api = self.client.runtime_api();
         let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
 
         let res = api
-            .dryly_remove_liquidity(&at, token_id, liquidity)
+            .dryly_remove_liquidity(&at, lp_token_id)
             .map_err(|e| RpcError {
                 code: ErrorCode::InternalError,
                 message: "Unable to dry-run burn.".into(),
@@ -225,7 +226,7 @@ where
 
         res.map_err(|e| RpcError {
             code: ErrorCode::ServerError(1),
-            message: "Unable to dry-run mint.".into(),
+            message: "Unable to dry-run burn.".into(),
             data: Some(format!("{:?}", e).into()),
         })
     }
@@ -249,7 +250,7 @@ where
 
         res.map_err(|e| RpcError {
             code: ErrorCode::ServerError(1),
-            message: "Unable to dry-run mint.".into(),
+            message: "Unable to dry-run token_out.".into(),
             data: Some(format!("{:?}", e).into()),
         })
     }
@@ -273,7 +274,7 @@ where
 
         res.map_err(|e| RpcError {
             code: ErrorCode::ServerError(1),
-            message: "Unable to dry-run mint.".into(),
+            message: "Unable to dry-run token_in.".into(),
             data: Some(format!("{:?}", e).into()),
         })
     }
@@ -297,7 +298,7 @@ where
 
         res.map_err(|e| RpcError {
             code: ErrorCode::ServerError(1),
-            message: "Unable to dry-run mint.".into(),
+            message: "Unable to dry-run quote_in.".into(),
             data: Some(format!("{:?}", e).into()),
         })
     }
@@ -321,7 +322,30 @@ where
 
         res.map_err(|e| RpcError {
             code: ErrorCode::ServerError(1),
-            message: "Unable to dry-run mint.".into(),
+            message: "Unable to dry-run quote_out.".into(),
+            data: Some(format!("{:?}", e).into()),
+        })
+    }
+
+    fn calculate_reward(
+        &self,
+        lp_token_id: AssetId,
+        at: Option<<Block as BlockT>::Hash>,
+    ) -> Result<BalanceWrapper<Balance>> {
+        let api = self.client.runtime_api();
+        let at = BlockId::hash(at.unwrap_or_else(|| self.client.info().best_hash));
+
+        let res = api
+            .calculate_reward(&at, lp_token_id)
+            .map_err(|e| RpcError {
+                code: ErrorCode::InternalError,
+                message: "Unable to calculate reward.".into(),
+                data: Some(format!("{:?}", e).into()),
+            })?;
+
+        res.map_err(|e| RpcError {
+            code: ErrorCode::ServerError(1),
+            message: "Unable to calculate reward.".into(),
             data: Some(format!("{:?}", e).into()),
         })
     }

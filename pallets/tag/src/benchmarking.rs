@@ -22,7 +22,7 @@ benchmarks! {
 
         let max = BalanceOf::<T>::max_value();
         let min = <T as parami_did::Config>::Currency::minimum_balance();
-        let pot = min.saturating_mul(1_000_000u32.into());
+        let pot = min.saturating_mul(1_000_000_000u32.into());
 
         <T as crate::Config>::Currency::make_free_balance_be(&caller, max);
         Did::<T>::register(RawOrigin::Signed(caller.clone()).into(), None)?;

@@ -328,10 +328,6 @@ impl<T: Config> Pallet<T> {
         dest.as_mut().copy_from_slice(&src[(src.len() - len)..]);
         dest
     }
-
-    pub fn zero() -> T::DecentralizedId {
-        Default::default()
-    }
 }
 
 impl<T: Config> StaticLookup for Pallet<T> {

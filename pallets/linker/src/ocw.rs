@@ -1,7 +1,10 @@
 use crate::{did, types, Call, Config, Error, Pallet, PendingOf};
 use codec::Encode;
 use frame_system::offchain::{CreateSignedTransaction, SubmitTransaction};
-use sp_runtime::offchain::{http, Duration};
+use sp_runtime::{
+    offchain::{http, Duration},
+    DispatchError,
+};
 use sp_runtime_interface::runtime_interface;
 use sp_std::prelude::*;
 
@@ -47,7 +50,7 @@ macro_rules! submit_unsigned {
 }
 
 impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
-    pub fn ocw_begin_block(block_number: T::BlockNumber) -> Result<(), Error<T>> {
+    pub fn ocw_begin_block(block_number: T::BlockNumber) -> Result<(), DispatchError> {
         use types::AccountType::*;
 
         for site in [Telegram, Twitter] {
@@ -58,13 +61,13 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
                     // call to remove
                     Self::ocw_submit_link(did, site, Vec::<u8>::new(), false);
 
-                    return Err(Error::<T>::Deadline);
-                };
+                    Err(Error::<T>::Deadline)?
+                }
 
                 if task.created < block_number {
                     // only start once (at created + 1)
                     continue;
-                };
+                }
 
                 let profile = sp_std::str::from_utf8(&task.profile) //
                     .map_err(|_| Error::<T>::HttpFetchingError)?;
@@ -108,7 +111,7 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
     pub(crate) fn ocw_verify_telegram<U: AsRef<str>>(
         did: T::DecentralizedId,
         profile: U,
-    ) -> Result<(), Error<T>> {
+    ) -> Result<(), DispatchError> {
         let res = Self::ocw_fetch(profile)?;
 
         let res = sp_std::str::from_utf8(&res).map_err(|_| Error::<T>::HttpFetchingError)?;
@@ -131,7 +134,7 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
     pub(crate) fn ocw_verify_twitter<U: AsRef<str>>(
         did: T::DecentralizedId,
         profile: U,
-    ) -> Result<(), Error<T>> {
+    ) -> Result<(), DispatchError> {
         let res = Self::ocw_fetch(profile)?;
 
         let res = sp_std::str::from_utf8(&res).map_err(|_| Error::<T>::HttpFetchingError)?;
@@ -154,18 +157,18 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
     pub(crate) fn ocw_check_avatar<U: AsRef<str>>(
         avatar: U,
         did: T::DecentralizedId,
-    ) -> Result<(), Error<T>> {
+    ) -> Result<(), DispatchError> {
         let res = Self::ocw_fetch(avatar)?;
 
         let did = did.encode();
 
         match did::parse(res) {
             Some(res) if res == did => Ok(()),
-            _ => Err(Error::<T>::InvalidSignature),
+            _ => Err(Error::<T>::InvalidSignature)?,
         }
     }
 
-    pub(crate) fn ocw_fetch<U: AsRef<str>>(url: U) -> Result<Vec<u8>, Error<T>> {
+    pub(crate) fn ocw_fetch<U: AsRef<str>>(url: U) -> Result<Vec<u8>, DispatchError> {
         let url = url.as_ref();
 
         let deadline = sp_io::offchain::timestamp().add(Duration::from_millis(3_000));
@@ -185,7 +188,7 @@ impl<T: Config + CreateSignedTransaction<Call<T>>> Pallet<T> {
 
         if response.code != 200 {
             tracing::warn!("Unexpected status code: {}", response.code);
-            return Err(Error::<T>::HttpFetchingError);
+            Err(Error::<T>::HttpFetchingError)?
         }
 
         Ok(response.body().collect::<Vec<u8>>())

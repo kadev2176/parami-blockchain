@@ -14,7 +14,7 @@ pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{
     crypto::KeyTypeId,
     u32_trait::{_1, _2, _3, _4, _5},
-    OpaqueMetadata,
+    OpaqueMetadata, U512,
 };
 use sp_io::hashing::blake2_128;
 #[cfg(any(feature = "std", test))]
@@ -68,6 +68,7 @@ pub use parami_primitives::{
     deposit, names, AccountId, Address, AssetId, Balance, BalanceWrapper, BlockNumber,
     DecentralizedId, Hash, Header, Index, Moment, Signature,
 };
+use parami_swap::LinearFarmingCurve;
 use parami_traits::Swaps;
 
 /// We allow for 0.5 of a second of compute with a 12 second average block time.
@@ -173,7 +174,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 310,
+    spec_version: 320,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -1089,6 +1090,7 @@ impl pallet_vesting::Config for Runtime {
 
 parameter_types! {
     pub const AdPalletId: PalletId = PalletId(*names::AD);
+    pub const AdvertiserMinimumFee: Balance = 50 * MILLICENTS;
     pub const PayoutBase: Balance = 1 * CENTS;
     pub const SlotLifetime: BlockNumber = 3 * DAYS;
 }
@@ -1096,6 +1098,7 @@ parameter_types! {
 impl parami_ad::Config for Runtime {
     type Event = Event;
     type Assets = Assets;
+    type MinimumFeeBalance = AdvertiserMinimumFee;
     type PalletId = AdPalletId;
     type PayoutBase = PayoutBase;
     type SlotLifetime = SlotLifetime;
@@ -1207,49 +1210,9 @@ parameter_types! {
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
 }
 
-pub struct FarmingCurve;
-impl parami_nft::FarmingCurve<Runtime> for FarmingCurve {
-    fn calculate_farming_reward(
-        minted_height: BlockNumber,
-        started_supply: Balance,
-        maximum_tokens: Balance,
-        current_height: BlockNumber,
-        _current_supply: Balance,
-    ) -> Balance {
-        use core::f64::consts::E;
-        use sp_core::U512;
-
-        // DAYS is the block number of a day
-        const PERIOD: f64 = 3f64 * 365.25f64 * DAYS as f64;
-        const E1: f64 = E - 1f64;
-
-        // Divide[1,x+1]                : y = 1 / (x + 1)
-        // Integrate[y=Divide[1,x+1],x] : y' = log(x + 1)
-        // Log[n+1] = 1                 : y' = 1
-        // n = e - 1
-        //
-        // r = 1 / (x / m * n + 1) / m * n
-        //   = 1 / (x / m * (e - 1) + 1) / m * (e - 1)
-        //   = (e - 1) / (m + (e - 1) x)
-        let x = (current_height - minted_height) as f64;
-
-        let r = E1 / (PERIOD + E1 * x) * 100_000_000f64;
-
-        let r = r as Balance;
-        let r: U512 = r.try_into().unwrap_or(U512::zero());
-
-        let left = maximum_tokens - started_supply;
-        let left: U512 = left.try_into().unwrap_or(U512::one());
-
-        let amount = r * left / U512::exp10(8);
-        amount.try_into().unwrap_or_default()
-    }
-}
-
 impl parami_nft::Config for Runtime {
     type Event = Event;
     type Assets = Assets;
-    type FarmingCurve = FarmingCurve;
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
@@ -1260,6 +1223,7 @@ impl parami_nft::Config for Runtime {
 }
 
 parameter_types! {
+    pub const InitialFarmingReward: Balance = 100 * DOLLARS;
     pub const SwapPalletId: PalletId = PalletId(*names::SWAP);
 }
 
@@ -1268,6 +1232,7 @@ impl parami_swap::Config for Runtime {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
+    type FarmingCurve = LinearFarmingCurve<Runtime, InitialFarmingReward, InitialMintingValueBase>;
     type PalletId = SwapPalletId;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
 }
@@ -1302,7 +1267,7 @@ construct_runtime!(
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>} = 10,
         TransactionPayment: pallet_transaction_payment::{Pallet, Storage} = 11,
         Assets: pallet_assets::{Pallet, Call, Storage, Config<T>, Event<T>} = 12,
-        Uniques: pallet_uniques::{Pallet, Storage, Config<T>, Event<T>} = 13,
+        Uniques: pallet_uniques::{Pallet, Storage, Event<T>} = 13,
 
         // Collator support. The order of these 4 are important and shall not change.
         Authorship: pallet_authorship::{Pallet, Call, Storage} = 20,
@@ -1551,30 +1516,22 @@ impl_runtime_apis! {
             currency: BalanceWrapper<Balance>,
             max_tokens: BalanceWrapper<Balance>,
         ) -> Result<(
-            AssetId,
             BalanceWrapper<Balance>,
-            AssetId,
             BalanceWrapper<Balance>,
         ), DispatchError> {
             Swap::mint_dry(token_id, currency.into(), max_tokens.into())
-                .map(|(token_id, tokens, lp_token_id, liquidity)| {
-                    (token_id, tokens.into(), lp_token_id, liquidity.into())
-                })
+                .map(|(tokens, liquidity)| (tokens.into(), liquidity.into()))
         }
 
-        fn dryly_remove_liquidity(
-            token_id: AssetId,
-            liquidity: BalanceWrapper<Balance>,
-        ) -> Result<(
+        fn dryly_remove_liquidity(lp_token_id: AssetId) -> Result<(
             AssetId,
             BalanceWrapper<Balance>,
-            AssetId,
+            BalanceWrapper<Balance>,
             BalanceWrapper<Balance>,
         ), DispatchError> {
-            Swap::burn_dry(token_id, liquidity.into())
-                .map(|(token_id, tokens, lp_token_id, currency)| {
-                    (token_id, tokens.into(), lp_token_id, currency.into())
-                })
+            Swap::burn_dry(lp_token_id).map(|(token_id, liquidity, tokens, currency)| {
+                (token_id, liquidity.into(), tokens.into(), currency.into())
+            })
         }
 
         fn dryly_buy_tokens(
@@ -1607,6 +1564,13 @@ impl_runtime_apis! {
         ) -> Result<BalanceWrapper<Balance>, DispatchError> {
             Swap::quote_out_dry(token_id, currency.into())
                 .map(|tokens| tokens.into())
+        }
+
+        fn calculate_reward(
+            lp_token_id: AssetId,
+        ) -> Result<BalanceWrapper<Balance>, DispatchError> {
+            Swap::calculate_reward(lp_token_id)
+                .map(|(_, reward)| reward.into())
         }
     }
 
@@ -1672,9 +1636,7 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, frame_benchmarking, BaselineBench::<Runtime>);
             add_benchmark!(params, batches, frame_system, SystemBench::<Runtime>);
             add_benchmark!(params, batches, pallet_balances, Balances);
-            add_benchmark!(params, batches, pallet_session, SessionBench::<Runtime>);
             add_benchmark!(params, batches, pallet_timestamp, Timestamp);
-            add_benchmark!(params, batches, pallet_session, Session);
 
             add_benchmark!(params, batches, parami_ad, Ad);
             add_benchmark!(params, batches, parami_advertiser, Advertiser);

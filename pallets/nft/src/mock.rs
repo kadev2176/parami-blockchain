@@ -158,6 +158,7 @@ impl parami_swap::Config for Test {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
+    type FarmingCurve = ();
     type PalletId = SwapPalletId;
     type WeightInfo = ();
 }
@@ -168,23 +169,9 @@ parameter_types! {
     pub const InitialMintingValueBase: Balance = 1_000_000;
 }
 
-pub struct FarmingCurve;
-impl parami_nft::FarmingCurve<Test> for FarmingCurve {
-    fn calculate_farming_reward(
-        _minted_height: BlockNumber,
-        _started_supply: Balance,
-        _maximum_tokens: Balance,
-        _current_height: BlockNumber,
-        _current_supply: Balance,
-    ) -> Balance {
-        100
-    }
-}
-
 impl parami_nft::Config for Test {
     type Event = Event;
     type Assets = Assets;
-    type FarmingCurve = FarmingCurve;
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;

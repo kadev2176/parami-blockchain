@@ -1,4 +1,4 @@
-use crate::{mock::*, ControllerAccountOf, Error, StableAccountOf};
+use crate::{mock::*, Controller, ControllerAccountOf, Error, StableAccountOf};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -16,10 +16,14 @@ fn should_create() {
 
         let maybe_stash = <StableAccountOf<Test>>::get(&BOB);
         assert_ne!(maybe_stash, None);
-
         let stash = maybe_stash.unwrap();
         assert_eq!(stash.controller_account, BOB);
         assert_eq!(stash.magic_account, MAGIC_BOB);
+
+        let maybe_controller = <Controller<Test>>::get(&stash.stash_account);
+        assert_ne!(maybe_controller, None);
+        let controller = maybe_controller.unwrap();
+        assert_eq!(controller, BOB);
 
         assert_eq!(Balances::free_balance(&stash.stash_account), 10);
         assert_eq!(Balances::free_balance(&MAGIC_BOB), 50);
@@ -57,10 +61,14 @@ fn should_transfer() {
 
         let maybe_stash = <StableAccountOf<Test>>::get(&BOB);
         assert_ne!(maybe_stash, None);
-
         let stash = maybe_stash.unwrap();
         assert_eq!(stash.controller_account, BOB);
         assert_eq!(stash.magic_account, MAGIC_ALICE);
+
+        let maybe_controller = <Controller<Test>>::get(&stash.stash_account);
+        assert_ne!(maybe_controller, None);
+        let controller = maybe_controller.unwrap();
+        assert_eq!(controller, BOB);
 
         assert_eq!(Balances::free_balance(&stash.stash_account), 10);
         assert_eq!(Balances::free_balance(&MAGIC_ALICE), 50);

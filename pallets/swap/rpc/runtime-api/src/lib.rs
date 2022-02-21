@@ -25,45 +25,36 @@ sp_api::decl_runtime_apis! {
         ///
         /// # Results
         ///
-        /// tuple of (token_id, tokens, lp_token_id, liquidity)
+        /// tuple of (tokens, liquidity)
         ///
-        /// * `token_id` - The Asset ID
         /// * `tokens` - The amount of tokens to be involved in the swap
-        /// * `lp_token_id` - The Asset ID of the liquidity provider token
         /// * `liquidity` - The amount of liquidity to be minted
         fn dryly_add_liquidity(
             token_id: AssetId,
             currency: BalanceWrapper<Balance>,
             max_tokens: BalanceWrapper<Balance>,
-        ) -> ApiResult<(
-            AssetId,
-            BalanceWrapper<Balance>,
-            AssetId,
-            BalanceWrapper<Balance>,
-        )>;
+        ) -> ApiResult<(BalanceWrapper<Balance>, BalanceWrapper<Balance>)>;
 
         /// Get dry-run result of remove_liquidity
         ///
         /// # Arguments
         ///
-        /// * `token_id` - The Asset ID
-        /// * `liquidity` - The amount of liquidity to be removed
+        /// * `lp_token_id` - The Liquidity Provider Token ID
         ///
         /// # Results
         ///
-        /// tuple of (token_id, tokens, lp_token_id, currency)
+        /// tuple of (token_id, liquidity, tokens, currency)
         ///
         /// * `token_id` - The Asset ID
+        /// * `liquidity` - The amount of liquidity removed
         /// * `tokens` - The amount of tokens to be returned
-        /// * `lp_token_id` - The Asset ID of the liquidity provider token
         /// * `currency` - The currency to be returned
         fn dryly_remove_liquidity(
-            token_id: AssetId,
-            liquidity: BalanceWrapper<Balance>,
+            lp_token_id: AssetId,
         ) -> ApiResult<(
             AssetId,
             BalanceWrapper<Balance>,
-            AssetId,
+            BalanceWrapper<Balance>,
             BalanceWrapper<Balance>,
         )>;
 
@@ -125,6 +116,19 @@ sp_api::decl_runtime_apis! {
         fn dryly_buy_currency(
             token_id: AssetId,
             currency: BalanceWrapper<Balance>,
+        ) -> ApiResult<BalanceWrapper<Balance>>;
+
+        /// Calculate staking reward
+        ///
+        /// # Arguments
+        ///
+        /// * `lp_token_id` - The Liquidity Provider Token ID
+        ///
+        /// # Results
+        ///
+        /// The amount of reward tokens
+        fn calculate_reward(
+            lp_token_id: AssetId,
         ) -> ApiResult<BalanceWrapper<Balance>>;
     }
 }
