@@ -378,8 +378,6 @@ fn should_pay() {
     new_test_ext().execute_with(|| {
         // 1. prepare
 
-        assert_ok!(Tag::create(Origin::signed(ALICE), b"Test".to_vec()));
-
         assert_ok!(Nft::back(Origin::signed(BOB), DID_ALICE, 2_000_100u128));
 
         assert_ok!(Nft::mint(
@@ -397,7 +395,7 @@ fn should_pay() {
         assert_ok!(Ad::create(
             Origin::signed(BOB),
             500,
-            vec![b"Test".to_vec()],
+            vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
             [0u8; 64].into(),
             1,
             1
@@ -417,7 +415,7 @@ fn should_pay() {
             ad,
             DID_ALICE,
             DID_CHARLIE,
-            vec![(b"Test".to_vec(), 5)],
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
             None
         ));
 
@@ -431,7 +429,10 @@ fn should_pay() {
 
         assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 5);
 
-        assert_eq!(Tag::get_score(&DID_CHARLIE, b"Test".to_vec()), 5);
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            5 + 4
+        );
 
         assert_noop!(
             Ad::pay(
@@ -439,7 +440,7 @@ fn should_pay() {
                 ad,
                 DID_ALICE,
                 DID_CHARLIE,
-                vec![(b"Test".to_vec(), 5)],
+                vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
                 None
             ),
             Error::<Test>::Paid
@@ -451,8 +452,6 @@ fn should_pay() {
 fn should_auto_swap_when_swapped_token_used_up() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-
-        assert_ok!(Tag::create(Origin::signed(ALICE), b"Test".to_vec()));
 
         assert_ok!(Nft::back(Origin::signed(BOB), DID_ALICE, 2_000_100u128));
 
@@ -469,7 +468,7 @@ fn should_auto_swap_when_swapped_token_used_up() {
         assert_ok!(Ad::create(
             Origin::signed(BOB),
             500,
-            vec![b"Test".to_vec()],
+            vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
             [0u8; 64].into(),
             1,
             1
@@ -484,12 +483,14 @@ fn should_auto_swap_when_swapped_token_used_up() {
         // 2. pay to 9 users, 5 tokens each
         let viewer_dids = make_dids(9u8);
         for viewer_did in &viewer_dids {
+            Tag::influence(viewer_did, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5).unwrap();
+
             assert_ok!(Ad::pay(
                 Origin::signed(BOB),
                 ad,
                 DID_ALICE,
                 *viewer_did,
-                vec![(b"Test".to_vec(), 5)],
+                vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
                 None
             ));
         }
