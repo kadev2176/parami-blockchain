@@ -1191,12 +1191,14 @@ impl parami_linker::Config for Runtime {
 }
 
 parameter_types! {
+    pub const AutomaticDeposit: Balance = 2 * CENTS;
     pub const MagicPalletId: PalletId = PalletId(*names::MAGIC);
 }
 
 impl parami_magic::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
+    type AutomaticDeposit = AutomaticDeposit;
     type Call = Call;
     type PalletId = MagicPalletId;
     type WeightInfo = parami_magic::weights::SubstrateWeight<Runtime>;

@@ -47,6 +47,9 @@ pub mod pallet {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
+        /// The balance transfer to magic account automatically
+        type AutomaticDeposit: Get<BalanceOf<Self>>;
+
         /// The currency trait
         type Currency: Currency<AccountOf<Self>>;
 
@@ -155,8 +158,8 @@ pub mod pallet {
                 Error::<T>::MagicAccountUsed
             );
 
+            let deposit = T::AutomaticDeposit::get();
             let minimum = T::Currency::minimum_balance();
-            let deposit = minimum.saturating_mul(50u32.into());
 
             ensure!(
                 T::Currency::free_balance(&controller_account) - minimum
@@ -232,8 +235,7 @@ pub mod pallet {
             let free = T::Currency::free_balance(&old_controller);
             T::Currency::transfer(&old_controller, &new_controller, free, AllowDeath)?;
 
-            let minimum = T::Currency::minimum_balance();
-            let deposit = minimum.saturating_mul(50u32.into());
+            let deposit = T::AutomaticDeposit::get();
             let _ = T::Currency::transfer(&sa.stash_account, &sa.magic_account, deposit, KeepAlive);
 
             sa.controller_account = new_controller.clone();

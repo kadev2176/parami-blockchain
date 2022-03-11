@@ -152,11 +152,13 @@ impl parami_did::Config for Test {
 }
 
 parameter_types! {
+    pub const AutomaticDeposit: Balance = 50;
     pub const MagicPalletId: PalletId = PalletId(*b"prm/stab");
 }
 
 impl parami_magic::Config for Test {
     type Event = Event;
+    type AutomaticDeposit = AutomaticDeposit;
     type Currency = Balances;
     type Call = Call;
     type PalletId = MagicPalletId;
