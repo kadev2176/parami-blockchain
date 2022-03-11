@@ -20,7 +20,7 @@ benchmarks! {
         T::Currency::make_free_balance_be(&magic, min);
     }: _(RawOrigin::Signed(caller.clone()), magic, min)
     verify {
-        assert_ne!(<StableAccountOf<T>>::get(&caller), None);
+        assert_ne!(<Metadata<T>>::get(&caller), None);
     }
 
     change_controller {
@@ -39,8 +39,8 @@ benchmarks! {
         Magic::<T>::create_stable_account(RawOrigin::Signed(old.clone()).into(), magic.clone(), min)?;
     }: _(RawOrigin::Signed(magic), alt.clone())
     verify {
-        assert_eq!(<StableAccountOf<T>>::get(&old), None);
-        assert_ne!(<StableAccountOf<T>>::get(&alt), None);
+        assert_eq!(<Metadata<T>>::get(&old), None);
+        assert_ne!(<Metadata<T>>::get(&alt), None);
     }
 
     codo {

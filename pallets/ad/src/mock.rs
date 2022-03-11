@@ -1,5 +1,5 @@
 use crate as parami_ad;
-use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
+use frame_support::{parameter_types, traits::Currency, traits::GenesisBuild, PalletId};
 use frame_system::{self as system, EnsureRoot};
 use sp_core::{sr25519, H160, H256};
 use sp_runtime::{
@@ -31,7 +31,6 @@ frame_support::construct_runtime!(
 
         Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
         Did: parami_did::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Magic: parami_magic::{Pallet, Call, Storage, Event<T>},
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>},
@@ -152,20 +151,6 @@ impl parami_did::Config for Test {
 }
 
 parameter_types! {
-    pub const AutomaticDeposit: Balance = 50;
-    pub const MagicPalletId: PalletId = PalletId(*b"prm/stab");
-}
-
-impl parami_magic::Config for Test {
-    type Event = Event;
-    type AutomaticDeposit = AutomaticDeposit;
-    type Currency = Balances;
-    type Call = Call;
-    type PalletId = MagicPalletId;
-    type WeightInfo = ();
-}
-
-parameter_types! {
     pub const InitialMintingDeposit: Balance = 1_000_000;
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
     pub const InitialMintingValueBase: Balance = 1_000_000;
@@ -219,8 +204,24 @@ parameter_types! {
     pub const SlotLifetime: BlockNumber = 43200;
 }
 
+pub struct MockAccounts;
+impl parami_traits::Accounts for MockAccounts {
+    type AccountId = <Test as system::Config>::AccountId;
+    type Balance = Balance;
+
+    fn fee_account(account: &Self::AccountId) -> Self::AccountId {
+        account.clone()
+    }
+
+    fn fee_account_balance(account: &Self::AccountId) -> Self::Balance {
+        <Test as parami_did::Config>::Currency::free_balance(&Self::fee_account(account))
+            - <Test as parami_did::Config>::Currency::minimum_balance()
+    }
+}
+
 impl parami_ad::Config for Test {
     type Event = Event;
+    type Accounts = MockAccounts;
     type Assets = Assets;
     type MinimumFeeBalance = AdvertiserMinimumFee;
     type PalletId = AdPalletId;

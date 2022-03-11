@@ -1,10 +1,10 @@
 use crate as parami_magic;
 use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
 use frame_system as system;
-use sp_core::{sr25519, H256};
+use sp_core::{sr25519, H160, H256};
 use sp_runtime::{
     testing::Header,
-    traits::{BlakeTwo256, IdentityLookup},
+    traits::{BlakeTwo256, Keccak256},
 };
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
@@ -27,6 +27,7 @@ frame_support::construct_runtime!(
         System: system::{Pallet, Call, Config, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 
+        Did: parami_did::{Pallet, Call, Storage, Config<T>, Event<T>},
         Magic: parami_magic::{Pallet, Call, Storage, Event<T>},
     }
 );
@@ -50,7 +51,7 @@ impl system::Config for Test {
     type Hash = H256;
     type Hashing = BlakeTwo256;
     type AccountId = sr25519::Public;
-    type Lookup = IdentityLookup<Self::AccountId>;
+    type Lookup = Did;
     type Header = Header;
     type Event = Event;
     type BlockHashCount = BlockHashCount;
@@ -83,6 +84,19 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
+    pub const DidPalletId: PalletId = PalletId(*b"prm/did ");
+}
+
+impl parami_did::Config for Test {
+    type Event = Event;
+    type Currency = Balances;
+    type DecentralizedId = H160;
+    type Hashing = Keccak256;
+    type PalletId = DidPalletId;
+    type WeightInfo = ();
+}
+
+parameter_types! {
     pub const AutomaticDeposit: Balance = 50;
     pub const MagicPalletId: PalletId = PalletId(*b"prm/stab");
 }
@@ -90,7 +104,6 @@ parameter_types! {
 impl parami_magic::Config for Test {
     type Event = Event;
     type AutomaticDeposit = AutomaticDeposit;
-    type Currency = Balances;
     type Call = Call;
     type PalletId = MagicPalletId;
     type WeightInfo = ();

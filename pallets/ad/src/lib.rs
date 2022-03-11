@@ -28,9 +28,8 @@ use frame_support::{
     PalletId,
 };
 use parami_did::Pallet as Did;
-use parami_magic::Pallet as Magic;
 use parami_nft::{NftIdOf, NftMetaFor, Pallet as Nft};
-use parami_traits::{Swaps, Tags};
+use parami_traits::{Accounts, Swaps, Tags};
 use sp_runtime::{
     traits::{AccountIdConversion, Hash, One, Saturating, Zero},
     DispatchError,
@@ -58,11 +57,13 @@ pub mod pallet {
     pub trait Config:
         frame_system::Config //
         + parami_did::Config
-        + parami_magic::Config
         + parami_nft::Config
     {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
+
+        /// The Accounts trait
+        type Accounts: Accounts<AccountId = AccountOf<Self>, Balance = BalanceOf<Self>>;
 
         /// The assets trait to pay rewards
         type Assets: Transfer<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>;
@@ -554,15 +555,7 @@ pub mod pallet {
 
             // 5. drawback if advertiser does not have enough fees
 
-            let controller = match Magic::<T>::controller(&who) {
-                Some(c) => c,
-                None => who,
-            };
-
-            let balance = <T as parami_did::Config>::Currency::free_balance(&controller);
-            if balance - <T as parami_did::Config>::Currency::minimum_balance()
-                < T::MinimumFeeBalance::get()
-            {
+            if T::Accounts::fee_account_balance(&who) < T::MinimumFeeBalance::get() {
                 let _ = Self::drawback(preferred_nft_id, &slot);
             }
 

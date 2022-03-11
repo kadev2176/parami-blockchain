@@ -26,7 +26,6 @@ version = '1.0'
 [dependencies]
 parami-advertiser = { path = '../advertiser', default-features = false, optional = true }
 parami-did = { path = '../did', default-features = false }
-parami-magic = { path = '../magic', default-features = false }
 parami-nft = { path = '../nft', default-features = false }
 parami-swap = { path = '../swap', default-features = false, optional = true }
 parami-tag = { path = '../tag', default-features = false, optional = true }
@@ -62,7 +61,6 @@ runtime-benchmarks = [
 std = [
     'parami-advertiser/std',
     'parami-did/std',
-    'parami-magic/std',
     'parami-nft/std',
     'parami-swap/std',
     'parami-tag/std',

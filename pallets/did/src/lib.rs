@@ -14,12 +14,13 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod migrations;
 mod types;
 
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
-    traits::{Currency, EnsureOrigin, NamedReservableCurrency},
+    traits::{Currency, EnsureOrigin, NamedReservableCurrency, StorageVersion},
     PalletId,
 };
 use parami_did_utils::derive_storage_key;
@@ -29,7 +30,7 @@ use sp_runtime::{
         Hash, LookupError, MaybeDisplay, MaybeMallocSizeOf, MaybeSerializeDeserialize, Member,
         SimpleBitOps, StaticLookup,
     },
-    MultiAddress,
+    DispatchError, MultiAddress,
 };
 use sp_std::prelude::*;
 
@@ -38,6 +39,8 @@ use weights::WeightInfo;
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<AccountOf<T>, HeightOf<T>>;
+
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -85,6 +88,7 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
@@ -120,7 +124,11 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> Weight {
+            migrations::migrate::<T>()
+        }
+    }
 
     #[pallet::error]
     pub enum Error<T> {
@@ -140,52 +148,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            ensure!(!<DidOf<T>>::contains_key(&who), Error::<T>::Exists);
-
-            if let Some(r) = referrer.as_ref() {
-                ensure!(
-                    <Metadata<T>>::contains_key(&r),
-                    Error::<T>::ReferrerNotExists
-                );
-            }
-
-            // 1. generate DID
-
-            let created = <frame_system::Pallet<T>>::block_number();
-
-            // TODO: use a HMAC-based algorithm.
-            let mut raw = <AccountOf<T>>::encode(&who);
-            let mut ord = T::BlockNumber::encode(&created);
-            raw.append(&mut ord);
-
-            let did = <T as Config>::Hashing::hash(&raw);
-            let did = Self::truncate(&did);
-
-            // 2. deposit
-
-            let id = T::PalletId::get();
-
-            let deposit = T::Currency::minimum_balance();
-
-            T::Currency::reserve_named(&id.0, &who, deposit)?;
-
-            // 3. store metadata
-
-            <Metadata<T>>::insert(
-                &did,
-                types::Metadata {
-                    account: who.clone(),
-                    revoked: false,
-                    created,
-                    ..Default::default()
-                },
-            );
-            <DidOf<T>>::insert(&who, did);
-            if let Some(referrer) = referrer {
-                <ReferrerOf<T>>::insert(&did, referrer);
-            }
-
-            Self::deposit_event(Event::<T>::Assigned(did, who, referrer));
+            Self::create(who, referrer)?;
 
             Ok(())
         }
@@ -288,6 +251,63 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    pub fn create(
+        account: AccountOf<T>,
+        referrer: Option<T::DecentralizedId>,
+    ) -> Result<T::DecentralizedId, DispatchError> {
+        use codec::Encode;
+        use frame_support::traits::Get;
+
+        ensure!(!<DidOf<T>>::contains_key(&account), Error::<T>::Exists);
+
+        if let Some(r) = referrer.as_ref() {
+            ensure!(
+                <Metadata<T>>::contains_key(r),
+                Error::<T>::ReferrerNotExists
+            );
+        }
+
+        // 1. generate DID
+
+        let created = <frame_system::Pallet<T>>::block_number();
+
+        // TODO: use a HMAC-based algorithm.
+        let mut raw = <AccountOf<T>>::encode(&account);
+        let mut ord = T::BlockNumber::encode(&created);
+        raw.append(&mut ord);
+
+        let did = <T as Config>::Hashing::hash(&raw);
+        let did: T::DecentralizedId = Self::truncate(&did);
+
+        // 2. deposit
+
+        let id = T::PalletId::get();
+
+        let deposit = T::Currency::minimum_balance();
+
+        T::Currency::reserve_named(&id.0, &account, deposit)?;
+
+        // 3. store metadata
+
+        <Metadata<T>>::insert(
+            &did,
+            types::Metadata {
+                account: account.clone(),
+                revoked: false,
+                created,
+                ..Default::default()
+            },
+        );
+        <DidOf<T>>::insert(&account, did);
+        if let Some(referrer) = referrer {
+            <ReferrerOf<T>>::insert(&did, referrer);
+        }
+
+        Self::deposit_event(Event::<T>::Assigned(did.clone(), account, referrer));
+
+        Ok(did)
+    }
+
     pub fn lookup_address(a: MultiAddress<AccountOf<T>, ()>) -> Option<AccountOf<T>> {
         match a {
             MultiAddress::Id(i) => Some(i),
