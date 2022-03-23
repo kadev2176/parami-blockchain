@@ -1,5 +1,5 @@
 use crate as parami_ad;
-use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
+use frame_support::{parameter_types, traits::Currency, traits::GenesisBuild, PalletId};
 use frame_system::{self as system, EnsureRoot};
 use sp_core::{sr25519, H160, H256};
 use sp_runtime::{
@@ -31,7 +31,6 @@ frame_support::construct_runtime!(
 
         Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
         Did: parami_did::{Pallet, Call, Storage, Config<T>, Event<T>},
-        Magic: parami_magic::{Pallet, Call, Storage, Event<T>},
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>},
@@ -144,23 +143,10 @@ parameter_types! {
 
 impl parami_did::Config for Test {
     type Event = Event;
-    type AssetId = AssetId;
     type Currency = Balances;
     type DecentralizedId = H160;
     type Hashing = Keccak256;
     type PalletId = DidPalletId;
-    type WeightInfo = ();
-}
-
-parameter_types! {
-    pub const MagicPalletId: PalletId = PalletId(*b"prm/stab");
-}
-
-impl parami_magic::Config for Test {
-    type Event = Event;
-    type Currency = Balances;
-    type Call = Call;
-    type PalletId = MagicPalletId;
     type WeightInfo = ();
 }
 
@@ -172,6 +158,7 @@ parameter_types! {
 
 impl parami_nft::Config for Test {
     type Event = Event;
+    type AssetId = AssetId;
     type Assets = Assets;
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
@@ -217,8 +204,24 @@ parameter_types! {
     pub const SlotLifetime: BlockNumber = 43200;
 }
 
+pub struct MockAccounts;
+impl parami_traits::Accounts for MockAccounts {
+    type AccountId = <Test as system::Config>::AccountId;
+    type Balance = Balance;
+
+    fn fee_account(account: &Self::AccountId) -> Self::AccountId {
+        account.clone()
+    }
+
+    fn fee_account_balance(account: &Self::AccountId) -> Self::Balance {
+        <Test as parami_did::Config>::Currency::free_balance(&Self::fee_account(account))
+            - <Test as parami_did::Config>::Currency::minimum_balance()
+    }
+}
+
 impl parami_ad::Config for Test {
     type Event = Event;
+    type Accounts = MockAccounts;
     type Assets = Assets;
     type MinimumFeeBalance = AdvertiserMinimumFee;
     type PalletId = AdPalletId;
@@ -242,11 +245,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .unwrap();
 
     parami_did::GenesisConfig::<Test> {
-        ids: vec![
-            (ALICE, DID_ALICE, None),
-            (BOB, DID_BOB, None),
-            (CHARLIE, DID_CHARLIE, None),
-        ],
+        ids: vec![(ALICE, DID_ALICE), (BOB, DID_BOB), (CHARLIE, DID_CHARLIE)],
     }
     .assimilate_storage(&mut t)
     .unwrap();
@@ -256,6 +255,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
             vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
             vec![5u8, 4u8, 3u8, 2u8, 1u8, 0u8],
         ],
+        personas: vec![(DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
         ..Default::default()
     }
     .assimilate_storage(&mut t)

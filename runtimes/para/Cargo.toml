@@ -92,7 +92,6 @@ pallet-membership = { git = 'https://github.com/paritytech/substrate', branch = 
 pallet-mmr = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-multisig = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-offences = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
-pallet-offences-benchmarking = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false, optional = true }
 pallet-randomness-collective-flip = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-recovery = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 pallet-scheduler = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
@@ -262,7 +261,6 @@ runtime-benchmarks = [
     'pallet-membership/runtime-benchmarks',
     'pallet-mmr/runtime-benchmarks',
     'pallet-multisig/runtime-benchmarks',
-    'pallet-offences-benchmarking',
     'pallet-offences/runtime-benchmarks',
     'pallet-scheduler/runtime-benchmarks',
     'pallet-session-benchmarking',

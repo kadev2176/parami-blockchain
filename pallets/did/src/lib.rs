@@ -14,22 +14,23 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod migrations;
 mod types;
 
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
-    traits::{Currency, EnsureOrigin, NamedReservableCurrency},
+    traits::{Currency, EnsureOrigin, NamedReservableCurrency, StorageVersion},
     PalletId,
 };
 use parami_did_utils::derive_storage_key;
 use scale_info::TypeInfo;
 use sp_runtime::{
     traits::{
-        AccountIdConversion, AtLeast32BitUnsigned, Bounded, Hash, LookupError, MaybeDisplay,
-        MaybeMallocSizeOf, MaybeSerializeDeserialize, Member, SimpleBitOps, StaticLookup,
+        Hash, LookupError, MaybeDisplay, MaybeMallocSizeOf, MaybeSerializeDeserialize, Member,
+        SimpleBitOps, StaticLookup,
     },
-    MultiAddress,
+    DispatchError, MultiAddress,
 };
 use sp_std::prelude::*;
 
@@ -37,7 +38,9 @@ use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
-type MetaOf<T> = types::Metadata<AccountOf<T>, HeightOf<T>, <T as Config>::AssetId>;
+type MetaOf<T> = types::Metadata<AccountOf<T>, HeightOf<T>>;
+
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -49,15 +52,6 @@ pub mod pallet {
     pub trait Config: frame_system::Config {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
-        /// Non-Fungible Token and fragments (fungible token) ID type used to store NFT Class ID in metadata
-        type AssetId: Parameter
-            + Member
-            + MaybeSerializeDeserialize
-            + AtLeast32BitUnsigned
-            + Default
-            + Bounded
-            + Copy;
 
         /// The reservable currency trait
         type Currency: NamedReservableCurrency<AccountOf<Self>, ReserveIdentifier = [u8; 8]>;
@@ -94,6 +88,7 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
@@ -110,8 +105,12 @@ pub mod pallet {
     /// The inviter's DID of a DID.
     #[pallet::storage]
     #[pallet::getter(fn referrer_of)]
-    pub(super) type ReferrerOf<T: Config> =
-        StorageMap<_, Identity, T::DecentralizedId, T::DecentralizedId>;
+    pub(super) type ReferrerOf<T: Config> = StorageMap<
+        _,
+        Identity,
+        T::DecentralizedId,
+        T::DecentralizedId, // inviter's DID
+    >;
 
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
@@ -125,7 +124,11 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> Weight {
+            migrations::migrate::<T>()
+        }
+    }
 
     #[pallet::error]
     pub enum Error<T> {
@@ -145,55 +148,7 @@ pub mod pallet {
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            ensure!(!<DidOf<T>>::contains_key(&who), Error::<T>::Exists);
-
-            if let Some(r) = referrer.as_ref() {
-                ensure!(
-                    <Metadata<T>>::contains_key(&r),
-                    Error::<T>::ReferrerNotExists
-                );
-            }
-
-            // 1. generate DID
-
-            let created = <frame_system::Pallet<T>>::block_number();
-
-            // TODO: use a HMAC-based algorithm.
-            let mut raw = <AccountOf<T>>::encode(&who);
-            let mut ord = T::BlockNumber::encode(&created);
-            raw.append(&mut ord);
-
-            let did = <T as Config>::Hashing::hash(&raw);
-            let did = Self::truncate(&did);
-
-            // 2. deposit
-
-            let id = T::PalletId::get();
-
-            let deposit = T::Currency::minimum_balance();
-
-            T::Currency::reserve_named(&id.0, &who, deposit)?;
-
-            // 3. store metadata
-
-            let pot = id.into_sub_account(&did);
-
-            <Metadata<T>>::insert(
-                &did,
-                types::Metadata {
-                    account: who.clone(),
-                    pot,
-                    revoked: false,
-                    created,
-                    ..Default::default()
-                },
-            );
-            <DidOf<T>>::insert(&who, did);
-            if let Some(referrer) = referrer {
-                <ReferrerOf<T>>::insert(&did, referrer);
-            }
-
-            Self::deposit_event(Event::<T>::Assigned(did, who, referrer));
+            Self::create(who, referrer)?;
 
             Ok(())
         }
@@ -231,8 +186,6 @@ pub mod pallet {
 
             let meta = <Metadata<T>>::get(&did).ok_or(Error::<T>::NotExists)?;
 
-            ensure!(meta.nft.is_none(), Error::<T>::Minted);
-
             <Metadata<T>>::insert(
                 &did,
                 types::Metadata {
@@ -266,8 +219,8 @@ pub mod pallet {
 
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
-        /// \[ account, did, nft\]
-        pub ids: Vec<(AccountOf<T>, T::DecentralizedId, Option<T::AssetId>)>,
+        /// \[ account, did\]
+        pub ids: Vec<(AccountOf<T>, T::DecentralizedId)>,
     }
 
     #[cfg(feature = "std")]
@@ -282,24 +235,79 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
-            for (id, did, nft) in &self.ids {
+            for (id, did) in &self.ids {
                 <Metadata<T>>::insert(
                     did,
                     types::Metadata {
                         account: id.clone(),
-                        pot: T::PalletId::get().into_sub_account(&did),
-                        nft: *nft,
                         revoked: false,
                         ..Default::default()
                     },
                 );
-                <DidOf<T>>::insert(&id, did);
+                <DidOf<T>>::insert(id, did);
             }
         }
     }
 }
 
 impl<T: Config> Pallet<T> {
+    pub fn create(
+        account: AccountOf<T>,
+        referrer: Option<T::DecentralizedId>,
+    ) -> Result<T::DecentralizedId, DispatchError> {
+        use codec::Encode;
+        use frame_support::traits::Get;
+
+        ensure!(!<DidOf<T>>::contains_key(&account), Error::<T>::Exists);
+
+        if let Some(r) = referrer.as_ref() {
+            ensure!(
+                <Metadata<T>>::contains_key(r),
+                Error::<T>::ReferrerNotExists
+            );
+        }
+
+        // 1. generate DID
+
+        let created = <frame_system::Pallet<T>>::block_number();
+
+        // TODO: use a HMAC-based algorithm.
+        let mut raw = <AccountOf<T>>::encode(&account);
+        let mut ord = T::BlockNumber::encode(&created);
+        raw.append(&mut ord);
+
+        let did = <T as Config>::Hashing::hash(&raw);
+        let did: T::DecentralizedId = Self::truncate(&did);
+
+        // 2. deposit
+
+        let id = T::PalletId::get();
+
+        let deposit = T::Currency::minimum_balance();
+
+        T::Currency::reserve_named(&id.0, &account, deposit)?;
+
+        // 3. store metadata
+
+        <Metadata<T>>::insert(
+            &did,
+            types::Metadata {
+                account: account.clone(),
+                revoked: false,
+                created,
+                ..Default::default()
+            },
+        );
+        <DidOf<T>>::insert(&account, did);
+        if let Some(referrer) = referrer {
+            <ReferrerOf<T>>::insert(&did, referrer);
+        }
+
+        Self::deposit_event(Event::<T>::Assigned(did.clone(), account, referrer));
+
+        Ok(did)
+    }
+
     pub fn lookup_address(a: MultiAddress<AccountOf<T>, ()>) -> Option<AccountOf<T>> {
         match a {
             MultiAddress::Id(i) => Some(i),

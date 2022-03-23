@@ -59,8 +59,7 @@ impl<T: system::Config + magic::Config + Send + Sync> SignedExtension for Extrin
                 Err(TransactionValidityError::Invalid(InvalidTransaction::Call))
             }
             Call::Balances(..)
-                if Magic::<T>::stable_of(&who).is_some()
-                    || Magic::<T>::controller_of(&who).is_some() =>
+                if Magic::<T>::meta(&who).is_some() || Magic::<T>::controller(&who).is_some() =>
             {
                 Err(TransactionValidityError::Invalid(InvalidTransaction::Call))
             }

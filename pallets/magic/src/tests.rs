@@ -1,4 +1,4 @@
-use crate::{mock::*, Controller, ControllerAccountOf, Error, StableAccountOf};
+use crate::{mock::*, Codoer, Controller, Error, Metadata};
 use frame_support::{assert_noop, assert_ok};
 
 #[test]
@@ -14,13 +14,13 @@ fn should_create() {
 
         assert_eq!(Balances::free_balance(&BOB), 100 - 50 - 10);
 
-        let maybe_stash = <StableAccountOf<Test>>::get(&BOB);
+        let maybe_stash = <Metadata<Test>>::get(&BOB);
         assert_ne!(maybe_stash, None);
         let stash = maybe_stash.unwrap();
         assert_eq!(stash.controller_account, BOB);
         assert_eq!(stash.magic_account, MAGIC_BOB);
 
-        let maybe_controller = <Controller<Test>>::get(&stash.stash_account);
+        let maybe_controller = <Codoer<Test>>::get(&stash.stash_account);
         assert_ne!(maybe_controller, None);
         let controller = maybe_controller.unwrap();
         assert_eq!(controller, BOB);
@@ -28,7 +28,7 @@ fn should_create() {
         assert_eq!(Balances::free_balance(&stash.stash_account), 10);
         assert_eq!(Balances::free_balance(&MAGIC_BOB), 50);
 
-        assert_eq!(<ControllerAccountOf<Test>>::get(&MAGIC_BOB), Some(BOB));
+        assert_eq!(<Controller<Test>>::get(&MAGIC_BOB), Some(BOB));
     });
 }
 
@@ -57,15 +57,15 @@ fn should_transfer() {
     new_test_ext().execute_with(|| {
         assert_ok!(Magic::change_controller(Origin::signed(MAGIC_ALICE), BOB));
 
-        assert_eq!(<StableAccountOf<Test>>::get(&ALICE), None);
+        assert_eq!(<Metadata<Test>>::get(&ALICE), None);
 
-        let maybe_stash = <StableAccountOf<Test>>::get(&BOB);
+        let maybe_stash = <Metadata<Test>>::get(&BOB);
         assert_ne!(maybe_stash, None);
         let stash = maybe_stash.unwrap();
         assert_eq!(stash.controller_account, BOB);
         assert_eq!(stash.magic_account, MAGIC_ALICE);
 
-        let maybe_controller = <Controller<Test>>::get(&stash.stash_account);
+        let maybe_controller = <Codoer<Test>>::get(&stash.stash_account);
         assert_ne!(maybe_controller, None);
         let controller = maybe_controller.unwrap();
         assert_eq!(controller, BOB);
@@ -74,6 +74,6 @@ fn should_transfer() {
         assert_eq!(Balances::free_balance(&MAGIC_ALICE), 50);
         assert_eq!(Balances::free_balance(&BOB), 100 + 40);
 
-        assert_eq!(<ControllerAccountOf<Test>>::get(&MAGIC_ALICE), Some(BOB));
+        assert_eq!(<Controller<Test>>::get(&MAGIC_ALICE), Some(BOB));
     });
 }
