@@ -400,13 +400,18 @@ pub mod pallet {
     impl<T: Config> ValidateUnsigned for Pallet<T> {
         type Call = Call<T>;
 
-        fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+        fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+            match source {
+                TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
+                _ => return InvalidTransaction::Call.into(),
+            };
+
             let valid_tx = |provide| {
                 ValidTransaction::with_tag_prefix("linker")
                     .priority(T::UnsignedPriority::get())
                     .and_provides([&provide])
                     .longevity(3)
-                    .propagate(true)
+                    .propagate(false)
                     .build()
             };
 
