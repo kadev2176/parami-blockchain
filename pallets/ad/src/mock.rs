@@ -1,14 +1,16 @@
 use crate as parami_ad;
-use frame_support::{parameter_types, traits::Currency, traits::GenesisBuild, PalletId};
+use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
 use frame_system::{self as system, EnsureRoot};
 use sp_core::{sr25519, H160, H256};
 use sp_runtime::{
-    testing::Header,
+    testing::{Header, TestXt},
     traits::{BlakeTwo256, Keccak256},
 };
 
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
+
+pub type Extrinsic = TestXt<Call, ()>;
 
 pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
 pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
@@ -29,11 +31,12 @@ frame_support::construct_runtime!(
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
         Uniques: pallet_uniques::{Pallet, Storage, Event<T>},
 
-        Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
         Did: parami_did::{Pallet, Call, Storage, Config<T>, Event<T>},
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
+        Ocw: parami_ocw::{Pallet},
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>},
+        Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
     }
 );
 
@@ -70,6 +73,14 @@ impl system::Config for Test {
     type SystemWeightInfo = ();
     type SS58Prefix = SS58Prefix;
     type OnSetCode = ();
+}
+
+impl<LocalCall> frame_system::offchain::SendTransactionTypes<LocalCall> for Test
+where
+    Call: From<LocalCall>,
+{
+    type OverarchingCall = Call;
+    type Extrinsic = Extrinsic;
 }
 
 parameter_types! {
@@ -164,12 +175,15 @@ impl parami_nft::Config for Test {
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
+    type Links = ();
     type Nft = Uniques;
     type PendingLifetime = PendingLifetime;
     type StringLimit = StringLimit;
     type Swaps = Swap;
     type WeightInfo = ();
 }
+
+impl parami_ocw::Config for Test {}
 
 parameter_types! {
     pub const SwapPalletId: PalletId = PalletId(*b"prm/swap");
@@ -206,24 +220,9 @@ parameter_types! {
     pub const SlotLifetime: BlockNumber = 43200;
 }
 
-pub struct MockAccounts;
-impl parami_traits::Accounts for MockAccounts {
-    type AccountId = <Test as system::Config>::AccountId;
-    type Balance = Balance;
-
-    fn fee_account(account: &Self::AccountId) -> Self::AccountId {
-        account.clone()
-    }
-
-    fn fee_account_balance(account: &Self::AccountId) -> Self::Balance {
-        <Test as parami_did::Config>::Currency::free_balance(&Self::fee_account(account))
-            - <Test as parami_did::Config>::Currency::minimum_balance()
-    }
-}
-
 impl parami_ad::Config for Test {
     type Event = Event;
-    type Accounts = MockAccounts;
+    type Accounts = ();
     type Assets = Assets;
     type MinimumFeeBalance = AdvertiserMinimumFee;
     type PalletId = AdPalletId;

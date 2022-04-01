@@ -25,7 +25,7 @@ use frame_support::{
         ExistenceRequirement::{AllowDeath, KeepAlive},
     },
     weights::Weight,
-    PalletId,
+    Blake2_256, PalletId, StorageHasher,
 };
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
@@ -39,13 +39,14 @@ use sp_std::prelude::*;
 use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
-type NftOf<T> = <T as parami_nft::Config>::AssetId;
 type BalanceOf<T> = <<T as parami_did::Config>::Currency as Currency<AccountOf<T>>>::Balance;
 type DidOf<T> = <T as parami_did::Config>::DecentralizedId;
 type HashOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<AccountOf<T>, BalanceOf<T>, DidOf<T>, HashOf<T>, HeightOf<T>>;
+type NftOf<T> = <T as parami_nft::Config>::AssetId;
 type SlotMetaOf<T> = types::Slot<BalanceOf<T>, HashOf<T>, HeightOf<T>, NftOf<T>>;
+type TagOf = <Blake2_256 as StorageHasher>::Output;
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -63,7 +64,7 @@ pub mod pallet {
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
         /// The Accounts trait
-        type Accounts: Accounts<AccountId = AccountOf<Self>, Balance = BalanceOf<Self>>;
+        type Accounts: Accounts<AccountOf<Self>>;
 
         /// The assets trait to pay rewards
         type Assets: Transfer<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>;
@@ -85,7 +86,7 @@ pub mod pallet {
         type SlotLifetime: Get<HeightOf<Self>>;
 
         /// The means of storing the tags and tags of advertisement
-        type Tags: Tags<DecentralizedId = DidOf<Self>, Hash = HashOf<Self>>;
+        type Tags: Tags<TagOf, HashOf<Self>, DidOf<Self>>;
 
         /// The origin which may do calls
         type CallOrigin: EnsureOrigin<Self::Origin, Success = (DidOf<Self>, AccountOf<Self>)>;
@@ -552,7 +553,8 @@ pub mod pallet {
 
             // 5. drawback if advertiser does not have enough fees
 
-            if T::Accounts::fee_account_balance(&who) < T::MinimumFeeBalance::get() {
+            let fee_account = T::Accounts::fee_account(&who);
+            if T::Currency::free_balance(&fee_account) < T::MinimumFeeBalance::get() {
                 let _ = Self::drawback(nft, &slot);
             }
 

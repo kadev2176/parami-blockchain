@@ -1,4 +1,4 @@
-use crate::{mock::*, Error, HashOf, Metadata};
+use crate::{mock::*, AdOf, Error, Metadata};
 use frame_support::{assert_noop, assert_ok, traits::Currency};
 use sp_core::sr25519;
 use sp_runtime::DispatchError;
@@ -90,7 +90,7 @@ fn tags_trait() {
         let hash1 = Tag::key(&tag1);
         let hash2 = Tag::key(&tag2);
 
-        let ad = <HashOf<Test>>::default();
+        let ad = <AdOf<Test>>::default();
 
         assert_ok!(Tag::add_tag(&ad, tag1.clone()));
         assert_eq!(Tag::tags_of(&ad), BTreeMap::from([(hash1.clone(), true)]));

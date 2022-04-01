@@ -18,7 +18,8 @@ mod benchmarking;
 
 mod btc;
 mod did;
-mod impls;
+mod functions;
+mod impl_links;
 mod migrations;
 mod ocw;
 mod types;
@@ -28,24 +29,27 @@ use frame_support::{
     dispatch::{DispatchResult, DispatchResultWithPostInfo},
     ensure,
     traits::{Currency, NamedReservableCurrency, OnUnbalanced, StorageVersion},
-    PalletId,
+    Blake2_256, PalletId, StorageHasher,
 };
 use frame_system::offchain::SendTransactionTypes;
 use parami_did::{EnsureDid, Pallet as Did};
-use parami_primitives::{Network, Task};
-use parami_traits::Tags;
+use parami_traits::{
+    types::{Network, Task},
+    Tags,
+};
 use sp_runtime::traits::Hash;
 use sp_std::prelude::*;
 
 use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
+type AdOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
 type BalanceOf<T> = <CurrencyOf<T> as Currency<AccountOf<T>>>::Balance;
 type CurrencyOf<T> = <T as parami_did::Config>::Currency;
 type DidOf<T> = <T as parami_did::Config>::DecentralizedId;
-type HashOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type NegativeImbOf<T> = <CurrencyOf<T> as Currency<AccountOf<T>>>::NegativeImbalance;
+type TagOf = <Blake2_256 as StorageHasher>::Output;
 type TaskOf<T> = Task<Vec<u8>, HeightOf<T>>;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
@@ -59,7 +63,8 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config:
         frame_system::Config
-        + parami_did::Config //
+        + parami_did::Config
+        + parami_ocw::Config
         + SendTransactionTypes<Call<Self>>
     {
         /// The overarching event type
@@ -81,7 +86,7 @@ pub mod pallet {
         type Slash: OnUnbalanced<NegativeImbOf<Self>>;
 
         /// The means of storing the tags and personas of a DID.
-        type Tags: Tags<DecentralizedId = DidOf<Self>, Hash = HashOf<Self>>;
+        type Tags: Tags<TagOf, AdOf<Self>, DidOf<Self>>;
 
         /// Unsigned Call Priority
         #[pallet::constant]
@@ -180,7 +185,6 @@ pub mod pallet {
         Deadline,
         ExistentialDeposit,
         Exists,
-        HttpFetchingError,
         InvalidAddress,
         InvalidSignature,
         NotExists,

@@ -21,6 +21,7 @@ use frame_support::{
     ensure,
     storage::PrefixIterator,
     traits::{Currency, ExistenceRequirement::KeepAlive, WithdrawReasons},
+    Blake2_256, StorageHasher,
 };
 #[cfg(not(feature = "std"))]
 use num_traits::Float;
@@ -32,8 +33,9 @@ use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
+type AdOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
 type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
-type HashOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
+type HashOf = <Blake2_256 as StorageHasher>::Output;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<<T as Config>::DecentralizedId, HeightOf<T>>;
 
@@ -95,7 +97,7 @@ pub mod pallet {
     pub(super) type TagsOf<T: Config> = StorageDoubleMap<
         _,
         Identity,
-        HashOf<T>,
+        AdOf<T>,
         Blake2_256,
         Vec<u8>, //
         bool,
@@ -130,7 +132,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Tag created \[hash, creator\]
-        Created(Vec<u8>, T::DecentralizedId),
+        Created(HashOf, T::DecentralizedId),
     }
 
     #[pallet::hooks]
@@ -184,7 +186,7 @@ pub mod pallet {
     #[pallet::genesis_config]
     pub struct GenesisConfig<T: Config> {
         pub tag: Vec<Vec<u8>>,
-        pub tags: Vec<(HashOf<T>, Vec<u8>)>,
+        pub tags: Vec<(AdOf<T>, Vec<u8>)>,
         pub personas: Vec<(T::DecentralizedId, Vec<u8>, i32)>,
         pub influences: Vec<(T::DecentralizedId, Vec<u8>, i32)>,
     }
@@ -230,7 +232,7 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    fn inner_create(creator: T::DecentralizedId, tag: Vec<u8>) -> Vec<u8> {
+    fn inner_create(creator: T::DecentralizedId, tag: Vec<u8>) -> HashOf {
         let created = <frame_system::Pallet<T>>::block_number();
 
         <Metadata<T>>::insert(&tag, types::Metadata { creator, created });
@@ -260,12 +262,13 @@ impl<T: Config> Pallet<T> {
 
     fn storage_double_map_to_btree_map<TValue>(
         iter: &mut PrefixIterator<TValue>,
-    ) -> BTreeMap<Vec<u8>, TValue> {
+    ) -> BTreeMap<HashOf, TValue> {
         let mut hashes = BTreeMap::new();
         while let Some(value) = iter.next() {
             let prefix = iter.prefix();
             let raw = iter.last_raw_key();
-            let hash = raw[prefix.len()..].to_vec();
+            let mut hash = [0u8; 32];
+            hash.copy_from_slice(&raw[prefix.len()..]);
 
             hashes.insert(hash, value);
         }
@@ -274,57 +277,53 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-impl<T: Config> Tags for Pallet<T> {
-    type DecentralizedId = T::DecentralizedId;
-    type Hash = HashOf<T>;
-
-    fn key<K: AsRef<Vec<u8>>>(tag: K) -> Vec<u8> {
+impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
+    fn key<K: AsRef<Vec<u8>>>(tag: K) -> HashOf {
         use codec::Encode;
-        use frame_support::{Blake2_256, StorageHasher};
 
-        tag.as_ref().using_encoded(Blake2_256::hash).to_vec()
+        tag.as_ref().using_encoded(Blake2_256::hash)
     }
 
     fn exists<K: AsRef<Vec<u8>>>(tag: K) -> bool {
         <Metadata<T>>::contains_key(tag.as_ref())
     }
 
-    fn tags_of(id: &Self::Hash) -> BTreeMap<Vec<u8>, bool> {
+    fn tags_of(id: &AdOf<T>) -> BTreeMap<HashOf, bool> {
         Self::storage_double_map_to_btree_map(&mut <TagsOf<T>>::iter_prefix_values(id))
     }
 
-    fn add_tag(id: &Self::Hash, tag: Vec<u8>) -> DispatchResult {
+    fn add_tag(id: &AdOf<T>, tag: Vec<u8>) -> DispatchResult {
         <TagsOf<T>>::insert(id, &tag, true);
 
         Ok(())
     }
 
-    fn del_tag<K: AsRef<Vec<u8>>>(id: &Self::Hash, tag: K) -> DispatchResult {
+    fn del_tag<K: AsRef<Vec<u8>>>(id: &AdOf<T>, tag: K) -> DispatchResult {
         <TagsOf<T>>::remove(id, tag.as_ref());
 
         Ok(())
     }
 
-    fn clr_tag(id: &Self::Hash) -> DispatchResult {
+    fn clr_tag(id: &AdOf<T>) -> DispatchResult {
         <TagsOf<T>>::remove_prefix(id, None);
 
         Ok(())
     }
 
-    fn has_tag<K: AsRef<Vec<u8>>>(id: &Self::Hash, tag: K) -> bool {
+    fn has_tag<K: AsRef<Vec<u8>>>(id: &AdOf<T>, tag: K) -> bool {
         <TagsOf<T>>::contains_key(id, tag.as_ref())
     }
 
-    fn personas_of(did: &Self::DecentralizedId) -> BTreeMap<Vec<u8>, i32> {
+    fn personas_of(did: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
         Self::storage_double_map_to_btree_map(&mut <PersonasOf<T>>::iter_prefix_values(did))
     }
 
-    fn get_score<K: AsRef<Vec<u8>>>(did: &Self::DecentralizedId, tag: K) -> i32 {
+    fn get_score<K: AsRef<Vec<u8>>>(did: &T::DecentralizedId, tag: K) -> i32 {
         <PersonasOf<T>>::get(did, tag.as_ref())
     }
 
     fn influence<K: AsRef<Vec<u8>>>(
-        did: &Self::DecentralizedId,
+        did: &T::DecentralizedId,
         tag: K,
         delta: i32,
     ) -> DispatchResult {
@@ -335,19 +334,15 @@ impl<T: Config> Tags for Pallet<T> {
         Ok(())
     }
 
-    fn influences_of(kol: &Self::DecentralizedId) -> BTreeMap<Vec<u8>, i32> {
+    fn influences_of(kol: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
         Self::storage_double_map_to_btree_map(&mut <InfluencesOf<T>>::iter_prefix_values(kol))
     }
 
-    fn get_influence<K: AsRef<Vec<u8>>>(kol: &Self::DecentralizedId, tag: K) -> i32 {
+    fn get_influence<K: AsRef<Vec<u8>>>(kol: &T::DecentralizedId, tag: K) -> i32 {
         <InfluencesOf<T>>::get(kol, tag.as_ref())
     }
 
-    fn impact<K: AsRef<Vec<u8>>>(
-        kol: &Self::DecentralizedId,
-        tag: K,
-        delta: i32,
-    ) -> DispatchResult {
+    fn impact<K: AsRef<Vec<u8>>>(kol: &T::DecentralizedId, tag: K, delta: i32) -> DispatchResult {
         <InfluencesOf<T>>::mutate(&kol, tag.as_ref(), |score| {
             *score = Self::accrue(*score, delta);
         });

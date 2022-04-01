@@ -1425,12 +1425,15 @@ impl parami_nft::Config for Runtime {
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
+    type Links = Linker;
     type Nft = Uniques;
     type PendingLifetime = NftPendingLifetime;
     type StringLimit = StringLimit;
     type Swaps = Swap;
     type WeightInfo = parami_nft::weights::SubstrateWeight<Runtime>;
 }
+
+impl parami_ocw::Config for Runtime {}
 
 parameter_types! {
     pub const InitialFarmingReward: Balance = 100 * DOLLARS;

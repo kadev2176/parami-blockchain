@@ -1,5 +1,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
+pub use ocw::eth_abi;
 pub use pallet::*;
 
 #[rustfmt::skip]
@@ -36,8 +37,10 @@ use frame_support::{
 };
 use frame_system::offchain::SendTransactionTypes;
 use parami_did::EnsureDid;
-use parami_primitives::{Network, Task};
-use parami_traits::Swaps;
+use parami_traits::{
+    types::{Network, Task},
+    Links, Swaps,
+};
 use sp_core::U512;
 use sp_runtime::{
     traits::{
@@ -73,7 +76,8 @@ pub mod pallet {
     #[pallet::config]
     pub trait Config:
         frame_system::Config
-        + parami_did::Config //
+        + parami_did::Config
+        + parami_ocw::Config
         + SendTransactionTypes<Call<Self>>
     {
         /// The overarching event type
@@ -108,6 +112,9 @@ pub mod pallet {
         #[pallet::constant]
         type InitialMintingValueBase: Get<BalanceOf<Self>>;
 
+        /// The links trait
+        type Links: Links<DidOf<Self>>;
+
         /// The NFT trait to create, mint non-fungible token
         type Nft: NftCreate<AccountOf<Self>, InstanceId = NftOf<Self>, ClassId = NftOf<Self>>
             + NftMutate<AccountOf<Self>, InstanceId = NftOf<Self>, ClassId = NftOf<Self>>;
@@ -122,7 +129,7 @@ pub mod pallet {
 
         /// The swaps trait
         type Swaps: Swaps<
-            AccountId = AccountOf<Self>,
+            AccountOf<Self>,
             AssetId = AssetOf<Self>,
             QuoteBalance = BalanceOf<Self>,
             TokenBalance = BalanceOf<Self>,
@@ -253,8 +260,10 @@ pub mod pallet {
     #[pallet::error]
     pub enum Error<T> {
         BadMetadata,
+        Deadline,
         Exists,
         InsufficientBalance,
+        InvalidExternalToken,
         Minted,
         NotExists,
         Overflow,
@@ -311,32 +320,7 @@ pub mod pallet {
         pub fn kick(origin: OriginFor<T>) -> DispatchResult {
             let (owner, _) = EnsureDid::<T>::ensure_origin(origin)?;
 
-            let id = <NextClassId<T>>::try_mutate(|id| -> Result<NftOf<T>, DispatchError> {
-                let current_id = *id;
-                *id = id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
-                Ok(current_id)
-            })?;
-
-            let pot = T::PalletId::get().into_sub_account(&owner);
-
-            <Metadata<T>>::insert(
-                id,
-                types::Metadata {
-                    owner,
-                    pot,
-                    class_id: id,
-                    token_asset_id: id,
-                    minted: false,
-                },
-            );
-
-            <Account<T>>::insert(owner, id, true);
-
-            if !<Preferred<T>>::contains_key(&owner) {
-                <Preferred<T>>::insert(&owner, id);
-            }
-
-            Self::deposit_event(Event::Created(owner, id));
+            Self::create(owner)?;
 
             Ok(())
         }
@@ -497,6 +481,43 @@ pub mod pallet {
 
             Ok(())
         }
+
+        // #[pallet::weight(<T as Config>::WeightInfo::submit_port(profile.len() as u32))]
+        #[pallet::weight(1_000_000)]
+        pub fn submit_port(
+            origin: OriginFor<T>,
+            _did: DidOf<T>,
+            network: Network,
+            namespace: Vec<u8>,
+            token: Vec<u8>,
+            validated: bool,
+        ) -> DispatchResultWithPostInfo {
+            ensure_none(origin)?;
+
+            let task = <Porting<T>>::get((network, &namespace, &token));
+
+            ensure!(task.is_some(), Error::<T>::NotExists);
+
+            let task = task.unwrap();
+
+            if validated {
+                let id = Self::create(task.task.owner)?;
+
+                <Ported<T>>::insert((network, namespace.clone(), token.clone()), id);
+
+                <External<T>>::insert(
+                    id,
+                    types::External {
+                        network,
+                        namespace,
+                        token,
+                        owner: task.task.owner,
+                    },
+                );
+            }
+
+            Ok(().into())
+        }
     }
 
     #[pallet::genesis_config]
@@ -590,6 +611,39 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
+    fn create(owner: DidOf<T>) -> Result<NftOf<T>, DispatchError> {
+        let id = <NextClassId<T>>::try_mutate(|id| -> Result<NftOf<T>, DispatchError> {
+            let current_id = *id;
+            *id = id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
+            Ok(current_id)
+        })?;
+
+        let pot = T::PalletId::get().into_sub_account(&owner);
+
+        ensure!(!<Metadata<T>>::contains_key(id), Error::<T>::Exists);
+
+        <Metadata<T>>::insert(
+            id,
+            types::Metadata {
+                owner,
+                pot,
+                class_id: id,
+                token_asset_id: id,
+                minted: false,
+            },
+        );
+
+        <Account<T>>::insert(owner, id, true);
+
+        if !<Preferred<T>>::contains_key(&owner) {
+            <Preferred<T>>::insert(&owner, id);
+        }
+
+        Self::deposit_event(Event::Created(owner, id));
+
+        Ok(id)
+    }
+
     fn try_into<S, D>(value: S) -> Result<D, DispatchError>
     where
         S: TryInto<u128>,

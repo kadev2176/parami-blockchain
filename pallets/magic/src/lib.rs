@@ -271,10 +271,7 @@ pub mod pallet {
     }
 }
 
-impl<T: Config> parami_traits::Accounts for Pallet<T> {
-    type AccountId = AccountOf<T>;
-    type Balance = BalanceOf<T>;
-
+impl<T: Config> parami_traits::Accounts<AccountOf<T>> for Pallet<T> {
     fn fee_account(account: &AccountOf<T>) -> AccountOf<T> {
         if let Some(account) = <Controller<T>>::get(account) {
             account
@@ -285,10 +282,6 @@ impl<T: Config> parami_traits::Accounts for Pallet<T> {
             // or not a magic-stash account
             account.clone()
         }
-    }
-
-    fn fee_account_balance(account: &AccountOf<T>) -> BalanceOf<T> {
-        T::Currency::free_balance(&Self::fee_account(account)) - T::Currency::minimum_balance()
     }
 }
 
