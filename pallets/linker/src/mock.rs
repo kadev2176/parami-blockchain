@@ -17,6 +17,7 @@ pub const POLKA: &[u8] = b"5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY";
 
 pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
 pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
+pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
 
 pub const DID_ALICE: H160 = H160([
     0x32, 0xac, 0x79, 0x9d, //

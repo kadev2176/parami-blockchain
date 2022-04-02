@@ -13,6 +13,11 @@ pub fn migrate<T: Config>() -> Weight {
         StorageVersion::new(2).put::<Pallet<T>>();
     }
 
+    if version < 3 {
+        weight.saturating_accrue(v3::migrate::<T>());
+        StorageVersion::new(3).put::<Pallet<T>>();
+    }
+
     weight
 }
 
@@ -42,5 +47,59 @@ mod v2 {
         );
 
         Weight::max_value()
+    }
+}
+
+mod v3 {
+    use super::*;
+    use crate::Metadata;
+
+    use frame_support::{
+        storage::migration::remove_storage_prefix,
+        traits::{Currency, ExistenceRequirement, Get},
+    };
+    use parami_did::Pallet as Did;
+
+    pub fn migrate<T: Config>() -> Weight {
+        // let mut weight: Weight = 0;
+
+        for meta in <Metadata<T>>::iter_values() {
+            // weight.saturating_accrue(T::DbWeight::get().reads(1));
+
+            let stash = T::Currency::free_balance(&meta.stash_account);
+            let _ = T::Currency::transfer(
+                &meta.stash_account,
+                &meta.controller_account,
+                stash,
+                ExistenceRequirement::AllowDeath,
+            );
+
+            // weight.saturating_accrue(T::DbWeight::get().reads_writes(2, 1));
+
+            let magic = T::Currency::free_balance(&meta.magic_account);
+            let _ = T::Currency::transfer(
+                &meta.magic_account,
+                &meta.controller_account,
+                magic,
+                ExistenceRequirement::AllowDeath,
+            );
+
+            // weight.saturating_accrue(T::DbWeight::get().reads_writes(2, 1));
+
+            if let Some(did) = Did::<T>::did_of(&meta.stash_account) {
+                let _ = Did::<T>::assign(&did, &meta.controller_account);
+
+                // weight.saturating_accrue(T::DbWeight::get().reads_writes(3, 3));
+            }
+        }
+
+        let module = <Pallet<T>>::name().as_bytes();
+        remove_storage_prefix(module, b"Metadata", b"");
+        remove_storage_prefix(module, b"Controller", b"");
+        remove_storage_prefix(module, b"Codoer", b"");
+
+        Weight::max_value()
+
+        // weight
     }
 }

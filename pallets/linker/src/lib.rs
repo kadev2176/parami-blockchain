@@ -244,6 +244,23 @@ pub mod pallet {
             Self::insert_link(did, crypto, address, did)
         }
 
+        #[pallet::weight(1_000_000)]
+        pub fn submit_register(
+            origin: OriginFor<T>,
+            account: AccountOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            let (registrar, _) = EnsureDid::<T>::ensure_origin(origin)?;
+
+            ensure!(
+                <Registrar<T>>::get(&registrar) == Some(true),
+                Error::<T>::Blocked
+            );
+
+            Did::<T>::create(account, Some(registrar))?;
+
+            Ok(().into())
+        }
+
         #[pallet::weight(<T as Config>::WeightInfo::submit_link(profile.len() as u32))]
         pub fn submit_link(
             origin: OriginFor<T>,

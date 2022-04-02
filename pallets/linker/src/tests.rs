@@ -108,6 +108,15 @@ fn should_ocw_submit() {
 }
 
 #[test]
+fn should_register() {
+    new_test_ext().execute_with(|| {
+        assert_ok!(Linker::submit_register(Origin::signed(ALICE), CHARLIE));
+
+        assert_ne!(Did::did_of(CHARLIE), None);
+    })
+}
+
+#[test]
 fn should_submit() {
     new_test_ext().execute_with(|| {
         let profile = b"https://t.me/AmeliaParami".to_vec();

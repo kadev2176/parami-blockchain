@@ -1,8 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-mod accounts;
-pub use accounts::Accounts;
-
 mod links;
 pub use links::Links;
 

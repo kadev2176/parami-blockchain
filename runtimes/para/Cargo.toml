@@ -237,7 +237,6 @@ runtime-benchmarks = [
     'parami-xassets/runtime-benchmarks',
     'parami-did/runtime-benchmarks',
     'parami-linker/runtime-benchmarks',
-    'parami-magic/runtime-benchmarks',
     'parami-nft/runtime-benchmarks',
     'parami-swap/runtime-benchmarks',
     'parami-tag/runtime-benchmarks',

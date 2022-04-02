@@ -29,7 +29,7 @@ use frame_support::{
 };
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
-use parami_traits::{Accounts, Swaps, Tags};
+use parami_traits::{Swaps, Tags};
 use sp_runtime::{
     traits::{AccountIdConversion, Hash, One, Saturating, Zero},
     DispatchError,
@@ -62,9 +62,6 @@ pub mod pallet {
     {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
-
-        /// The Accounts trait
-        type Accounts: Accounts<AccountOf<Self>>;
 
         /// The assets trait to pay rewards
         type Assets: Transfer<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>;
@@ -553,8 +550,7 @@ pub mod pallet {
 
             // 5. drawback if advertiser does not have enough fees
 
-            let fee_account = T::Accounts::fee_account(&who);
-            if T::Currency::free_balance(&fee_account) < T::MinimumFeeBalance::get() {
+            if T::Currency::free_balance(&who) < T::MinimumFeeBalance::get() {
                 let _ = Self::drawback(nft, &slot);
             }
 
