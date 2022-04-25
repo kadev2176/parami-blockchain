@@ -34,6 +34,7 @@ use frame_support::{
         ExistenceRequirement::KeepAlive,
         Get, StorageVersion,
     },
+    PalletId,
 };
 use frame_system::offchain::SendTransactionTypes;
 use parami_did::EnsureDid;
@@ -119,6 +120,10 @@ pub mod pallet {
         type Nft: NftCreate<AccountOf<Self>, InstanceId = NftOf<Self>, ClassId = NftOf<Self>>
             + NftMutate<AccountOf<Self>, InstanceId = NftOf<Self>, ClassId = NftOf<Self>>;
 
+        /// The pallet id, used for deriving "pot" accounts to receive donation
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
+
         /// Lifetime of a pending task
         #[pallet::constant]
         type PendingLifetime: Get<HeightOf<Self>>;
@@ -191,17 +196,6 @@ pub mod pallet {
     #[pallet::storage]
     #[pallet::getter(fn meta)]
     pub(super) type Metadata<T: Config> = StorageMap<_, Twox64Concat, NftOf<T>, MetaOf<T>>;
-
-    /// The non-fungible token held by any given account
-    #[pallet::storage]
-    pub(super) type Account<T: Config> = StorageDoubleMap<
-        _,
-        Identity,
-        T::DecentralizedId, // owner
-        Twox64Concat,
-        NftOf<T>,
-        bool,
-    >;
 
     /// Did's preferred Nft.
     #[pallet::storage]
@@ -482,9 +476,9 @@ pub mod pallet {
             Ok(())
         }
 
-        // #[pallet::weight(<T as Config>::WeightInfo::submit_port(profile.len() as u32))]
+        // #[pallet::weight(<T as Config>::WeightInfo::submit_porting(profile.len() as u32))]
         #[pallet::weight(1_000_000)]
-        pub fn submit_port(
+        pub fn submit_porting(
             origin: OriginFor<T>,
             _did: DidOf<T>,
             network: Network,
@@ -576,8 +570,6 @@ pub mod pallet {
                     },
                 );
 
-                <Account<T>>::insert(owner.clone(), id, true);
-
                 <Preferred<T>>::insert(owner, id);
 
                 if minted {
@@ -632,8 +624,6 @@ impl<T: Config> Pallet<T> {
                 minted: false,
             },
         );
-
-        <Account<T>>::insert(owner, id, true);
 
         if !<Preferred<T>>::contains_key(&owner) {
             <Preferred<T>>::insert(&owner, id);

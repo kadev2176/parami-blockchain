@@ -58,16 +58,6 @@ fn should_fail_when_referer_not_exist() {
 }
 
 #[test]
-fn should_fail_when_insufficient() {
-    new_test_ext().execute_with(|| {
-        assert_noop!(
-            Did::register(Origin::signed(CHARLIE), None),
-            pallet_balances::Error::<Test>::InsufficientBalance
-        );
-    });
-}
-
-#[test]
 fn should_revoke() {
     new_test_ext().execute_with(|| {
         assert_ok!(Did::revoke(Origin::signed(ALICE)));

@@ -1,5 +1,5 @@
 use crate as parami_did;
-use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
+use frame_support::{parameter_types, traits::GenesisBuild};
 use frame_system as system;
 use sp_core::{sr25519, H160, H256};
 use sp_runtime::{
@@ -12,7 +12,6 @@ type Block = system::mocking::MockBlock<Test>;
 
 pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
 pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
-pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
 
 pub const DID_ALICE: H160 = H160([0xff; 20]);
 pub const DID_BOB: H160 = H160([0xee; 20]);
@@ -81,16 +80,11 @@ impl pallet_balances::Config for Test {
     type ReserveIdentifier = [u8; 8];
 }
 
-parameter_types! {
-    pub const DidPalletId: PalletId = PalletId(*b"prm/did ");
-}
-
 impl parami_did::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type DecentralizedId = sp_core::H160;
     type Hashing = Keccak256;
-    type PalletId = DidPalletId;
     type WeightInfo = ();
 }
 

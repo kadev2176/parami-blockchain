@@ -20,8 +20,7 @@ mod types;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
-    traits::{Currency, EnsureOrigin, NamedReservableCurrency, StorageVersion},
-    PalletId,
+    traits::{EnsureOrigin, NamedReservableCurrency, StorageVersion},
 };
 use parami_did_utils::derive_storage_key;
 use scale_info::TypeInfo;
@@ -78,10 +77,6 @@ pub mod pallet {
 
         /// The hashing algorithm being used to create DID
         type Hashing: Hash + TypeInfo;
-
-        /// The pallet id, used for deriving "pot" accounts to receive donation
-        #[pallet::constant]
-        type PalletId: Get<PalletId>;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -147,12 +142,6 @@ pub mod pallet {
             referrer: Option<T::DecentralizedId>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-
-            let id = T::PalletId::get();
-
-            let deposit = T::Currency::minimum_balance();
-
-            T::Currency::reserve_named(&id.0, &who, deposit)?;
 
             Self::create(who, referrer)?;
 

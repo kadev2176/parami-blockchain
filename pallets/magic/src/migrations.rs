@@ -56,7 +56,7 @@ mod v3 {
 
     use frame_support::{
         storage::migration::remove_storage_prefix,
-        traits::{Currency, ExistenceRequirement, Get},
+        traits::{Currency, ExistenceRequirement},
     };
     use parami_did::Pallet as Did;
 

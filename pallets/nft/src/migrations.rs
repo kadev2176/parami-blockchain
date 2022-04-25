@@ -1,8 +1,5 @@
 use crate::{Config, Pallet};
-use frame_support::{
-    traits::{Get, PalletInfoAccess},
-    weights::Weight,
-};
+use frame_support::{traits::PalletInfoAccess, weights::Weight};
 use sp_runtime::traits::Saturating;
 
 pub fn migrate<T: Config>() -> Weight {
@@ -16,21 +13,20 @@ pub fn migrate<T: Config>() -> Weight {
         StorageVersion::new(2).put::<Pallet<T>>();
     }
 
-    if version < 3 {
-        weight.saturating_accrue(v3::migrate::<T>());
-        StorageVersion::new(3).put::<Pallet<T>>();
-    }
-
     weight
 }
 
 mod v2 {
     use super::*;
 
-    use frame_support::storage::{migration::move_prefix, storage_prefix};
+    use frame_support::storage::{
+        migration::{move_prefix, remove_storage_prefix},
+        storage_prefix,
+    };
 
     pub fn migrate<T: Config>() -> Weight {
         let module = <Pallet<T>>::name().as_bytes();
+        remove_storage_prefix(module, b"Account", b"");
 
         move_prefix(
             &storage_prefix(module, b"NftMetaStore"),
@@ -43,39 +39,5 @@ mod v2 {
         );
 
         Weight::max_value()
-    }
-}
-
-mod v3 {
-    use super::*;
-
-    use crate::{MetaOf, NftOf};
-
-    use frame_support::{generate_storage_alias, Identity, Twox64Concat};
-
-    generate_storage_alias!(
-        Nft, Metadata<T: Config> => Map<
-            (Twox64Concat, NftOf<T>),
-            MetaOf<T>
-        >
-    );
-
-    generate_storage_alias!(
-        Nft, Account<T: Config> => DoubleMap<
-            (Identity, T::DecentralizedId),
-            (Twox64Concat, NftOf<T>),
-            bool
-        >
-    );
-
-    pub fn migrate<T: Config>() -> Weight {
-        let mut weight: Weight = 0;
-
-        for (id, meta) in <Metadata<T>>::iter() {
-            <Account<T>>::insert(meta.owner, id, true);
-            weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
-        }
-
-        weight
     }
 }

@@ -148,16 +148,11 @@ impl pallet_uniques::Config for Test {
     type WeightInfo = ();
 }
 
-parameter_types! {
-    pub const DidPalletId: PalletId = PalletId(*b"prm/did ");
-}
-
 impl parami_did::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type DecentralizedId = H160;
     type Hashing = Keccak256;
-    type PalletId = DidPalletId;
     type WeightInfo = ();
 }
 
@@ -166,6 +161,7 @@ parameter_types! {
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
     pub const InitialMintingValueBase: Balance = 1_000_000;
     pub const PendingLifetime: BlockNumber = 5;
+    pub const NftPalletId: PalletId = PalletId(*b"prm/nft ");
 }
 
 impl parami_nft::Config for Test {
@@ -177,6 +173,7 @@ impl parami_nft::Config for Test {
     type InitialMintingValueBase = InitialMintingValueBase;
     type Links = ();
     type Nft = Uniques;
+    type PalletId = NftPalletId;
     type PendingLifetime = PendingLifetime;
     type StringLimit = StringLimit;
     type Swaps = Swap;

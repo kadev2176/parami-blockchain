@@ -20,7 +20,7 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
             for task in porting {
                 if task.deadline <= block_number {
                     // call to remove
-                    Self::ocw_submit_port(
+                    Self::ocw_submit_porting(
                         task.task.owner,
                         task.task.network,
                         task.task.namespace,
@@ -28,11 +28,11 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
                         false,
                     );
 
-                    return Err(Error::<T>::Deadline)?;
+                    continue;
                 }
 
                 if task.created < block_number {
-                    // only start once (at created + 1)
+                    // only start once (at created)
                     continue;
                 }
 
@@ -47,7 +47,7 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
                     ),
                     _ => {
                         // drop unsupported sites
-                        Self::ocw_submit_port(
+                        Self::ocw_submit_porting(
                             task.task.owner,
                             task.task.network,
                             task.task.namespace,
@@ -60,7 +60,7 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
                 };
 
                 if let Ok(()) = result {
-                    Self::ocw_submit_port(
+                    Self::ocw_submit_porting(
                         task.task.owner,
                         task.task.network,
                         task.task.namespace,
@@ -74,14 +74,14 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
         Ok(())
     }
 
-    pub(self) fn ocw_submit_port(
+    pub(self) fn ocw_submit_porting(
         did: T::DecentralizedId,
         network: parami_traits::types::Network,
         namespace: Vec<u8>,
         token: Vec<u8>,
         validated: bool,
     ) {
-        let call = Call::submit_port {
+        let call = Call::submit_porting {
             did,
             network,
             namespace,

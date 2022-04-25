@@ -1,4 +1,4 @@
-use crate::{mock::*, Account, Deposit, Deposits, Error, Metadata, Porting};
+use crate::{mock::*, Deposit, Deposits, Error, Metadata, Porting};
 use frame_support::{assert_noop, assert_ok};
 use parami_traits::types::Network;
 
@@ -89,8 +89,6 @@ fn should_create() {
         assert_eq!(meta.class_id, NEXT_INSTANCE_ID);
         assert_eq!(meta.minted, false);
         assert_eq!(meta.token_asset_id, NEXT_INSTANCE_ID);
-
-        assert_eq!(<Account<Test>>::get(DID_BOB, nft), Some(true));
     });
 }
 

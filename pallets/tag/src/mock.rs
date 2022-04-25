@@ -1,5 +1,5 @@
 use crate as parami_tag;
-use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
+use frame_support::{parameter_types, traits::GenesisBuild};
 use frame_system::{self as system, EnsureRoot};
 use sp_core::{sr25519, H256};
 use sp_runtime::{
@@ -76,16 +76,11 @@ impl pallet_balances::Config for Test {
     type ReserveIdentifier = [u8; 8];
 }
 
-parameter_types! {
-    pub const DidPalletId: PalletId = PalletId(*b"prm/did ");
-}
-
 impl parami_did::Config for Test {
     type Event = Event;
     type Currency = Balances;
     type DecentralizedId = sp_core::H160;
     type Hashing = Keccak256;
-    type PalletId = DidPalletId;
     type WeightInfo = ();
 }
 

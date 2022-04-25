@@ -1361,16 +1361,11 @@ impl parami_xassets::Config for Runtime {
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-    pub const DidPalletId: PalletId = PalletId(*names::DID);
-}
-
 impl parami_did::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
     type DecentralizedId = DecentralizedId;
     type Hashing = Keccak256;
-    type PalletId = DidPalletId;
     type WeightInfo = parami_did::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1400,6 +1395,7 @@ parameter_types! {
     pub const InitialMintingLockupPeriod: BlockNumber = 6 * 30 * DAYS;
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
     pub const NftPendingLifetime: BlockNumber = 5;
+    pub const NftPalletId: PalletId = PalletId(*names::NFT);
 }
 
 impl parami_nft::Config for Runtime {
@@ -1411,6 +1407,7 @@ impl parami_nft::Config for Runtime {
     type InitialMintingValueBase = InitialMintingValueBase;
     type Links = Linker;
     type Nft = Uniques;
+    type PalletId = NftPalletId;
     type PendingLifetime = NftPendingLifetime;
     type StringLimit = StringLimit;
     type Swaps = Swap;
