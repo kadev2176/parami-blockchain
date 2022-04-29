@@ -20,8 +20,7 @@ mod types;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
-    traits::{Currency, EnsureOrigin, NamedReservableCurrency, StorageVersion},
-    PalletId,
+    traits::{EnsureOrigin, NamedReservableCurrency, StorageVersion},
 };
 use parami_did_utils::derive_storage_key;
 use scale_info::TypeInfo;
@@ -40,7 +39,7 @@ type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<AccountOf<T>, HeightOf<T>>;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -78,10 +77,6 @@ pub mod pallet {
 
         /// The hashing algorithm being used to create DID
         type Hashing: Hash + TypeInfo;
-
-        /// The pallet id, used for deriving "pot" accounts to receive donation
-        #[pallet::constant]
-        type PalletId: Get<PalletId>;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -158,21 +153,9 @@ pub mod pallet {
         pub fn transfer(origin: OriginFor<T>, account: AccountOf<T>) -> DispatchResult {
             let who = ensure_signed(origin)?;
 
-            ensure!(!<DidOf<T>>::contains_key(&account), Error::<T>::Exists);
-
             let did = <DidOf<T>>::get(&who).ok_or(Error::<T>::NotExists)?;
 
-            let mut meta = <Metadata<T>>::get(&did).ok_or(Error::<T>::NotExists)?;
-
-            meta.account = account.clone();
-            meta.created = <frame_system::Pallet<T>>::block_number();
-
-            <Metadata<T>>::insert(&did, meta);
-
-            <DidOf<T>>::remove(&who);
-            <DidOf<T>>::insert(&account, did);
-
-            Self::deposit_event(Event::<T>::Transferred(did, who, account));
+            Self::assign(&did, &account)?;
 
             Ok(())
         }
@@ -256,7 +239,6 @@ impl<T: Config> Pallet<T> {
         referrer: Option<T::DecentralizedId>,
     ) -> Result<T::DecentralizedId, DispatchError> {
         use codec::Encode;
-        use frame_support::traits::Get;
 
         ensure!(!<DidOf<T>>::contains_key(&account), Error::<T>::Exists);
 
@@ -279,15 +261,7 @@ impl<T: Config> Pallet<T> {
         let did = <T as Config>::Hashing::hash(&raw);
         let did: T::DecentralizedId = Self::truncate(&did);
 
-        // 2. deposit
-
-        let id = T::PalletId::get();
-
-        let deposit = T::Currency::minimum_balance();
-
-        T::Currency::reserve_named(&id.0, &account, deposit)?;
-
-        // 3. store metadata
+        // 2. store metadata
 
         <Metadata<T>>::insert(
             &did,
@@ -306,6 +280,26 @@ impl<T: Config> Pallet<T> {
         Self::deposit_event(Event::<T>::Assigned(did.clone(), account, referrer));
 
         Ok(did)
+    }
+
+    pub fn assign(did: &T::DecentralizedId, dest: &AccountOf<T>) -> DispatchResult {
+        ensure!(!<DidOf<T>>::contains_key(dest), Error::<T>::Exists);
+
+        let mut meta = <Metadata<T>>::get(did).ok_or(Error::<T>::NotExists)?;
+
+        let source = meta.account.clone();
+
+        meta.account = dest.clone();
+        meta.created = <frame_system::Pallet<T>>::block_number();
+
+        <Metadata<T>>::insert(did, meta);
+
+        <DidOf<T>>::remove(&source);
+        <DidOf<T>>::insert(dest, did);
+
+        Self::deposit_event(Event::<T>::Transferred(did.clone(), source, dest.clone()));
+
+        Ok(())
     }
 
     pub fn lookup_address(a: MultiAddress<AccountOf<T>, ()>) -> Option<AccountOf<T>> {

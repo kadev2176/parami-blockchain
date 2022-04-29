@@ -6,8 +6,6 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-mod filter;
-
 use codec::{Decode, Encode};
 use smallvec::smallvec;
 use sp_api::impl_runtime_apis;
@@ -101,7 +99,6 @@ pub type SignedExtra = (
     frame_system::CheckEra<Runtime>,
     frame_system::CheckNonce<Runtime>,
     frame_system::CheckWeight<Runtime>,
-    filter::ExtrinsicFilter<Runtime>,
     pallet_transaction_payment::ChargeTransactionPayment<Runtime>,
 );
 
@@ -214,7 +211,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 323,
+    spec_version: 324,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -350,7 +347,6 @@ where
             frame_system::CheckEra::<Runtime>::from(era),
             frame_system::CheckNonce::<Runtime>::from(nonce),
             frame_system::CheckWeight::<Runtime>::new(),
-            filter::ExtrinsicFilter::<Runtime>::new(),
             pallet_transaction_payment::ChargeTransactionPayment::<Runtime>::from(tip),
         );
         let raw_payload = SignedPayload::new(call, extra).ok()?;
@@ -1304,7 +1300,6 @@ parameter_types! {
 
 impl parami_ad::Config for Runtime {
     type Event = Event;
-    type Accounts = Magic;
     type Assets = Assets;
     type MinimumFeeBalance = AdvertiserMinimumFee;
     type PalletId = AdPalletId;
@@ -1366,16 +1361,11 @@ impl parami_xassets::Config for Runtime {
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-    pub const DidPalletId: PalletId = PalletId(*names::DID);
-}
-
 impl parami_did::Config for Runtime {
     type Event = Event;
     type Currency = Balances;
     type DecentralizedId = DecentralizedId;
     type Hashing = Keccak256;
-    type PalletId = DidPalletId;
     type WeightInfo = parami_did::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1398,23 +1388,14 @@ impl parami_linker::Config for Runtime {
     type WeightInfo = parami_linker::weights::SubstrateWeight<Runtime>;
 }
 
-parameter_types! {
-    pub const AutomaticDeposit: Balance = 2 * CENTS;
-    pub const MagicPalletId: PalletId = PalletId(*names::MAGIC);
-}
-
-impl parami_magic::Config for Runtime {
-    type Event = Event;
-    type AutomaticDeposit = AutomaticDeposit;
-    type Call = Call;
-    type PalletId = MagicPalletId;
-    type WeightInfo = parami_magic::weights::SubstrateWeight<Runtime>;
-}
+impl parami_magic::Config for Runtime {}
 
 parameter_types! {
     pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 6 * 30 * DAYS;
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
+    pub const NftPendingLifetime: BlockNumber = 5;
+    pub const NftPalletId: PalletId = PalletId(*names::NFT);
 }
 
 impl parami_nft::Config for Runtime {
@@ -1424,11 +1405,16 @@ impl parami_nft::Config for Runtime {
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
+    type Links = Linker;
     type Nft = Uniques;
+    type PalletId = NftPalletId;
+    type PendingLifetime = NftPendingLifetime;
     type StringLimit = StringLimit;
     type Swaps = Swap;
     type WeightInfo = parami_nft::weights::SubstrateWeight<Runtime>;
 }
+
+impl parami_ocw::Config for Runtime {}
 
 parameter_types! {
     pub const InitialFarmingReward: Balance = 100 * DOLLARS;
@@ -1529,7 +1515,7 @@ construct_runtime!(
         XAssets: parami_xassets::{Pallet, Call, Event<T>} = 103,
         Did: parami_did::{Pallet, Call, Storage, Config<T>, Event<T>} = 104,
         Linker: parami_linker::{Pallet, Call, Storage, Config<T>, Event<T>, ValidateUnsigned} = 105,
-        Magic: parami_magic::{Pallet, Call, Storage, Config<T>, Event<T>} = 106,
+        Magic: parami_magic::{Pallet,Storage} = 106,
         Nft: parami_nft::{Pallet, Call, Storage, Config<T>, Event<T>} = 107,
         Swap: parami_swap::{Pallet, Call, Storage, Config<T>, Event<T>} = 108,
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,
@@ -1791,7 +1777,6 @@ impl_runtime_apis! {
             list_benchmark!(list, extra, parami_advertiser, Advertiser);
             list_benchmark!(list, extra, parami_did, Did);
             list_benchmark!(list, extra, parami_linker, Linker);
-            list_benchmark!(list, extra, parami_magic, Magic);
             list_benchmark!(list, extra, parami_nft, Nft);
             list_benchmark!(list, extra, parami_swap, Swap);
             list_benchmark!(list, extra, parami_tag, Tag);
@@ -1838,7 +1823,6 @@ impl_runtime_apis! {
             add_benchmark!(params, batches, parami_advertiser, Advertiser);
             add_benchmark!(params, batches, parami_did, Did);
             add_benchmark!(params, batches, parami_linker, Linker);
-            add_benchmark!(params, batches, parami_magic, Magic);
             add_benchmark!(params, batches, parami_nft, Nft);
             add_benchmark!(params, batches, parami_swap, Swap);
             add_benchmark!(params, batches, parami_tag, Tag);
