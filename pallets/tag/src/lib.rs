@@ -14,13 +14,14 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
+mod migrations;
 mod types;
 
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
     storage::PrefixIterator,
-    traits::{Currency, ExistenceRequirement::KeepAlive, WithdrawReasons},
+    traits::{Currency, ExistenceRequirement::KeepAlive, StorageVersion, WithdrawReasons},
     Blake2_256, StorageHasher,
 };
 #[cfg(not(feature = "std"))]
@@ -38,6 +39,8 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance
 type HashOf = <Blake2_256 as StorageHasher>::Output;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<<T as Config>::DecentralizedId, HeightOf<T>>;
+
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -84,6 +87,7 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 
@@ -111,8 +115,8 @@ pub mod pallet {
         Identity,
         T::DecentralizedId,
         Blake2_256,
-        Vec<u8>, //
-        i32,
+        Vec<u8>,
+        (i32, i32), // (last_output, last_input)
         ValueQuery,
     >;
 
@@ -123,8 +127,8 @@ pub mod pallet {
         Identity,
         T::DecentralizedId,
         Blake2_256,
-        Vec<u8>, //
-        i32,
+        Vec<u8>,
+        (i32, i32), // (last_output, last_input)
         ValueQuery,
     >;
 
@@ -136,7 +140,11 @@ pub mod pallet {
     }
 
     #[pallet::hooks]
-    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
+    impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+        fn on_runtime_upgrade() -> Weight {
+            migrations::migrate::<T>()
+        }
+    }
 
     #[pallet::error]
     pub enum Error<T> {
@@ -221,11 +229,11 @@ pub mod pallet {
             }
 
             for (did, tag, score) in &self.personas {
-                <PersonasOf<T>>::insert(did, tag, score);
+                <PersonasOf<T>>::insert(did, tag, (score, score));
             }
 
             for (did, tag, score) in &self.influences {
-                <InfluencesOf<T>>::insert(did, tag, score);
+                <InfluencesOf<T>>::insert(did, tag, (score, score));
             }
         }
     }
@@ -240,28 +248,27 @@ impl<T: Config> Pallet<T> {
         Self::key(&tag)
     }
 
-    fn accrue(score: i32, delta: i32) -> i32 {
-        // f[x] := nLog[102, 102-Abs[x]] when n * x >= 0
-        // f[x] := nLog[102, Abs[x] + 2] when n * x < 0
+    fn accrue(score: (i32, i32), delta: i32) -> (i32, i32) {
+        use core::f32::consts::PI;
 
-        let s = score as f32;
-        let d = delta as f32;
+        // f[x] := ArcTan[x/50] * 200 / PI
 
-        let b = if s.signum() == d.signum() {
-            102f32 - s.abs()
-        } else {
-            s.abs() + 2f32
-        };
+        let y = score.1;
+        let x = delta;
 
-        let d = b.log(102f32) * d;
-        let s = (s + d) * 10f32;
+        let x = y + x;
+        let y = x as f32 / 50.0;
+        let y = y.atan();
+        let y = y * 200.0 / PI;
 
-        // MARK: due to rounding, the score won't exceed 100 or -100
-        s.round() as i32 / 10
+        let y = (y.round() * 10.0) as i32 / 10;
+
+        (y, x)
     }
 
-    fn storage_double_map_to_btree_map<TValue>(
-        iter: &mut PrefixIterator<TValue>,
+    fn storage_double_map_to_btree_map<TValue, TSource, F: FnMut(TSource) -> TValue>(
+        iter: &mut PrefixIterator<TSource>,
+        mut f: F,
     ) -> BTreeMap<HashOf, TValue> {
         let mut hashes = BTreeMap::new();
         while let Some(value) = iter.next() {
@@ -270,6 +277,7 @@ impl<T: Config> Pallet<T> {
             let mut hash = [0u8; 32];
             hash.copy_from_slice(&raw[prefix.len()..]);
 
+            let value = f(value);
             hashes.insert(hash, value);
         }
 
@@ -289,7 +297,7 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
     }
 
     fn tags_of(id: &AdOf<T>) -> BTreeMap<HashOf, bool> {
-        Self::storage_double_map_to_btree_map(&mut <TagsOf<T>>::iter_prefix_values(id))
+        Self::storage_double_map_to_btree_map(&mut <TagsOf<T>>::iter_prefix_values(id), |v| v)
     }
 
     fn add_tag(id: &AdOf<T>, tag: Vec<u8>) -> DispatchResult {
@@ -315,11 +323,13 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
     }
 
     fn personas_of(did: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
-        Self::storage_double_map_to_btree_map(&mut <PersonasOf<T>>::iter_prefix_values(did))
+        Self::storage_double_map_to_btree_map(&mut <PersonasOf<T>>::iter_prefix_values(did), |v| {
+            v.0
+        })
     }
 
     fn get_score<K: AsRef<Vec<u8>>>(did: &T::DecentralizedId, tag: K) -> i32 {
-        <PersonasOf<T>>::get(did, tag.as_ref())
+        <PersonasOf<T>>::get(did, tag.as_ref()).0
     }
 
     fn influence<K: AsRef<Vec<u8>>>(
@@ -335,11 +345,14 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
     }
 
     fn influences_of(kol: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
-        Self::storage_double_map_to_btree_map(&mut <InfluencesOf<T>>::iter_prefix_values(kol))
+        Self::storage_double_map_to_btree_map(
+            &mut <InfluencesOf<T>>::iter_prefix_values(kol),
+            |v| v.0,
+        )
     }
 
     fn get_influence<K: AsRef<Vec<u8>>>(kol: &T::DecentralizedId, tag: K) -> i32 {
-        <InfluencesOf<T>>::get(kol, tag.as_ref())
+        <InfluencesOf<T>>::get(kol, tag.as_ref()).0
     }
 
     fn impact<K: AsRef<Vec<u8>>>(kol: &T::DecentralizedId, tag: K, delta: i32) -> DispatchResult {
