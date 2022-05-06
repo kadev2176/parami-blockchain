@@ -18,13 +18,23 @@ pub fn migrate<T: Config>() -> Weight {
 
 mod v1 {
     use super::*;
-    use crate::{InfluencesOf, PersonasOf};
+    use crate::{types::Score, InfluencesOf, PersonasOf};
 
     pub fn migrate<T: Config>() -> Weight {
         let mut weight: Weight = 0;
 
-        <PersonasOf<T>>::translate_values(|score| Some((score, score)));
-        <InfluencesOf<T>>::translate_values(|score| Some((score, score)));
+        <PersonasOf<T>>::translate_values(|score| {
+            Some(Score {
+                current_score: score,
+                last_input: score,
+            })
+        });
+        <InfluencesOf<T>>::translate_values(|score| {
+            Some(Score {
+                current_score: score,
+                last_input: score,
+            })
+        });
 
         weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
 

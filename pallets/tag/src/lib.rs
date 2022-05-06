@@ -116,7 +116,7 @@ pub mod pallet {
         T::DecentralizedId,
         Blake2_256,
         Vec<u8>,
-        (i32, i32), // (last_output, last_input)
+        types::Score, // (last_output, last_input)
         ValueQuery,
     >;
 
@@ -128,7 +128,7 @@ pub mod pallet {
         T::DecentralizedId,
         Blake2_256,
         Vec<u8>,
-        (i32, i32), // (last_output, last_input)
+        types::Score, // (last_output, last_input)
         ValueQuery,
     >;
 
@@ -195,8 +195,8 @@ pub mod pallet {
     pub struct GenesisConfig<T: Config> {
         pub tag: Vec<Vec<u8>>,
         pub tags: Vec<(AdOf<T>, Vec<u8>)>,
-        pub personas: Vec<(T::DecentralizedId, Vec<u8>, i32)>,
-        pub influences: Vec<(T::DecentralizedId, Vec<u8>, i32)>,
+        pub personas: Vec<(T::DecentralizedId, Vec<u8>, types::Score)>,
+        pub influences: Vec<(T::DecentralizedId, Vec<u8>, types::Score)>,
     }
 
     #[cfg(feature = "std")]
@@ -229,11 +229,25 @@ pub mod pallet {
             }
 
             for (did, tag, score) in &self.personas {
-                <PersonasOf<T>>::insert(did, tag, (score, score));
+                <PersonasOf<T>>::insert(
+                    did,
+                    tag,
+                    types::Score {
+                        current_score: score.current_score,
+                        last_input: score.last_input,
+                    },
+                );
             }
 
             for (did, tag, score) in &self.influences {
-                <InfluencesOf<T>>::insert(did, tag, (score, score));
+                <InfluencesOf<T>>::insert(
+                    did,
+                    tag,
+                    types::Score {
+                        current_score: score.current_score,
+                        last_input: score.last_input,
+                    },
+                );
             }
         }
     }
@@ -248,22 +262,22 @@ impl<T: Config> Pallet<T> {
         Self::key(&tag)
     }
 
-    fn accrue(score: (i32, i32), delta: i32) -> (i32, i32) {
+    fn accrue(score: &types::Score, delta: i32) -> types::Score {
         use core::f32::consts::PI;
 
         // f[x] := ArcTan[x/50] * 200 / PI
 
-        let y = score.1;
-        let x = delta;
+        let last_input = score.last_input + delta;
+        let current_score = last_input as f32 / 50.0;
+        let current_score = current_score.atan();
+        let current_score = current_score * 200.0 / PI;
 
-        let x = y + x;
-        let y = x as f32 / 50.0;
-        let y = y.atan();
-        let y = y * 200.0 / PI;
+        let current_score = (current_score.round() * 10.0) as i32 / 10;
 
-        let y = (y.round() * 10.0) as i32 / 10;
-
-        (y, x)
+        types::Score {
+            current_score,
+            last_input,
+        }
     }
 
     fn storage_double_map_to_btree_map<TValue, TSource, F: FnMut(TSource) -> TValue>(
@@ -324,12 +338,12 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
 
     fn personas_of(did: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
         Self::storage_double_map_to_btree_map(&mut <PersonasOf<T>>::iter_prefix_values(did), |v| {
-            v.0
+            v.current_score
         })
     }
 
     fn get_score<K: AsRef<Vec<u8>>>(did: &T::DecentralizedId, tag: K) -> i32 {
-        <PersonasOf<T>>::get(did, tag.as_ref()).0
+        <PersonasOf<T>>::get(did, tag.as_ref()).current_score
     }
 
     fn influence<K: AsRef<Vec<u8>>>(
@@ -338,7 +352,7 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
         delta: i32,
     ) -> DispatchResult {
         <PersonasOf<T>>::mutate(&did, tag.as_ref(), |score| {
-            *score = Self::accrue(*score, delta);
+            *score = Self::accrue(score, delta);
         });
 
         Ok(())
@@ -347,17 +361,17 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
     fn influences_of(kol: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
         Self::storage_double_map_to_btree_map(
             &mut <InfluencesOf<T>>::iter_prefix_values(kol),
-            |v| v.0,
+            |v| v.current_score,
         )
     }
 
     fn get_influence<K: AsRef<Vec<u8>>>(kol: &T::DecentralizedId, tag: K) -> i32 {
-        <InfluencesOf<T>>::get(kol, tag.as_ref()).0
+        <InfluencesOf<T>>::get(kol, tag.as_ref()).current_score
     }
 
     fn impact<K: AsRef<Vec<u8>>>(kol: &T::DecentralizedId, tag: K, delta: i32) -> DispatchResult {
         <InfluencesOf<T>>::mutate(&kol, tag.as_ref(), |score| {
-            *score = Self::accrue(*score, delta);
+            *score = Self::accrue(score, delta);
         });
 
         Ok(())
