@@ -24,16 +24,10 @@ mod v1 {
         let mut weight: Weight = 0;
 
         <PersonasOf<T>>::translate_values(|score| {
-            Some(Score {
-                current_score: score,
-                last_input: score,
-            })
+            Some(Pallet::<T>::accrue(&Score::default(), score))
         });
         <InfluencesOf<T>>::translate_values(|score| {
-            Some(Score {
-                current_score: score,
-                last_input: score,
-            })
+            Some(Pallet::<T>::accrue(&Score::default(), score))
         });
 
         weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));

@@ -262,7 +262,7 @@ impl<T: Config> Pallet<T> {
         Self::key(&tag)
     }
 
-    fn accrue(score: &types::Score, delta: i32) -> types::Score {
+    pub(crate) fn accrue(score: &types::Score, delta: i32) -> types::Score {
         use core::f32::consts::PI;
 
         // f[x] := ArcTan[x/50] * 200 / PI
