@@ -1181,7 +1181,10 @@ impl parami_linker::Config for Runtime {
     type WeightInfo = parami_linker::weights::SubstrateWeight<Runtime>;
 }
 
-impl parami_magic::Config for Runtime {}
+impl parami_magic::Config for Runtime {
+    type AssetId = AssetId;
+    type Assets = Assets;
+}
 
 parameter_types! {
     pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;

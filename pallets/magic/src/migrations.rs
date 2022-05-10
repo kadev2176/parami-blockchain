@@ -56,9 +56,13 @@ mod v3 {
 
     use frame_support::{
         storage::migration::remove_storage_prefix,
-        traits::{Currency, ExistenceRequirement},
+        traits::{
+            tokens::fungibles::{Inspect, Transfer},
+            Currency, ExistenceRequirement,
+        },
     };
     use parami_did::Pallet as Did;
+    use sp_runtime::traits::Zero;
 
     pub fn migrate<T: Config>() -> Weight {
         // let mut weight: Weight = 0;
@@ -73,6 +77,21 @@ mod v3 {
                 stash,
                 ExistenceRequirement::AllowDeath,
             );
+
+            for token in 0u32..10u32 {
+                let token: T::AssetId = token.into();
+                let assets = T::Assets::balance(token, &meta.stash_account);
+                if assets <= Zero::zero() {
+                    continue;
+                }
+                let _ = T::Assets::transfer(
+                    token,
+                    &meta.stash_account,
+                    &meta.controller_account,
+                    assets,
+                    false,
+                );
+            }
 
             // weight.saturating_accrue(T::DbWeight::get().reads_writes(2, 1));
 

@@ -5,9 +5,14 @@ pub use pallet::*;
 mod migrations;
 mod types;
 
-use frame_support::traits::StorageVersion;
+use frame_support::traits::{
+    tokens::fungibles::{Inspect, Transfer},
+    Currency, StorageVersion,
+};
+use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded};
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
+type BalanceOf<T> = <<T as parami_did::Config>::Currency as Currency<AccountOf<T>>>::Balance;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<AccountOf<T>, HeightOf<T>>;
 
@@ -20,7 +25,20 @@ pub mod pallet {
     use frame_system::pallet_prelude::*;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + parami_did::Config {}
+    pub trait Config: frame_system::Config + parami_did::Config {
+        /// Fragments (fungible token) ID type
+        type AssetId: Parameter
+            + Member
+            + MaybeSerializeDeserialize
+            + AtLeast32BitUnsigned
+            + Default
+            + Bounded
+            + Copy;
+
+        /// The assets trait to create, mint, and transfer fractions (fungible token)
+        type Assets: Inspect<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>
+            + Transfer<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>;
+    }
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
