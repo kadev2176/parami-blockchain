@@ -31,6 +31,7 @@ version = '1.0'
 hex-literal = { version = '0.3', optional = true }
 serde = { version = '1.0', optional = true, features = ['derive'] }
 smallvec = '1.6'
+log = { version = "0.4.14", default-features = false }
 
 # Local Dependencies
 parami-primitives = { path = '../../primitives', default-features = false }
@@ -68,11 +69,14 @@ sp-version = { git = 'https://github.com/paritytech/substrate', branch = 'polkad
 ## Substrate FRAME Dependencies
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate', default-features = false, optional = true, branch = 'polkadot-v0.9.13' }
 frame-election-provider-support = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
-frame-executive = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
+frame-executive = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false, features = ["try-runtime"] }
 frame-support = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 frame-system = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
 frame-system-benchmarking = { git = 'https://github.com/paritytech/substrate', default-features = false, optional = true, branch = 'polkadot-v0.9.13' }
 frame-system-rpc-runtime-api = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
+frame-try-runtime = { git = "https://github.com/paritytech/substrate.git", branch = 'polkadot-v0.9.13', optional = true, default-features = false}
+try-runtime-cli = { git = "https://github.com/paritytech/substrate.git", branch = 'polkadot-v0.9.13', optional = true, default-features = false}
+
 
 ## Substrate Pallet Dependencies
 pallet-assets = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.13', default-features = false }
@@ -174,6 +178,7 @@ std = [
     'frame-executive/std',
     'frame-support/std',
     'frame-system/std',
+    "frame-try-runtime/std",
 
     'pallet-assets/std',
     'pallet-aura/std',
@@ -277,4 +282,43 @@ runtime-benchmarks = [
     'pallet-collator-selection/runtime-benchmarks',
     'pallet-xcm/runtime-benchmarks',
     'xcm-builder/runtime-benchmarks',
+]
+
+try-runtime = [
+    'parami-ad/try-runtime',
+    'parami-advertiser/try-runtime',
+    'parami-chainbridge/try-runtime',
+    'parami-xassets/try-runtime',
+    'parami-did/try-runtime',
+    'parami-linker/try-runtime',
+    'parami-nft/try-runtime',
+    'parami-swap/try-runtime',
+    'parami-tag/try-runtime',
+
+    'frame-try-runtime',
+    'frame-support/try-runtime',
+    'frame-system/try-runtime',
+
+    'pallet-assets/try-runtime',
+    'pallet-balances/try-runtime',
+    'pallet-bounties/try-runtime',
+    'pallet-collective/try-runtime',
+    'pallet-contracts/try-runtime',
+    'pallet-democracy/try-runtime',
+    'pallet-election-provider-multi-phase/try-runtime',
+    'pallet-elections-phragmen/try-runtime',
+    'pallet-im-online/try-runtime',
+    'pallet-membership/try-runtime',
+    'pallet-mmr/try-runtime',
+    'pallet-multisig/try-runtime',
+    'pallet-offences/try-runtime',
+    'pallet-scheduler/try-runtime',
+    'pallet-society/try-runtime',
+    'pallet-staking/try-runtime',
+    'pallet-timestamp/try-runtime',
+    'pallet-tips/try-runtime',
+    'pallet-treasury/try-runtime',
+    'pallet-uniques/try-runtime',
+    'pallet-utility/try-runtime',
+    'pallet-vesting/try-runtime',
 ]
