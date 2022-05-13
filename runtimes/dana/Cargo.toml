@@ -248,6 +248,7 @@ try-runtime = [
     'parami-xassets/try-runtime',
     'parami-did/try-runtime',
     'parami-linker/try-runtime',
+    'parami-magic/try-runtime',
     'parami-nft/try-runtime',
     'parami-swap/try-runtime',
     'parami-tag/try-runtime',
