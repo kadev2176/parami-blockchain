@@ -157,7 +157,7 @@ impl parami_did::Config for Test {
 }
 
 parameter_types! {
-    pub const InitialMintingDeposit: Balance = 1_000_000;
+    pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
     pub const InitialMintingValueBase: Balance = 1_000_000;
     pub const PendingLifetime: BlockNumber = 5;

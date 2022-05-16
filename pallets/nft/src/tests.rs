@@ -1,6 +1,8 @@
 use crate::{mock::*, Deposit, Deposits, Error, Metadata, Porting};
 use frame_support::{assert_noop, assert_ok};
-use parami_traits::types::Network;
+use log::Log;
+use parami_primitives::constants::DOLLARS;
+use parami_traits::{types::Network, Swaps};
 
 #[test]
 fn should_import() {
@@ -145,7 +147,7 @@ fn should_mint() {
     new_test_ext().execute_with(|| {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
-        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2_000_100u128));
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 1000 * DOLLARS));
 
         assert_ok!(Nft::mint(
             Origin::signed(ALICE),
@@ -155,11 +157,46 @@ fn should_mint() {
         ));
 
         let deposit = <Deposit<Test>>::get(&nft);
-        assert_eq!(deposit, Some(2_000_100u128));
+        assert_eq!(deposit, Some(1000 * DOLLARS));
 
         let deposit_kol = <Deposits<Test>>::get(nft, &DID_ALICE);
         assert_eq!(deposit_kol, deposit);
     });
+}
+
+#[test]
+fn pay_1000_ad3_should_elevate_token_price_by_1x() {
+    new_test_ext().execute_with(|| {
+        let required_ad3_amount = elevate_token_price_to_target(2 * DOLLARS);
+        log::info!("required_ad3_amount is {}", required_ad3_amount);
+        assert!(required_ad3_amount < 1000 * DOLLARS);
+    });
+}
+
+//return required ad3 amount
+fn elevate_token_price_to_target(target_ad3_amount_per_1000_token: u128) -> u128 {
+    let nft = Nft::preferred(DID_ALICE).unwrap();
+
+    assert_ok!(Nft::back(Origin::signed(BOB), nft, 1000 * DOLLARS));
+
+    assert_ok!(Nft::mint(
+        Origin::signed(ALICE),
+        nft,
+        b"Test Token".to_vec(),
+        b"XTT".to_vec()
+    ));
+
+    let ad3_balance_of_bob_before_buying_token = Balances::free_balance(BOB);
+
+    let mut ad3_amount_per_1000_token = Swap::token_out_dry(nft, 1000 * DOLLARS).unwrap();
+    while ad3_amount_per_1000_token < target_ad3_amount_per_1000_token {
+        Swap::buy_tokens(Origin::signed(BOB), nft, 100_000 * DOLLARS, 1000 * DOLLARS, 100).unwrap();
+        ad3_amount_per_1000_token = Swap::token_out_dry(nft, 1000 * DOLLARS).unwrap();
+    }
+
+    let ad3_balance_of_bob_after_buying_token = Balances::free_balance(BOB);
+
+    ad3_balance_of_bob_before_buying_token - ad3_balance_of_bob_after_buying_token
 }
 
 #[test]

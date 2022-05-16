@@ -7,6 +7,8 @@ use sp_runtime::{
     traits::{BlakeTwo256, Keccak256},
 };
 
+use parami_primitives::constants::DOLLARS;
+
 type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
 
@@ -178,9 +180,9 @@ impl parami_swap::Config for Test {
 }
 
 parameter_types! {
-    pub const InitialMintingDeposit: Balance = 1_000_000;
+    pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
-    pub const InitialMintingValueBase: Balance = 1_000_000;
+    pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
     pub const PendingLifetime: BlockNumber = 5;
     pub const NftPalletId: PalletId = PalletId(*b"prm/nft ");
 }
@@ -207,7 +209,7 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .unwrap();
 
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(ALICE, 100), (BOB, 3_000_000), (CHARLIE, 3_000_000)],
+        balances: vec![(ALICE, 3_000_000 * DOLLARS), (BOB, 3_000_000 * DOLLARS), (CHARLIE, 3_000_000 * DOLLARS)],
     }
     .assimilate_storage(&mut t)
     .unwrap();
