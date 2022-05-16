@@ -136,7 +136,9 @@ fn should_fail_when_insufficient_balance() {
     new_test_ext().execute_with(|| {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
-        let r = Nft::back(Origin::signed(BOB), nft, 3_000_100u128);
+        let free_balance_of_backer = Balances::free_balance(BOB);
+
+        let r = Nft::back(Origin::signed(BOB), nft, free_balance_of_backer + 30000);
 
         assert_noop!(r, pallet_balances::Error::<Test>::InsufficientBalance);
     });
@@ -204,7 +206,7 @@ fn should_fail_when_minted() {
     new_test_ext().execute_with(|| {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
-        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2_000_100u128));
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2000 * DOLLARS));
 
         assert_ok!(Nft::mint(
             Origin::signed(ALICE),
@@ -249,8 +251,8 @@ fn should_claim() {
     new_test_ext().execute_with(|| {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
-        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2_000_000u128));
-        assert_ok!(Nft::back(Origin::signed(CHARLIE), nft, 1_000_000u128));
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2000 * DOLLARS));
+        assert_ok!(Nft::back(Origin::signed(CHARLIE), nft, 1000 * DOLLARS));
 
         assert_ok!(Nft::mint(
             Origin::signed(ALICE),
@@ -262,8 +264,8 @@ fn should_claim() {
         assert_ok!(Nft::claim(Origin::signed(BOB), nft));
         assert_ok!(Nft::claim(Origin::signed(CHARLIE), nft));
 
-        assert_eq!(Assets::balance(nft, &BOB), 666_666);
-        assert_eq!(Assets::balance(nft, &CHARLIE), 333_333);
+        assert_eq!(Assets::balance(nft, &BOB), 666666666666666666666666);
+        assert_eq!(Assets::balance(nft, &CHARLIE), 333333333333333333333333);
 
         assert_eq!(<Deposits<Test>>::get(nft, &DID_BOB), None);
         assert_eq!(<Deposits<Test>>::get(nft, &DID_CHARLIE), None);
@@ -277,7 +279,7 @@ fn should_claim() {
 
         assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
 
-        assert_eq!(Assets::balance(nft, &ALICE), 1_000_000);
+        assert_eq!(Assets::balance(nft, &ALICE), 1_000_000 * DOLLARS);
         assert_eq!(<Deposits<Test>>::get(nft, &DID_ALICE), None);
     });
 }
