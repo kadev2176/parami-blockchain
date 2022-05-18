@@ -11,6 +11,8 @@ use frame_support::traits::{
 };
 use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded};
 
+use log::info;
+
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type BalanceOf<T> = <<T as parami_did::Config>::Currency as Currency<AccountOf<T>>>::Balance;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
@@ -62,6 +64,18 @@ pub mod pallet {
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<(), &'static str> {
+            // assert!(StorageVersion::<T>::get() == Releases::V0, "Storage version too high.");
+
+            info! (
+                "migration: magic storage version v4 PRE migration checks succesful!"
+            );
+
+            Ok(())
+        }
+
         fn on_runtime_upgrade() -> Weight {
             migrations::migrate::<T>()
         }
