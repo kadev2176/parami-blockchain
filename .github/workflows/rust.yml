@@ -54,8 +54,8 @@ jobs:
 
     - name: Build only
       run: cargo build --release
-    # - name: Run tests
-    #   run: cargo test --release --verbose
+    - name: Run tests
+      run: cargo test --release --verbose
 
     - name: Post-build
       run: |
