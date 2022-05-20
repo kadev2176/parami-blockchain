@@ -435,7 +435,7 @@ fn fail_to_transfer_if_no_asset() {
 }
 
 #[test]
-fn fail_to_transfer_if_no_balance() {
+fn fail_to_transfer_if_no_enough_balance() {
     TestExternalitiesBuilder::default()
         .build()
         .execute_with(|| {
