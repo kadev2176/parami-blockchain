@@ -300,3 +300,161 @@ fn create_sucessful_transfer_proposal() {
             ]);
         })
 }
+
+#[test]
+fn can_force_set_resource() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let resource_id = H256::from_slice("00000000001111111111222222222233".as_bytes());
+            let asset_id = 1;
+
+            assert!(mock::XAssets::resource(asset_id).is_none());
+            assert!(
+                mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).is_ok()
+            );
+
+            let actual_resource = mock::XAssets::resource(asset_id);
+            assert!(actual_resource.is_some());
+            assert_eq!(actual_resource.unwrap(), resource_id);
+        });
+}
+
+#[test]
+fn can_transfer_token() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let resource_id = H256::from_slice("00000000001111111111222222222233".as_bytes());
+            let chain_id = 100u8;
+            let asset_id = 1;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+            mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+            mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).unwrap();
+            mock::Assets::force_create(Origin::root(), asset_id, chain_id as u64, true, 1).unwrap();
+            mock::Assets::mint(
+                Origin::signed(chain_id as u64),
+                asset_id,
+                chain_id as u64,
+                101,
+            )
+            .unwrap();
+            assert_ok!(mock::XAssets::transfer_token(
+                Origin::signed(chain_id as u64),
+                chain_id as u64,
+                recipient.clone(),
+                100,
+                asset_id
+            ));
+            assert_events(vec![
+                mock::Event::Assets(pallet_assets::Event::Transferred {
+                    asset_id,
+                    from: chain_id as u64,
+                    to: <parami_chainbridge::Pallet<MockRuntime>>::account_id(),
+                    amount: 100,
+                }),
+                mock::Event::ChainBridge(parami_chainbridge::Event::FungibleTransfer(
+                    chain_id,
+                    1,
+                    resource_id,
+                    100u32.into(),
+                    recipient.clone(),
+                )),
+            ]);
+        });
+}
+
+#[test]
+fn fail_to_tranfer_token_if_chain_is_not_whitelisted() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let chain_id = 100u8;
+            let asset_id = 1;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+
+            assert_noop!(
+                mock::XAssets::transfer_token(
+                    Origin::signed(1),
+                    chain_id as u64,
+                    recipient.clone(),
+                    100,
+                    asset_id
+                ),
+                parami_xassets::Error::<mock::MockRuntime>::InvalidTransfer
+            );
+        });
+}
+
+#[test]
+fn fail_to_tranfer_token_if_not_exist_asset_2_resource_id_config() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let chain_id = 100u8;
+            let asset_id = 1;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+
+            mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+
+            assert_noop!(
+                mock::XAssets::transfer_token(
+                    Origin::signed(1),
+                    chain_id as u64,
+                    recipient.clone(),
+                    100,
+                    asset_id
+                ),
+                parami_xassets::Error::<mock::MockRuntime>::NotExists
+            );
+        });
+}
+
+#[test]
+fn fail_to_transfer_if_no_asset() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let resource_id = H256::from_slice("00000000001111111111222222222233".as_bytes());
+            let chain_id = 100u8;
+            let asset_id = 1;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+            mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+            mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).unwrap();
+            assert_noop!(
+                mock::XAssets::transfer_token(
+                    Origin::signed(chain_id as u64),
+                    chain_id as u64,
+                    recipient.clone(),
+                    100,
+                    asset_id,
+                ),
+                pallet_assets::Error::<mock::MockRuntime>::Unknown
+            );
+        });
+}
+
+#[test]
+fn fail_to_transfer_if_no_balance() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let resource_id = H256::from_slice("00000000001111111111222222222233".as_bytes());
+            let chain_id = 100u8;
+            let asset_id = 1;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+            mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+            mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).unwrap();
+            mock::Assets::force_create(Origin::root(), asset_id, chain_id as u64, true, 1).unwrap();
+            assert_noop!(
+                mock::XAssets::transfer_token(
+                    Origin::signed(chain_id as u64),
+                    chain_id as u64,
+                    recipient.clone(),
+                    100,
+                    asset_id,
+                ),
+                pallet_assets::Error::<mock::MockRuntime>::BalanceLow
+            );
+        });
+}
