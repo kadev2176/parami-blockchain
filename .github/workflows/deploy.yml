@@ -12,7 +12,7 @@ on:
         required: true
 
 jobs:
-  build:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,7 +23,7 @@ jobs:
 
       - uses: dawidd6/action-download-artifact@v2
         with:
-          workflow: build
+          workflow: actions.yml
           workflow_conclusion: success
           branch: main
 
@@ -31,10 +31,10 @@ jobs:
         env:
           DEPLOY_TARGET_RPC: ${{ secrets.MAIN_TARGET_RPC }}
           DEPLOY_MNEMONIC: ${{ secrets.MAIN_MNEMONIC }}
-        if: ${{ inputs.target == 'main' }}
+        if: inputs.target == 'main'
 
       - run: npm run upgrade
         env:
           DEPLOY_TARGET_RPC: ${{ secrets.STAGE_TARGET_RPC }}
           DEPLOY_MNEMONIC: ${{ secrets.STAGE_MNEMONIC }}
-        if: ${{ inputs.target == 'staging' }}
+        if: inputs.target == 'staging'

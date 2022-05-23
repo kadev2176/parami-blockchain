@@ -1,0 +1,20 @@
+name: Release
+
+on: workflow_call
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: dawidd6/action-download-artifact@v2
+        with:
+          workflow: actions.yml
+          workflow_conclusion: success
+          commit: ${{ github.event.head_commit.id }}
+
+      - uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            **/parami-*
+            **/parami_*_runtime.compact.compressed.wasm

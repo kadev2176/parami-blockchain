@@ -1,18 +1,6 @@
 name: Build
 
-on:
-  push:
-    branches:
-      - main
-      - rel/*
-    paths-ignore:
-      - "**/*.md"
-  pull_request:
-    branches:
-      - main
-      - rel/*
-    paths-ignore:
-      - "**/*.md"
+on: workflow_call
 
 env:
   CARGO_INCREMENTAL: 0
@@ -36,22 +24,17 @@ jobs:
         with:
           toolchain: stable
           default: true
-      - name: Install nightly toolchain
-        run: |
-          rustup update nightly
-          rustup target add wasm32-unknown-unknown --toolchain nightly
 
-      - uses: kinosang/action-local-cache@v1
+      - uses: Swatinem/rust-cache@v1
         with:
-          path: |
-            ~/.cache/sccache
-            ~/.cargo/bin
-            ~/.cargo/git
-            ~/.cargo/registry/cache
-            ~/.cargo/registry/index
-            ~/.cargo/.crates.toml
-            ~/.cargo/.crates2.json
-            ./target
+          sharedKey: rscache
+      - uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: ~/.cache/sccache
+          key: sccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            sccache-${{ matrix.os }}-${{ matrix.arch }}-
 
       - name: Install sccache
         env:
@@ -65,22 +48,18 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           sccache --start-server
 
-      - name: Pre-build
+      - name: Install toolchain
         run: |
-          cargo install cargo-sweep
+          rustup update nightly
+          rustup target add wasm32-unknown-unknown --toolchain nightly
 
-          cargo sweep --time 30
+          cargo install --force cargo-sweep
 
-      - name: Build Tests
-        run: cargo test --no-run --locked
       - name: Build Release
         run: cargo build --release --locked
 
       - name: Post-build
         run: |
-          sccache --show-stats
-          sccache --stop-server || true
-
           mkdir -p ./out/
           cp ./target/release/parami ./out/parami-${{ matrix.os }}-${{ matrix.arch }}
           cp ./target/release/wbuild/parami-dana-runtime/parami_dana_runtime.compact.compressed.wasm ./out/
@@ -89,6 +68,12 @@ jobs:
 
           strip ./out/parami-${{ matrix.os }}-${{ matrix.arch }}
           strip ./out/parami-collator-${{ matrix.os }}-${{ matrix.arch }}
+
+          cargo sweep --time 30
+
+      - name: Stop sccache
+        run: sccache --stop-server || true
+        if: always()
 
       - uses: actions/upload-artifact@v3
         with:
@@ -101,7 +86,7 @@ jobs:
           name: parami-dana-runtime
           path: ./out/parami_dana_runtime.compact.compressed.wasm
           if-no-files-found: error
-        if: ${{ matrix.arch == 'x86_64' && matrix.os == 'linux' }}
+        if: matrix.arch == 'x86_64' && matrix.os == 'linux'
 
       - uses: actions/upload-artifact@v3
         with:
@@ -114,4 +99,4 @@ jobs:
           name: parami-para-runtime
           path: ./out/parami_para_runtime.compact.compressed.wasm
           if-no-files-found: error
-        if: ${{ matrix.arch == 'x86_64' && matrix.os == 'linux' }}
+        if: matrix.arch == 'x86_64' && matrix.os == 'linux'
