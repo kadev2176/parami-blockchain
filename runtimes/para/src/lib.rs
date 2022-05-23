@@ -211,7 +211,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 325,
+    spec_version: 326,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -1847,8 +1847,8 @@ impl_runtime_apis! {
         }
 
         fn execute_block_no_check(block: Block) -> Weight {
-			Executive::execute_block_no_check(block)
-		}
+            Executive::execute_block_no_check(block)
+        }
     }
 }
 
