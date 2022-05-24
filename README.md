@@ -1,6 +1,20 @@
-# Parami Blockchain
+<p align="center">
+  <img src="https://parami.io/img/parami/logo-max.png" width="460">
+</p>
 
-Dana-v3 testnet.
+<div align="center">
+
+[![GitHub Actions](https://img.shields.io/github/workflow/status/parami-protocol/parami-blockchain/Actions/main)](https://github.com/parami-protocol/parami-blockchain/actions/workflows/actions.yml)
+[![Codecov](https://img.shields.io/codecov/c/gh/parami-protocol/parami-blockchain)](https://app.codecov.io/gh/parami-protocol/parami-blockchain/)
+[![GitHub Tag](https://img.shields.io/github/v/tag/parami-protocol/parami-blockchain?label=release)](https://github.com/parami-protocol/parami-blockchain/tags)
+[![GitHub](https://img.shields.io/github/license/parami-protocol/parami-blockchain)](https://github.com/parami-protocol/parami-blockchain/blob/main/LICENSE)
+<br />
+[![Twitter](https://img.shields.io/badge/Twitter-white?logo=twitter)](https://twitter.com/ParamiProtocol)
+[![Discord](https://img.shields.io/badge/Discord-gray?logo=discord)](https://discord.com/invite/bxFuekgvYJ)
+[![Telegram](https://img.shields.io/badge/Telegram-gray?logo=telegram)](https://t.me/ParamiProtocolEN)
+[![Medium](https://img.shields.io/badge/Medium-gray?logo=medium)](https://paramiprotocol.medium.com/)
+
+</div>
 
 ## Versions
 
