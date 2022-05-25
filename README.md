@@ -19,9 +19,19 @@
 ## Versions
 
 ```
-rustc 1.57.0 (f1edd0429 2021-11-29)
-rustc 1.59.0-nightly (e2116acae 2021-12-05)
+rustc 1.61.0 (fe5b13d68 2022-05-18)
+rustc 1.63.0-nightly (76761db59 2022-05-24)
 
 substrate-node-template v3.0.0+monthly-2021-10
 substrate polkadot-v0.9.13
 ```
+
+## Contributing
+
+Contributions are welcome and can be submitted using pull requests.
+
+Please follow the [Contributing](Contributing.md) guidelines Pull Requests Template.
+
+## License
+
+This project is licensed under its [GNU GENERAL PUBLIC LICENSE Version 3](LICENSE).

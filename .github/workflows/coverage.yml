@@ -53,10 +53,10 @@ jobs:
           rustup update nightly
           rustup target add wasm32-unknown-unknown --toolchain nightly
 
-          cargo install --force cargo-sweep
+          cargo install --locked cargo-sweep
 
       - name: Install tarpaulin
-        run: cargo install --force cargo-tarpaulin
+        run: cargo install --locked cargo-tarpaulin
         if: matrix.arch == 'x86_64' && matrix.os == 'linux'
 
       - name: Build Tests
@@ -65,7 +65,11 @@ jobs:
         run: cargo test -- --nocapture --quiet
         if: matrix.arch != 'x86_64' || matrix.os != 'linux'
       - name: Generate coverage
-        run: cargo tarpaulin -v --no-fail-fast --locked --workspace -t 120 -o Xml --exclude-files **/mock.rs **/weights.rs **/weights/*
+        run: cargo tarpaulin --forward --release --locked -t 120 -o Xml \
+          --ignore-tests --workspace \
+          --exclude parami-primitives parami-traits \
+          parami-dana parami-para parami-dana-runtime parami-para-runtime \
+          --exclude-files **/mock.rs **/weights.rs **/weights/*
         if: matrix.arch == 'x86_64' && matrix.os == 'linux'
 
       - name: Post-build
