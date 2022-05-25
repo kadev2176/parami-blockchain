@@ -54,6 +54,8 @@ jobs:
           rustup update nightly
           rustup target add wasm32-unknown-unknown --toolchain nightly
 
+          cargo install --locked --force cargo-binstall
+
           cargo binstall --no-confirm cargo-sweep
 
       - name: Install tarpaulin
