@@ -27,14 +27,14 @@ jobs:
 
       - uses: Swatinem/rust-cache@v1
         with:
-          sharedKey: rscache
+          sharedKey: rcache
       - uses: actions/cache@v3
         continue-on-error: false
         with:
           path: ~/.cache/sccache
-          key: sccache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
+          key: scache-${{ matrix.os }}-${{ matrix.arch }}-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            sccache-${{ matrix.os }}-${{ matrix.arch }}-
+            scache-${{ matrix.os }}-${{ matrix.arch }}-
 
       - name: Install sccache
         env:
