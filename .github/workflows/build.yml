@@ -46,6 +46,7 @@ jobs:
           mv -f $SCCACHE_FILE/sccache $HOME/.local/bin/sccache
           chmod +x $HOME/.local/bin/sccache
           echo "$HOME/.local/bin" >> $GITHUB_PATH
+          sccache --stop-server || true
           sccache --start-server
 
       - name: Install toolchain
@@ -53,7 +54,7 @@ jobs:
           rustup update nightly
           rustup target add wasm32-unknown-unknown --toolchain nightly
 
-          cargo install --locked cargo-sweep
+          cargo binstall --no-confirm cargo-sweep
 
       - name: Build Release
         run: cargo build --release --locked
