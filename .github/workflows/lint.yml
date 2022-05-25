@@ -1,0 +1,16 @@
+name: Lint
+
+on: workflow_call
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+
+      - run: cargo fmt --all -- --check
