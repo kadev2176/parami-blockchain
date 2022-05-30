@@ -5,6 +5,7 @@ use frame_support::{
 };
 use parami_traits::Tags;
 use sp_core::{sr25519, H160};
+use sp_runtime::traits::Hash;
 use sp_std::collections::btree_map::BTreeMap;
 
 #[test]
@@ -373,45 +374,51 @@ fn should_drawback() {
         );
     });
 }
+type HashOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
+type NftOf<T> = <T as parami_nft::Config>::AssetId;
+fn prepare_pay() -> (HashOf<Test>, NftOf<Test>) {
+    // 1. prepare
+
+    let nft = Nft::preferred(DID_ALICE).unwrap();
+
+    assert_ok!(Nft::back(Origin::signed(BOB), nft, 2_000_100u128));
+
+    assert_ok!(Nft::mint(
+        Origin::signed(ALICE),
+        nft,
+        b"Test Token".to_vec(),
+        b"XTT".to_vec()
+    ));
+    // create ad
+
+    assert_ok!(Ad::create(
+        Origin::signed(BOB),
+        500,
+        vec![
+            vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
+            vec![5u8, 4u8, 3u8, 2u8, 1u8, 0u8]
+        ],
+        [0u8; 64].into(),
+        1,
+        1
+    ));
+
+    let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+
+    // bid
+
+    assert_ok!(Ad::bid(Origin::signed(BOB), ad, nft, 400));
+
+    return (ad, nft);
+}
 
 #[test]
 fn should_pay() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-
-        let nft = Nft::preferred(DID_ALICE).unwrap();
-
-        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2_000_100u128));
-
-        assert_ok!(Nft::mint(
-            Origin::signed(ALICE),
-            nft,
-            b"Test Token".to_vec(),
-            b"XTT".to_vec()
-        ));
-
-        let nft_meta = Nft::meta(nft).unwrap();
-
-        // create ad
-
-        assert_ok!(Ad::create(
-            Origin::signed(BOB),
-            500,
-            vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
-            [0u8; 64].into(),
-            1,
-            1
-        ));
-
-        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
-        let meta = <Metadata<Test>>::get(&ad).unwrap();
-
-        // bid
-
-        assert_ok!(Ad::bid(Origin::signed(BOB), ad, nft, 400));
+        let (ad, nft) = prepare_pay();
 
         // 2. pay
-
         assert_ok!(Ad::pay(
             Origin::signed(BOB),
             ad,
@@ -421,35 +428,105 @@ fn should_pay() {
             None
         ));
 
+        let nft_meta = Nft::meta(nft).unwrap();
+        let meta = <Metadata<Test>>::get(&ad).unwrap();
         let slot = <SlotOf<Test>>::get(nft).unwrap();
         assert_eq!(
             Assets::balance(nft_meta.token_asset_id, &meta.pot),
             slot.tokens
         );
         assert_eq!(slot.remain, 400 - 40);
-        assert_eq!(slot.tokens, 19 - 5);
+        assert_eq!(slot.tokens, 19 - 2);
 
-        assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 5);
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 2);
 
         assert_eq!(
             Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
             11
         );
-
-        assert_noop!(
-            Ad::pay(
-                Origin::signed(BOB),
-                ad,
-                nft,
-                DID_CHARLIE,
-                vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
-                None
-            ),
-            Error::<Test>::Paid
-        );
     });
 }
 
+#[test]
+fn should_pay_3_for_taga5_tagb2() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay();
+        let nft_meta = Nft::meta(nft).unwrap();
+        // 2 pay
+        assert_ok!(Ad::pay(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            DID_TAGA5_TAGB2,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None
+        ));
+
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &TAGA5_TAGB2), 3);
+    });
+}
+
+#[test]
+fn should_pay_0_when_all_tags_score_are_zero() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay();
+        let nft_meta = Nft::meta(nft).unwrap();
+        // 2 pay
+        assert_ok!(Ad::pay(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            DID_TAGA0_TAGB0,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None
+        ));
+
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &TAGA0_TAGB0), 0);
+    });
+}
+#[test]
+fn should_pay_10_when_all_tags_are_full_score() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay();
+        let nft_meta = Nft::meta(nft).unwrap();
+        // 2 pay
+        assert_ok!(Ad::pay(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            DID_TAGA100_TAGB100,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None
+        ));
+
+        assert_eq!(
+            Assets::balance(nft_meta.token_asset_id, &TAGA100_TAGB100),
+            10
+        );
+    });
+}
+#[test]
+fn should_pay_10_when_all_tags_are_fullscore_or_overflow() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay();
+        let nft_meta = Nft::meta(nft).unwrap();
+        // 2 pay
+        assert_ok!(Ad::pay(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            DID_TAGA120_TAGB0,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None
+        ));
+
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &TAGA120_TAGB0), 10);
+    });
+}
 #[test]
 fn should_auto_swap_when_swapped_token_used_up() {
     new_test_ext().execute_with(|| {
