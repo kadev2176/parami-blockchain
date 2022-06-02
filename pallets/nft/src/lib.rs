@@ -113,6 +113,10 @@ pub mod pallet {
         #[pallet::constant]
         type InitialMintingValueBase: Get<BalanceOf<Self>>;
 
+        /// Unsigned Call Priority
+        #[pallet::constant]
+        type UnsignedPriority: Get<TransactionPriority>;
+
         /// The links trait
         type Links: Links<DidOf<Self>>;
 
@@ -257,11 +261,13 @@ pub mod pallet {
         Deadline,
         Exists,
         InsufficientBalance,
-        InvalidExternalToken,
         Minted,
         NotExists,
         Overflow,
         YourSelf,
+        NetworkNotLinked,
+        OcwParseError,
+        NotTokenOwner,
     }
 
     #[pallet::call]
@@ -285,6 +291,12 @@ pub mod pallet {
             ensure!(
                 !<Ported<T>>::contains_key((network, &namespace, &token)),
                 Error::<T>::Exists
+            );
+
+            // user should link network first
+            ensure!(
+                T::Links::all_links(&owner).contains_key(&network),
+                Error::<T>::NetworkNotLinked
             );
 
             let created = <frame_system::Pallet<T>>::block_number();
@@ -503,13 +515,14 @@ pub mod pallet {
                     id,
                     types::External {
                         network,
-                        namespace,
-                        token,
+                        namespace: namespace.clone(),
+                        token: token.clone(),
                         owner: task.task.owner,
                     },
                 );
             }
 
+            <Porting<T>>::remove((network, namespace, token));
             Ok(().into())
         }
     }
@@ -597,6 +610,32 @@ pub mod pallet {
                         owner,
                     },
                 );
+            }
+        }
+    }
+
+    #[pallet::validate_unsigned]
+    impl<T: Config> ValidateUnsigned for Pallet<T> {
+        type Call = Call<T>;
+
+        fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+            match source {
+                TransactionSource::Local | TransactionSource::InBlock => { /* allowed */ }
+                _ => return InvalidTransaction::Call.into(),
+            };
+
+            let valid_tx = |provide| {
+                ValidTransaction::with_tag_prefix("nft")
+                    .priority(T::UnsignedPriority::get())
+                    .and_provides([&provide])
+                    .longevity(3)
+                    .propagate(false)
+                    .build()
+            };
+
+            match call {
+                Call::submit_porting { .. } => valid_tx(b"submit_porting".to_vec()),
+                _ => InvalidTransaction::Call.into(),
             }
         }
     }
