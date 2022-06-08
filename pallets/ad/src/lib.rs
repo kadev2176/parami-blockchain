@@ -17,6 +17,7 @@ mod benchmarking;
 mod migrations;
 mod types;
 
+use frame_support::traits::Hooks;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
@@ -29,6 +30,8 @@ use frame_support::{
     weights::Weight,
     Blake2_256, PalletId, StorageHasher,
 };
+use frame_system::pallet_prelude::BlockNumberFor;
+use log::info;
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
 use parami_traits::{Swaps, Tags};
@@ -37,7 +40,6 @@ use sp_runtime::{
     DispatchError,
 };
 use sp_std::prelude::*;
-
 use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
@@ -58,6 +60,8 @@ pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
+    use parami_primitives::constants::DOLLARS;
+    use sp_runtime::SaturatedConversion;
 
     #[pallet::config]
     pub trait Config:
@@ -75,10 +79,6 @@ pub mod pallet {
         /// The pallet id, used for deriving "pot" accounts of budgets
         #[pallet::constant]
         type PalletId: Get<PalletId>;
-
-        /// The base of payout
-        #[pallet::constant]
-        type PayoutBase: Get<BalanceOf<Self>>;
 
         /// The maximum lifetime of a slot
         #[pallet::constant]
@@ -185,6 +185,31 @@ pub mod pallet {
                 0
             })
         }
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade() -> Result<(), &'static str> {
+            let version = StorageVersion::get::<Pallet<T>>();
+            if version == 2 {
+                for (_, ad_meta) in <Metadata<T>>::iter() {
+                    assert_eq!(
+                        ad_meta.payout_base,
+                        (1 * DOLLARS).saturated_into(),
+                        "migration error"
+                    );
+                    assert_eq!(
+                        ad_meta.payout_min,
+                        0u128.saturated_into(),
+                        "migration error"
+                    );
+                    assert_eq!(
+                        ad_meta.payout_max,
+                        (10 * DOLLARS).saturated_into(),
+                        "migration error"
+                    );
+                }
+                info!("migration: parami-ad storage version v2 post migration checks successful!");
+            }
+            Ok(())
+        }
 
         fn on_runtime_upgrade() -> Weight {
             migrations::migrate::<T>()
@@ -207,6 +232,7 @@ pub mod pallet {
         TagNotExists,
         Underbid,
         FungiblesNotEqualToFractions,
+        WrongPayoutSetting,
     }
 
     #[pallet::call]
@@ -222,11 +248,15 @@ pub mod pallet {
             metadata: Vec<u8>,
             reward_rate: u16,
             deadline: HeightOf<T>,
+            payout_base: BalanceOf<T>,
+            payout_min: BalanceOf<T>,
+            payout_max: BalanceOf<T>,
         ) -> DispatchResult {
             let created = <frame_system::Pallet<T>>::block_number();
 
             ensure!(deadline > created, Error::<T>::Deadline);
-
+            //TODO: ensure!(payout_base > xxx)
+            ensure!(payout_min < payout_max, Error::<T>::WrongPayoutSetting);
             let (creator, who) = T::CallOrigin::ensure_origin(origin)?;
 
             for tag in &tags {
@@ -261,6 +291,9 @@ pub mod pallet {
                     metadata,
                     reward_rate,
                     created,
+                    payout_base,
+                    payout_min,
+                    payout_max,
                 },
             );
 
@@ -488,7 +521,7 @@ pub mod pallet {
             let endtime = <EndtimeOf<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
             ensure!(endtime > height, Error::<T>::Deadline);
 
-            let meta = Self::ensure_owned(did, ad_id)?;
+            let ad_meta = Self::ensure_owned(did, ad_id)?;
 
             let nft_meta = Nft::<T>::meta(nft_id).ok_or(Error::<T>::NotMinted)?;
             ensure!(nft_meta.minted, Error::<T>::NotMinted);
@@ -527,19 +560,20 @@ pub mod pallet {
                 scoring = 0;
             }
 
-            if scoring > 10 {
-                scoring = 10;
-            }
-
             let scoring = scoring as u32;
 
-            let amount = T::PayoutBase::get().saturating_mul(scoring.into());
-
+            let mut amount = ad_meta.payout_base.saturating_mul(scoring.into());
+            if amount < ad_meta.payout_min {
+                amount = ad_meta.payout_min;
+            }
+            if amount > ad_meta.payout_max {
+                amount = ad_meta.payout_max;
+            }
             if slot.fractions_remain < amount {
                 // if tokens is not enough, swap tokens
 
                 // swap 10% of current budget, at least cover current payout
-                Self::swap_by_10percent(&meta, nft_meta.token_asset_id, &mut slot, amount)?;
+                Self::swap_by_10percent(&ad_meta, nft_meta.token_asset_id, &mut slot, amount)?;
 
                 <SlotOf<T>>::insert(nft_id, &slot);
             }
@@ -572,12 +606,12 @@ pub mod pallet {
             let account = Did::<T>::lookup_did(visitor).ok_or(Error::<T>::DidNotExists)?;
 
             let award = if let Some(referrer) = referrer {
-                let rate = meta.reward_rate.into();
+                let rate = ad_meta.reward_rate.into();
                 let award = amount.saturating_mul(rate) / 100u32.into();
 
                 let referrer = Did::<T>::lookup_did(referrer).ok_or(Error::<T>::DidNotExists)?;
 
-                T::Assets::transfer(slot.nft_id, &meta.pot, &referrer, award, false)?;
+                T::Assets::transfer(slot.nft_id, &ad_meta.pot, &referrer, award, false)?;
 
                 award
             } else {
@@ -586,12 +620,12 @@ pub mod pallet {
 
             let reward = amount.saturating_sub(award);
 
-            T::Assets::transfer(slot.nft_id, &meta.pot, &account, reward, false)?;
+            T::Assets::transfer(slot.nft_id, &ad_meta.pot, &account, reward, false)?;
 
             slot.fractions_remain.saturating_reduce(amount);
 
             if let Some(fungible_id) = slot.fungible_id {
-                T::Assets::transfer(fungible_id, &meta.pot, &account, fungibles, false)?;
+                T::Assets::transfer(fungible_id, &ad_meta.pot, &account, fungibles, false)?;
                 slot.fungibles_remain.saturating_reduce(fungibles);
             }
 

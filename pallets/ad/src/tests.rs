@@ -30,7 +30,10 @@ fn should_create() {
             tags,
             metadata.clone(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         assert_eq!(<AdsOf<Test>>::get(&DID_ALICE).unwrap().len(), 1);
@@ -59,12 +62,53 @@ fn should_create() {
 fn should_fail_when_insufficient() {
     new_test_ext().execute_with(|| {
         assert_noop!(
-            Ad::create(Origin::signed(ALICE), 200, vec![], [0u8; 64].into(), 1, 1),
+            Ad::create(
+                Origin::signed(ALICE),
+                200,
+                vec![],
+                [0u8; 64].into(),
+                1,
+                1,
+                1u128,
+                0,
+                10u128
+            ),
             pallet_balances::Error::<Test>::InsufficientBalance
         );
     });
 }
+#[test]
+fn should_fail_when_min_greater_than_max() {
+    new_test_ext().execute_with(|| {
+        let tags = vec![
+            vec![5u8, 4u8, 3u8, 2u8, 1u8, 0u8],
+            vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],
+        ];
 
+        let mut hashes = BTreeMap::new();
+        for tag in &tags {
+            let hash = Tag::key(tag);
+            hashes.insert(hash, true);
+        }
+
+        let metadata = vec![0u8; 64];
+
+        assert_noop!(
+            Ad::create(
+                Origin::signed(ALICE),
+                50,
+                tags,
+                metadata.clone(),
+                1,
+                1,
+                1u128,
+                11u128,
+                10u128
+            ),
+            Error::<Test>::WrongPayoutSetting
+        );
+    });
+}
 #[test]
 fn should_fail_when_tag_not_exists() {
     new_test_ext().execute_with(|| {
@@ -75,7 +119,17 @@ fn should_fail_when_tag_not_exists() {
         ];
 
         assert_noop!(
-            Ad::create(Origin::signed(ALICE), 200, tags, [0u8; 64].into(), 1, 1),
+            Ad::create(
+                Origin::signed(ALICE),
+                200,
+                tags,
+                [0u8; 64].into(),
+                1,
+                1,
+                1u128,
+                0,
+                10u128
+            ),
             Error::<Test>::TagNotExists
         );
     });
@@ -90,7 +144,10 @@ fn should_update_reward_rate() {
             vec![],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -115,7 +172,10 @@ fn should_fail_when_not_exists_or_not_owned() {
             vec![],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -147,7 +207,10 @@ fn should_update_tags() {
             vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8],],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -167,7 +230,10 @@ fn should_add_budget() {
             vec![],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -207,7 +273,10 @@ fn should_bid() {
             vec![],
             [0u8; 64].into(),
             1,
-            43200
+            43200,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad1 = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -225,7 +294,10 @@ fn should_bid() {
             vec![],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad2 = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -330,7 +402,10 @@ fn should_drawback() {
             vec![],
             [0u8; 64].into(),
             1,
-            43200 * 2
+            43200 * 2,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -374,9 +449,19 @@ fn should_drawback() {
         );
     });
 }
+macro_rules! prepare_pay {
+    ($a:expr,$b:expr,$c: expr) => {
+        _prepare_pay($a, $b, $c)
+    };
+
+    () => {
+        _prepare_pay(1u128, 0u128, 10u128)
+    };
+}
+
 type HashOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
 type NftOf<T> = <T as parami_nft::Config>::AssetId;
-fn prepare_pay() -> (HashOf<Test>, NftOf<Test>) {
+fn _prepare_pay(base: u128, min: u128, max: u128) -> (HashOf<Test>, NftOf<Test>) {
     // 1. prepare
 
     let nft = Nft::preferred(DID_ALICE).unwrap();
@@ -400,7 +485,10 @@ fn prepare_pay() -> (HashOf<Test>, NftOf<Test>) {
         ],
         [0u8; 64].into(),
         1,
-        1
+        1,
+        base,
+        min,
+        max
     ));
 
     let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -416,7 +504,7 @@ fn prepare_pay() -> (HashOf<Test>, NftOf<Test>) {
 fn should_pay() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-        let (ad, nft) = prepare_pay();
+        let (ad, nft) = prepare_pay!();
 
         // 2. pay
 
@@ -452,7 +540,7 @@ fn should_pay() {
 fn should_pay_3_for_taga5_tagb2() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-        let (ad, nft) = prepare_pay();
+        let (ad, nft) = prepare_pay!();
         let nft_meta = Nft::meta(nft).unwrap();
         // 2 pay
         assert_ok!(Ad::pay(
@@ -472,7 +560,7 @@ fn should_pay_3_for_taga5_tagb2() {
 fn should_pay_0_when_all_tags_score_are_zero() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-        let (ad, nft) = prepare_pay();
+        let (ad, nft) = prepare_pay!();
         let nft_meta = Nft::meta(nft).unwrap();
         // 2 pay
         assert_ok!(Ad::pay(
@@ -487,11 +575,31 @@ fn should_pay_0_when_all_tags_score_are_zero() {
         assert_eq!(Assets::balance(nft_meta.token_asset_id, &TAGA0_TAGB0), 0);
     });
 }
+
+#[test]
+fn should_pay_5_when_all_tags_score_are_zero_with_payout_min_is_5() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay!(1u128, 5u128, 10u128);
+        let nft_meta = Nft::meta(nft).unwrap();
+        // 2 pay
+        assert_ok!(Ad::pay(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            DID_TAGA0_TAGB0,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None
+        ));
+
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &TAGA0_TAGB0), 5);
+    });
+}
 #[test]
 fn should_pay_10_when_all_tags_are_full_score() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-        let (ad, nft) = prepare_pay();
+        let (ad, nft) = prepare_pay!();
         let nft_meta = Nft::meta(nft).unwrap();
         // 2 pay
         assert_ok!(Ad::pay(
@@ -510,10 +618,10 @@ fn should_pay_10_when_all_tags_are_full_score() {
     });
 }
 #[test]
-fn should_pay_10_when_all_tags_are_fullscore_or_overflow() {
+fn should_pay_10_when_all_tags_are_full_score_or_overflow() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-        let (ad, nft) = prepare_pay();
+        let (ad, nft) = prepare_pay!();
         let nft_meta = Nft::meta(nft).unwrap();
         // 2 pay
         assert_ok!(Ad::pay(
@@ -555,7 +663,10 @@ fn should_pay_dual() {
             vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         assert_ok!(Assets::create(
@@ -630,7 +741,10 @@ fn should_pay_failed() {
             vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         assert_ok!(Assets::create(
@@ -700,7 +814,10 @@ fn should_auto_swap_when_swapped_token_used_up() {
             vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
             [0u8; 64].into(),
             1,
-            1
+            1,
+            1u128,
+            0,
+            10u128
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
