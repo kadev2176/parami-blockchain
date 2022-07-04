@@ -76,6 +76,7 @@ pub mod pallet {
 
     #[pallet::pallet]
     #[pallet::generate_store(pub(super) trait Store)]
+    #[pallet::without_storage_info]
     pub struct Pallet<T>(_);
 
     /// All whitelisted chains and their respective transaction counts
@@ -382,7 +383,7 @@ impl<T: Config> Pallet<T> {
     /// Provides an AccountId for the pallet.
     /// This is used both as an origin check and deposit/withdrawal account.
     pub fn account_id() -> T::AccountId {
-        T::PalletId::get().into_account()
+        T::PalletId::get().into_account_truncating()
     }
 
     pub fn ensure_admin(o: T::Origin) -> DispatchResult {
@@ -652,7 +653,7 @@ impl<T: pallet::Config> EnsureOrigin<T::Origin> for EnsureBridge<T> {
     type Success = T::AccountId;
 
     fn try_origin(o: T::Origin) -> Result<Self::Success, T::Origin> {
-        let bridge_id = T::PalletId::get().into_account();
+        let bridge_id = T::PalletId::get().into_account_truncating();
         o.into().and_then(|o| match o {
             frame_system::RawOrigin::Signed(who) if who == bridge_id => Ok(bridge_id),
             r => Err(T::Origin::from(r)),
