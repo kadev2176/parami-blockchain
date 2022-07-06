@@ -239,6 +239,8 @@ pub mod pallet {
             Vec<u8>,
             BalanceOf<T>,
         ),
+        /// Create NFT Failed \[did, instance\]
+        CreateFailed(T::DecentralizedId, NftOf<T>),
     }
 
     #[pallet::hooks]
@@ -519,6 +521,8 @@ pub mod pallet {
                         owner: task.task.owner,
                     },
                 );
+            } else {
+                Self::deposit_event(Event::CreateFailed(owner, id));
             }
 
             <Porting<T>>::remove((network, namespace, token));
