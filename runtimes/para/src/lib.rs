@@ -1512,6 +1512,8 @@ parameter_types! {
     // Note: Chain ID is 0 indicating this is native to another chain
     // 0x000000000000000000000000000000a56889c89dddcbb363cbd6a8d11de9e100
     pub NativeTokenId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(0, &blake2_128(b"AD3"));
+
+    pub const XAssetPalletId: PalletId = PalletId(*names::ASSET);
 }
 
 impl parami_xassets::Config for Runtime {
@@ -1524,6 +1526,7 @@ impl parami_xassets::Config for Runtime {
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
     type Assets = Assets;
     type ForceOrigin = EnsureRootOrHalfCouncil;
+    type PalletId = XAssetPalletId;
 }
 
 impl parami_did::Config for Runtime {

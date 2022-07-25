@@ -63,6 +63,33 @@ fn transfer_hash() {
 }
 
 #[test]
+fn failed_transfer_native() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let dest_chain = 0;
+            let recipient = vec![99];
+            let bridge_fee: u64 = 20;
+            let amount = 10;
+
+            assert_ok!(mock::ChainBridge::whitelist_chain(
+                Origin::root(),
+                dest_chain.clone()
+            ));
+            assert_ok!(mock::XAssets::update_native_fee(Origin::root(), bridge_fee));
+            assert_noop!(
+                mock::XAssets::transfer_native(
+                    Origin::signed(RELAYER_A),
+                    amount,
+                    recipient.clone(),
+                    dest_chain,
+                ),
+                parami_xassets::Error::<mock::MockRuntime>::InsufficientTransferFee
+            );
+        });
+}
+
+#[test]
 fn transfer_native() {
     TestExternalitiesBuilder::default()
         .build()
@@ -71,11 +98,15 @@ fn transfer_native() {
             let resource_id = NativeTokenId::get();
             let amount: u64 = 100;
             let recipient = vec![99];
+            let bridge_fee: u64 = 20;
 
             assert_ok!(mock::ChainBridge::whitelist_chain(
                 Origin::root(),
                 dest_chain.clone()
             ));
+
+            assert_ok!(mock::XAssets::update_native_fee(Origin::root(), bridge_fee));
+
             assert_ok!(mock::XAssets::transfer_native(
                 Origin::signed(RELAYER_A),
                 amount.clone(),
@@ -87,8 +118,8 @@ fn transfer_native() {
                 dest_chain,
                 1,
                 resource_id,
-                amount.into(),
-                recipient,
+                (amount - bridge_fee).into(),
+                recipient.clone(),
             ));
         })
 }
@@ -317,6 +348,20 @@ fn can_force_set_resource() {
             let actual_resource = mock::XAssets::resource(asset_id);
             assert!(actual_resource.is_some());
             assert_eq!(actual_resource.unwrap(), resource_id);
+        });
+}
+
+#[test]
+fn can_update_native_fee() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let bridge_fee = mock::XAssets::bridge_fee();
+            assert_eq!(bridge_fee, 0);
+            assert!(mock::XAssets::update_native_fee(Origin::root(), 10).is_ok());
+
+            let actual_bridge_fee = mock::XAssets::bridge_fee();
+            assert_eq!(actual_bridge_fee, 10);
         });
 }
 

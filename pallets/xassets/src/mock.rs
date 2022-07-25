@@ -50,6 +50,10 @@ impl WeightInfo for MockWeightInfo {
     fn force_set_resource() -> Weight {
         0 as Weight
     }
+
+    fn update_native_fee() -> Weight {
+        0 as Weight
+    }
 }
 
 pub(crate) const RELAYER_A: u64 = 0x2;
@@ -155,6 +159,7 @@ impl pallet_assets::Config for MockRuntime {
 parameter_types! {
     pub const MockChainId: ChainId = 5;
     pub const ChainBridgePalletId: PalletId = PalletId(*b"chnbrdge");
+    pub const XAssetPalletId: PalletId = PalletId(*b"xassets ");
     pub const ProposalLifetime: u64 = 10;
     pub HashId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(233, &blake2_128(b"hash"));
 }
@@ -179,6 +184,7 @@ impl parami_xassets::Config for MockRuntime {
     type Assets = Assets;
     type AssetId = u32;
     type ForceOrigin = EnsureRoot<Self::AccountId>;
+    type PalletId = XAssetPalletId;
 }
 
 pub struct TestExternalitiesBuilder {}

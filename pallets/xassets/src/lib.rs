@@ -13,7 +13,7 @@ mod tests;
 
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
-
+use codec::MaxEncodedLen;
 use frame_support::{
     dispatch::DispatchResultWithPostInfo,
     ensure,
@@ -21,11 +21,12 @@ use frame_support::{
         tokens::fungibles::Transfer as FungTransfer, Currency, EnsureOrigin,
         ExistenceRequirement::AllowDeath, Get,
     },
+    PalletId,
 };
 use frame_system::ensure_signed;
 use parami_chainbridge::{ChainId, ResourceId};
 use sp_core::U256;
-use sp_runtime::traits::SaturatedConversion;
+use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
 use sp_std::prelude::*;
 
 use weights::WeightInfo;
@@ -62,6 +63,9 @@ pub mod pallet {
             Balance = BalanceOf<Self>,
         >;
 
+        #[pallet::constant]
+        type PalletId: Get<PalletId>;
+
         type AssetId: Parameter + Member + Default + Copy + MaxEncodedLen;
 
         /// Ids can be defined by the runtime and passed in, perhaps from blake2b_128 hashes.
@@ -89,6 +93,10 @@ pub mod pallet {
     #[pallet::getter(fn resource)]
     pub(super) type ResourceMap<T: Config> = StorageMap<_, Identity, AssetOf<T>, ResourceId>;
 
+    #[pallet::storage]
+    #[pallet::getter(fn bridge_fee)]
+    pub type NativeFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -96,6 +104,7 @@ pub mod pallet {
     pub enum Error<T> {
         InvalidTransfer,
         NotExists,
+        InsufficientTransferFee,
     }
 
     #[pallet::call]
@@ -126,18 +135,33 @@ pub mod pallet {
                 <parami_chainbridge::Pallet<T>>::chain_whitelisted(dest_id),
                 Error::<T>::InvalidTransfer
             );
+
+            let fee = <NativeFee<T>>::get();
+            ensure!(amount > fee, Error::<T>::InsufficientTransferFee);
+
             let bridge_id = <parami_chainbridge::Pallet<T>>::account_id();
-            T::Currency::transfer(&source, &bridge_id, amount.into(), AllowDeath)?;
 
             let resource_id = T::NativeTokenId::get();
+            let pot = Self::generate_fee_pot();
+
+            T::Currency::transfer(&source, &bridge_id, (amount - fee).into(), AllowDeath)?;
+            T::Currency::transfer(&source, &pot, fee.into(), AllowDeath)?;
+
             <parami_chainbridge::Pallet<T>>::transfer_fungible(
                 dest_id,
                 resource_id,
                 recipient,
-                U256::from(amount.saturated_into::<u128>()),
+                U256::from((amount - fee).saturated_into::<u128>()),
             )?;
 
             Ok(().into())
+        }
+
+        #[pallet::weight(<T as Config>::WeightInfo::update_native_fee())]
+        pub fn update_native_fee(origin: OriginFor<T>, fee: BalanceOf<T>) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            <NativeFee<T>>::put(fee);
+            Ok(())
         }
 
         #[pallet::weight(<T as Config>::WeightInfo::transfer_token())]
@@ -214,5 +238,11 @@ pub mod pallet {
     #[pallet::genesis_build]
     impl<T: Config> GenesisBuild<T> for GenesisConfig {
         fn build(&self) {}
+    }
+}
+
+impl<T: Config> Pallet<T> {
+    fn generate_fee_pot() -> AccountOf<T> {
+        <T as Config>::PalletId::get().into_account_truncating()
     }
 }

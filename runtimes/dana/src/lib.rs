@@ -799,6 +799,7 @@ impl parami_xassets::Config for Runtime {
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
     type Assets = Assets;
     type ForceOrigin = EnsureRootOrHalfCouncil;
+    type PalletId = XAssetPalletId;
 }
 
 impl parami_did::Config for Runtime {
@@ -840,6 +841,7 @@ parameter_types! {
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
     pub const NftPendingLifetime: BlockNumber = 5;
     pub const NftPalletId: PalletId = PalletId(*names::NFT);
+    pub const XAssetPalletId: PalletId = PalletId(*names::ASSET);
 }
 
 impl parami_nft::Config for Runtime {

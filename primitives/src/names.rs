@@ -7,5 +7,6 @@ pub const DID: &[u8; 8] = b"prm/did ";
 pub const LINKER: &[u8; 8] = b"prm/link";
 pub const NFT: &[u8; 8] = b"prm/nft ";
 pub const SWAP: &[u8; 8] = b"prm/swap";
+pub const ASSET: &[u8; 8] = b"xassets ";
 
 pub const CHAIN_BRIDGE: &[u8; 8] = b"chnbrdge";
