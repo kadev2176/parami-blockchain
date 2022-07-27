@@ -7,6 +7,7 @@ use frame_system::RawOrigin;
 use parami_advertiser::Pallet as Advertiser;
 use parami_did::Pallet as Did;
 use sp_runtime::traits::{Bounded, Saturating};
+use sp_std::vec;
 
 benchmarks! {
     where_clause {

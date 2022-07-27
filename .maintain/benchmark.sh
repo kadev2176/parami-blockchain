@@ -6,7 +6,7 @@ repeat=${3:-20}
 
 echo "Benchmarking ${pallet} steps ${steps} repeat ${repeat}..."
 
-./target/release/parami benchmark \
+./target/release/parami benchmark pallet \
 --chain=dev \
 --execution=wasm \
 --wasm-execution=compiled \

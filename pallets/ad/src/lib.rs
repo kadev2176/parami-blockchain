@@ -336,7 +336,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(<T as Config>::WeightInfo::bid())]
+        #[pallet::weight(<T as Config>::WeightInfo::bid_with_fraction())]
         pub fn bid_with_fraction(
             origin: OriginFor<T>,
             ad_id: HashOf<T>,

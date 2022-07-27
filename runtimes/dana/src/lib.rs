@@ -478,6 +478,8 @@ impl pallet_uniques::Config for Runtime {
     type WeightInfo = pallet_uniques::weights::SubstrateWeight<Runtime>;
     type CreateOrigin = AsEnsureOriginWithArg<EnsureSigned<AccountId>>;
     type Locker = ();
+    #[cfg(feature = "runtime-benchmarks")]
+    type Helper = ();
 }
 
 parameter_types! {
