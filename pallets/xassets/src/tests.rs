@@ -1,15 +1,18 @@
 use crate::{self as parami_xassets, mock::*, *};
 
 use codec::Encode;
+use sp_io::hashing::blake2_128;
 
 use frame_support::{assert_noop, assert_ok, dispatch::DispatchError};
 
 use sp_core::{blake2_256, H256};
 
-pub type HashId = <mock::MockRuntime as parami_xassets::Config>::HashId;
+pub type NativeTokenResourceId =
+    <mock::MockRuntime as parami_xassets::Config>::NativeTokenResourceId;
+pub type HashResourceId = <mock::MockRuntime as parami_xassets::Config>::HashResourceId;
 
 fn make_remark_proposal(hash: H256) -> mock::Call {
-    let resource_id = HashId::get();
+    let resource_id = HashResourceId::get();
     mock::Call::XAssets(crate::Call::remark {
         hash,
         r_id: resource_id,
@@ -17,11 +20,11 @@ fn make_remark_proposal(hash: H256) -> mock::Call {
 }
 
 fn make_transfer_proposal(to: u64, amount: u64) -> mock::Call {
-    let resource_id = HashId::get();
+    let resource_id = NativeTokenResourceId::get();
     mock::Call::XAssets(crate::Call::transfer {
         to,
         amount: amount.into(),
-        r_id: resource_id,
+        resource_id,
     })
 }
 
@@ -35,7 +38,7 @@ fn transfer_hash() {
         .build()
         .execute_with(|| {
             let dest_chain = 0;
-            let resource_id = HashId::get();
+            let resource_id = HashResourceId::get();
             let hash: H256 = "ABC".using_encoded(blake2_256).into();
 
             assert_ok!(mock::ChainBridge::set_threshold(
@@ -95,7 +98,7 @@ fn transfer_native() {
         .build()
         .execute_with(|| {
             let dest_chain = 0;
-            let resource_id = NativeTokenId::get();
+            let resource_id = NativeTokenResourceId::get();
             let amount: u64 = 100;
             let recipient = vec![99];
             let bridge_fee: u64 = 20;
@@ -174,7 +177,7 @@ fn execute_remark_bad_origin() {
         .build()
         .execute_with(|| {
             let hash: H256 = "ABC".using_encoded(blake2_256).into();
-            let resource_id = HashId::get();
+            let resource_id = HashResourceId::get();
             assert_ok!(mock::XAssets::remark(
                 Origin::signed(mock::ChainBridge::account_id()),
                 hash,
@@ -200,7 +203,7 @@ fn transfer() {
         .execute_with(|| {
             // Check inital state
             let bridge_id: u64 = mock::ChainBridge::account_id();
-            let resource_id = HashId::get();
+            let resource_id = NativeTokenResourceId::get();
             assert_eq!(Balances::free_balance(&bridge_id), ENDOWED_BALANCE);
             // Transfer and check result
             assert_ok!(mock::XAssets::transfer(
@@ -509,4 +512,45 @@ fn fail_to_transfer_if_no_enough_balance() {
                 pallet_assets::Error::<mock::MockRuntime>::BalanceLow
             );
         });
+}
+
+#[test]
+fn should_transfer_assets() {
+    let asset_resource_id = parami_chainbridge::derive_resource_id(233, &blake2_128(b"test"));
+    let asset_id = 1;
+    let chain_id = 0;
+    let user_account: u64 = 1;
+
+    let bridge_account = mock::ChainBridge::account_id();
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            // Check inital state
+            assert_ok!(mock::XAssets::force_set_resource(
+                Origin::root(),
+                asset_resource_id,
+                1
+            ));
+
+            mock::Assets::force_create(Origin::root(), asset_id, chain_id as u64, true, 1).unwrap();
+            mock::Assets::mint(
+                Origin::signed(chain_id as u64),
+                asset_id,
+                mock::ChainBridge::account_id(),
+                10,
+            )
+            .unwrap();
+
+            assert_eq!(mock::Assets::balance(asset_id, user_account), 0);
+            assert_eq!(mock::Assets::balance(asset_id, bridge_account), 10);
+            // Transfer and check result
+            assert_ok!(mock::XAssets::transfer(
+                Origin::signed(mock::ChainBridge::account_id()),
+                user_account,
+                10,
+                asset_resource_id,
+            ));
+            assert_eq!(mock::Assets::balance(asset_id, user_account), 10);
+            assert_eq!(mock::Assets::balance(asset_id, bridge_account), 0);
+        })
 }

@@ -178,8 +178,8 @@ impl parami_xassets::Config for MockRuntime {
     type Event = Event;
     type BridgeOrigin = parami_chainbridge::EnsureBridge<MockRuntime>;
     type Currency = Balances;
-    type HashId = HashId;
-    type NativeTokenId = NativeTokenId;
+    type HashResourceId = HashId;
+    type NativeTokenResourceId = NativeTokenId;
     type WeightInfo = MockWeightInfo;
     type Assets = Assets;
     type AssetId = u32;

@@ -65,6 +65,7 @@ pub use parami_primitives::{
 };
 use parami_swap::LinearFarmingCurve;
 use parami_traits::Swaps;
+use parami_xassets::migrations::v1::AddResouceId2Asset;
 
 mod migrations;
 
@@ -101,7 +102,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (crate::migrations::RemoveDeprecatedPallets),
+    AddResouceId2Asset<Runtime>,
 >;
 
 /// Era type as expected by this runtime.
@@ -166,7 +167,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 336,
+    spec_version: 337,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -783,12 +784,12 @@ impl parami_chainbridge::Config for Runtime {
 parameter_types! {
     // &blake2_128(b"hash")
     // 0x000000000000000000000000000000f44be64d2de895454c3467021928e55ee9
-    pub HashId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(233, &blake2_128(b"hash"));
+    pub HashResourceId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(233, &blake2_128(b"hash"));
 
     // &blake2_128(b"AD3")
     // Note: Chain ID is 0 indicating this is native to another chain
     // 0x000000000000000000000000000000a56889c89dddcbb363cbd6a8d11de9e100
-    pub NativeTokenId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(0, &blake2_128(b"AD3"));
+    pub NativeTokenResourceId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(0, &blake2_128(b"AD3"));
 }
 
 impl parami_xassets::Config for Runtime {
@@ -796,8 +797,8 @@ impl parami_xassets::Config for Runtime {
     type Event = Event;
     type BridgeOrigin = parami_chainbridge::EnsureBridge<Runtime>;
     type Currency = Balances;
-    type HashId = HashId;
-    type NativeTokenId = NativeTokenId;
+    type HashResourceId = HashResourceId;
+    type NativeTokenResourceId = NativeTokenResourceId;
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
     type Assets = Assets;
     type ForceOrigin = EnsureRootOrHalfCouncil;

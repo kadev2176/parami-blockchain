@@ -11,6 +11,8 @@ mod mock;
 #[cfg(test)]
 mod tests;
 
+pub mod migrations;
+
 // #[cfg(feature = "runtime-benchmarks")]
 // mod benchmarking;
 use codec::MaxEncodedLen;
@@ -39,6 +41,7 @@ type AssetOf<T> = <T as Config>::AssetId;
 
 #[frame_support::pallet]
 pub mod pallet {
+
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
@@ -69,9 +72,9 @@ pub mod pallet {
         type AssetId: Parameter + Member + Default + Copy + MaxEncodedLen;
 
         /// Ids can be defined by the runtime and passed in, perhaps from blake2b_128 hashes.
-        type HashId: Get<ResourceId>;
+        type HashResourceId: Get<ResourceId>;
 
-        type NativeTokenId: Get<ResourceId>;
+        type NativeTokenResourceId: Get<ResourceId>;
 
         /// Weight information for extrinsics in this pallet
         type WeightInfo: WeightInfo;
@@ -97,6 +100,10 @@ pub mod pallet {
     #[pallet::getter(fn bridge_fee)]
     pub type NativeFee<T: Config> = StorageValue<_, BalanceOf<T>, ValueQuery>;
 
+    #[pallet::storage]
+    pub(super) type ResourceId2Asset<T: Config> =
+        StorageMap<_, Twox64Concat, ResourceId, AssetOf<T>>;
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -117,7 +124,7 @@ pub mod pallet {
         ) -> DispatchResultWithPostInfo {
             ensure_signed(origin)?;
 
-            let resource_id = T::HashId::get();
+            let resource_id = T::HashResourceId::get();
             let metadata: Vec<u8> = hash.as_ref().to_vec();
             <parami_chainbridge::Pallet<T>>::transfer_generic(dest_id, resource_id, metadata)?;
             Ok(().into())
@@ -141,7 +148,7 @@ pub mod pallet {
 
             let bridge_id = <parami_chainbridge::Pallet<T>>::account_id();
 
-            let resource_id = T::NativeTokenId::get();
+            let resource_id = T::NativeTokenResourceId::get();
             let pot = Self::generate_fee_pot();
 
             T::Currency::transfer(&source, &bridge_id, (amount - fee).into(), AllowDeath)?;
@@ -198,6 +205,7 @@ pub mod pallet {
         ) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
             <ResourceMap<T>>::insert(asset_id, resource_id);
+            <ResourceId2Asset<T>>::insert(resource_id, asset_id);
             Ok(())
         }
 
@@ -206,11 +214,18 @@ pub mod pallet {
             origin: OriginFor<T>,
             to: <T as frame_system::Config>::AccountId,
             amount: BalanceOf<T>,
-            _r_id: ResourceId,
+            resource_id: ResourceId,
         ) -> DispatchResultWithPostInfo {
             let source = T::BridgeOrigin::ensure_origin(origin)?;
-            <T as Config>::Currency::transfer(&source, &to, amount.into(), AllowDeath)?;
-            Ok(().into())
+            if resource_id == T::NativeTokenResourceId::get() {
+                <T as Config>::Currency::transfer(&source, &to, amount.into(), AllowDeath)?;
+                return Ok(().into());
+            }
+
+            let asset_id = <ResourceId2Asset<T>>::get(resource_id).ok_or(<Error<T>>::NotExists)?;
+            T::Assets::transfer(asset_id, &source, &to, amount.into(), false)?;
+
+            return Ok(().into());
         }
 
         #[pallet::weight(<T as Config>::WeightInfo::remark())]

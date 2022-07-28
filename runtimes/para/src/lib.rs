@@ -1523,8 +1523,8 @@ impl parami_xassets::Config for Runtime {
     type Event = Event;
     type BridgeOrigin = parami_chainbridge::EnsureBridge<Runtime>;
     type Currency = Balances;
-    type HashId = HashId;
-    type NativeTokenId = NativeTokenId;
+    type HashResourceId = HashId;
+    type NativeTokenResourceId = NativeTokenId;
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
     type Assets = Assets;
     type ForceOrigin = EnsureRootOrHalfCouncil;
