@@ -1,5 +1,4 @@
 use crate::VERSION;
-use frame_support::storage::migration::{remove_storage_prefix, storage_key_iter};
 use frame_support::storage::PrefixIterator;
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::weights::Weight;

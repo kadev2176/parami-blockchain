@@ -29,8 +29,8 @@ use parami_did_utils::derive_storage_key;
 use parami_traits::Nfts;
 use sp_runtime::{
     traits::{
-        Hash, LookupError, MaybeDisplay, MaybeMallocSizeOf, MaybeSerializeDeserialize, Member,
-        SimpleBitOps, StaticLookup,
+        AtLeast32BitUnsigned, Bounded, Hash, LookupError, MaybeDisplay, MaybeMallocSizeOf,
+        MaybeSerializeDeserialize, Member, SimpleBitOps, StaticLookup,
     },
     DispatchError, MultiAddress,
 };
@@ -39,6 +39,7 @@ use sp_std::prelude::*;
 use weights::WeightInfo;
 
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
+type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<AccountOf<T>, HeightOf<T>>;
 
@@ -83,6 +84,15 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
+
+        type NftId: Parameter
+            + Member
+            + MaybeSerializeDeserialize
+            + AtLeast32BitUnsigned
+            + Default
+            + Bounded
+            + Copy
+            + MaxEncodedLen;
 
         type Nfts: Nfts<AccountOf<Self>>;
     }

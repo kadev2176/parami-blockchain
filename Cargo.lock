@@ -6088,6 +6088,7 @@ dependencies = [
  "parami-did-rpc",
  "parami-linker",
  "parami-nft",
+ "parami-nft-rpc",
  "parami-swap-rpc",
  "rand 0.7.3",
  "sc-basic-authorship",
@@ -6170,6 +6171,7 @@ dependencies = [
  "parami-linker",
  "parami-magic",
  "parami-nft",
+ "parami-nft-rpc-runtime-api",
  "parami-ocw",
  "parami-primitives",
  "parami-swap",
@@ -6315,6 +6317,33 @@ dependencies = [
  "sp-runtime-interface",
  "sp-std",
  "tracing",
+]
+
+[[package]]
+name = "parami-nft-rpc"
+version = "3.0.0"
+dependencies = [
+ "jsonrpsee",
+ "parami-nft-rpc-runtime-api",
+ "parami-primitives",
+ "parity-scale-codec",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-rpc",
+ "sp-runtime",
+]
+
+[[package]]
+name = "parami-nft-rpc-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parami-primitives",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
 ]
 
 [[package]]
