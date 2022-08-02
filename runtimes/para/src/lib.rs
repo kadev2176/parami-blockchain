@@ -51,9 +51,10 @@ pub use parami_primitives::{
         NORMAL_DISPATCH_RATIO, SLOT_DURATION,
     },
     deposit, names, AccountId, Address, AssetId, Balance, BalanceWrapper, BlockNumber,
-    DecentralizedId, Hash, Header, Index, Moment, Signature,
+    DecentralizedId, Hash, Header, Index, Moment, NftId, Signature,
 };
 use parami_swap::LinearFarmingCurve;
+use parami_traits::Nfts;
 use parami_traits::Swaps;
 
 mod voter_bags;
@@ -1538,6 +1539,7 @@ impl parami_did::Config for Runtime {
     type Hashing = Keccak256;
     type WeightInfo = parami_did::weights::SubstrateWeight<Runtime>;
     type Nfts = Nft;
+    type NftId = NftId;
 }
 
 parameter_types! {
@@ -1587,6 +1589,7 @@ impl parami_nft::Config for Runtime {
     type Swaps = Swap;
     type WeightInfo = parami_nft::weights::SubstrateWeight<Runtime>;
     type UnsignedPriority = UnsignedPriority;
+    type NftId = NftId;
 }
 
 impl parami_ocw::Config for Runtime {}
@@ -1908,6 +1911,12 @@ impl_runtime_apis! {
         ) -> Result<(), mmr::Error> {
             let nodes = leaves.into_iter().map(|leaf|mmr::DataOrHash::Data(leaf.into_opaque_leaf())).collect();
             pallet_mmr::verify_leaves_proof::<mmr::Hashing, _>(root, nodes, proof)
+        }
+    }
+
+    impl parami_nft_rpc_runtime_api::NftRuntimeApi<Block, NftId, DecentralizedId, Balance> for Runtime {
+        fn get_claim_info(nft_id: NftId, claimer: DecentralizedId) -> Result<(BalanceWrapper<Balance>, BalanceWrapper<Balance>, BalanceWrapper<Balance>), DispatchError> {
+            Nft::get_claim_info(nft_id, &claimer).map(|(total, claimed, claimable)| (total.into(), claimed.into(), claimable.into()))
         }
     }
 

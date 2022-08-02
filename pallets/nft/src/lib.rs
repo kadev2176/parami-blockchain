@@ -749,7 +749,7 @@ impl<T: Config> Nfts<T::AccountId> for Pallet<T> {
         _nft_id: Self::NftId,
         _claimer: &Self::DecentralizedId,
     ) -> Result<(Self::Balance, Self::Balance, Self::Balance), DispatchError> {
-        //ADD: implementation later, mock here
+        //TODO(ironman_ch): ADD implementation later, mock here
         Ok((1_000_000u32.into(), 0u32.into(), 0u32.into()))
     }
 }
