@@ -54,6 +54,10 @@ impl WeightInfo for MockWeightInfo {
     fn update_native_fee() -> Weight {
         0 as Weight
     }
+
+    fn update_transfer_token_fee() -> Weight {
+        0 as Weight
+    }
 }
 
 pub(crate) const RELAYER_A: u64 = 0x2;

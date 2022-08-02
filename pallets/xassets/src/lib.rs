@@ -47,7 +47,7 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         pallet_prelude::*,
-        traits::{tokens::WithdrawConsequence, WithdrawReasons},
+        traits::{tokens::WithdrawConsequence, ExistenceRequirement, WithdrawReasons},
     };
     use frame_system::pallet_prelude::*;
 
@@ -105,6 +105,17 @@ pub mod pallet {
     #[pallet::storage]
     pub(super) type ResourceId2Asset<T: Config> =
         StorageMap<_, Twox64Concat, ResourceId, AssetOf<T>>;
+
+    #[pallet::storage]
+    pub type TransferTokenFee<T: Config> = StorageDoubleMap<
+        _,
+        Twox64Concat,
+        ChainId,
+        Twox64Concat,
+        AssetOf<T>, // Provider Account
+        BalanceOf<T>,
+        ValueQuery,
+    >;
 
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
@@ -175,6 +186,18 @@ pub mod pallet {
             Ok(())
         }
 
+        #[pallet::weight(<T as Config>::WeightInfo::update_transfer_token_fee())]
+        pub fn update_transfer_token_fee(
+            origin: OriginFor<T>,
+            dest_id: ChainId,
+            asset_id: AssetOf<T>,
+            fee: BalanceOf<T>,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin)?;
+            <TransferTokenFee<T>>::insert(dest_id, asset_id, fee);
+            Ok(())
+        }
+
         #[pallet::weight(<T as Config>::WeightInfo::transfer_token())]
         pub fn transfer_token(
             origin: OriginFor<T>,
@@ -191,14 +214,23 @@ pub mod pallet {
             );
 
             let resource_id = <ResourceMap<T>>::get(asset).ok_or(Error::<T>::NotExists)?;
+            let fee = <TransferTokenFee<T>>::get(dest_id, asset);
+            let currency_balance = T::Currency::free_balance(&source);
+            let asset_balance = T::Assets::balance(asset, &source);
+            ensure!(fee <= currency_balance, Error::<T>::InsufficientTransferFee);
+            ensure!(amount <= asset_balance, Error::<T>::InsufficientFund);
 
+            let pot = Self::generate_fee_pot();
+            T::Currency::transfer(&source, &pot, fee, ExistenceRequirement::KeepAlive)?;
             T::Assets::burn_from(asset, &source, amount)?;
+
             <parami_chainbridge::Pallet<T>>::transfer_fungible(
                 dest_id,
                 resource_id,
                 recipient,
                 U256::from(amount.saturated_into::<u128>()),
             )?;
+
             Ok(().into())
         }
 
