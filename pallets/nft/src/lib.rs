@@ -474,8 +474,8 @@ pub mod pallet {
 
             let meta = <Metadata<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
 
-            let minted_block_number = <Date<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
             if meta.owner == did {
+                let minted_block_number = <Date<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
                 ensure!(
                     height - minted_block_number >= T::InitialMintingLockupPeriod::get(),
                     Error::<T>::NotExists
@@ -484,22 +484,13 @@ pub mod pallet {
 
             let total = <Deposit<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
             let deposit = <Deposits<T>>::get(nft, &did).ok_or(Error::<T>::NotExists)?;
-
             let initial = T::InitialMintingValueBase::get();
-
-            let block_height: u32 = Self::try_into(height)?;
-            let minted_block_in_u32: u32 = Self::try_into(minted_block_number)?;
-            let initial_minting_lockup_period_u32: u32 =
-                Self::try_into(T::InitialMintingLockupPeriod::get())?;
 
             let total: U512 = Self::try_into(total)?;
             let deposit: U512 = Self::try_into(deposit)?;
-
-            let mature_deposit: U512 =
-                deposit * (block_height - minted_block_in_u32) / initial_minting_lockup_period_u32;
             let initial: U512 = Self::try_into(initial)?;
 
-            let tokens = initial * mature_deposit / total;
+            let tokens = initial * deposit / total;
 
             let tokens = Self::try_into(tokens)?;
 
@@ -758,6 +749,7 @@ impl<T: Config> Nfts<T::AccountId> for Pallet<T> {
         _nft_id: Self::NftId,
         _claimer: &Self::DecentralizedId,
     ) -> Result<(Self::Balance, Self::Balance, Self::Balance), DispatchError> {
+        //ADD: implementation later, mock here
         Ok((1_000_000u32.into(), 0u32.into(), 0u32.into()))
     }
 }
