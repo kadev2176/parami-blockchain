@@ -20,8 +20,10 @@ use frame_support::{
     dispatch::DispatchResultWithPostInfo,
     ensure,
     traits::{
-        tokens::fungibles::Transfer as FungTransfer, Currency, EnsureOrigin,
-        ExistenceRequirement::AllowDeath, Get,
+        tokens::fungibles::{Inspect, Mutate, Transfer as FungTransfer},
+        Currency, EnsureOrigin,
+        ExistenceRequirement::AllowDeath,
+        Get,
     },
     PalletId,
 };
@@ -43,7 +45,10 @@ type AssetOf<T> = <T as Config>::AssetId;
 pub mod pallet {
 
     use super::*;
-    use frame_support::pallet_prelude::*;
+    use frame_support::{
+        pallet_prelude::*,
+        traits::{tokens::WithdrawConsequence, WithdrawReasons},
+    };
     use frame_system::pallet_prelude::*;
 
     #[pallet::config]
@@ -60,11 +65,8 @@ pub mod pallet {
         /// The currency mechanism.
         type Currency: Currency<<Self as frame_system::Config>::AccountId>;
 
-        type Assets: FungTransfer<
-            AccountOf<Self>,
-            AssetId = AssetOf<Self>,
-            Balance = BalanceOf<Self>,
-        >;
+        type Assets: FungTransfer<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>
+            + Mutate<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>;
 
         #[pallet::constant]
         type PalletId: Get<PalletId>;
@@ -111,6 +113,7 @@ pub mod pallet {
     pub enum Error<T> {
         InvalidTransfer,
         NotExists,
+        InsufficientFund,
         InsufficientTransferFee,
     }
 
@@ -143,15 +146,16 @@ pub mod pallet {
                 Error::<T>::InvalidTransfer
             );
 
+            let free_balance = T::Currency::free_balance(&source);
+            ensure!(free_balance >= amount, Error::<T>::InsufficientFund);
+
             let fee = <NativeFee<T>>::get();
             ensure!(amount > fee, Error::<T>::InsufficientTransferFee);
-
-            let bridge_id = <parami_chainbridge::Pallet<T>>::account_id();
 
             let resource_id = T::NativeTokenResourceId::get();
             let pot = Self::generate_fee_pot();
 
-            T::Currency::transfer(&source, &bridge_id, (amount - fee).into(), AllowDeath)?;
+            T::Currency::withdraw(&source, amount - fee, WithdrawReasons::TRANSFER, AllowDeath)?;
             T::Currency::transfer(&source, &pot, fee.into(), AllowDeath)?;
 
             <parami_chainbridge::Pallet<T>>::transfer_fungible(
@@ -180,14 +184,15 @@ pub mod pallet {
             asset: AssetOf<T>,
         ) -> DispatchResultWithPostInfo {
             let source = ensure_signed(origin)?;
+
             ensure!(
                 <parami_chainbridge::Pallet<T>>::chain_whitelisted(dest_id),
                 Error::<T>::InvalidTransfer
             );
-            let bridge_id = <parami_chainbridge::Pallet<T>>::account_id();
+
             let resource_id = <ResourceMap<T>>::get(asset).ok_or(Error::<T>::NotExists)?;
 
-            T::Assets::transfer(asset, &source, &bridge_id, amount, false)?;
+            T::Assets::burn_from(asset, &source, amount)?;
             <parami_chainbridge::Pallet<T>>::transfer_fungible(
                 dest_id,
                 resource_id,
@@ -210,20 +215,20 @@ pub mod pallet {
         }
 
         #[pallet::weight(<T as Config>::WeightInfo::transfer())]
-        pub fn transfer(
+        pub fn handle_transfer_fungibles(
             origin: OriginFor<T>,
             to: <T as frame_system::Config>::AccountId,
             amount: BalanceOf<T>,
             resource_id: ResourceId,
         ) -> DispatchResultWithPostInfo {
-            let source = T::BridgeOrigin::ensure_origin(origin)?;
+            let _bridge = T::BridgeOrigin::ensure_origin(origin)?;
             if resource_id == T::NativeTokenResourceId::get() {
-                <T as Config>::Currency::transfer(&source, &to, amount.into(), AllowDeath)?;
+                <T as Config>::Currency::deposit_creating(&to, amount.into());
                 return Ok(().into());
             }
 
             let asset_id = <ResourceId2Asset<T>>::get(resource_id).ok_or(<Error<T>>::NotExists)?;
-            T::Assets::transfer(asset_id, &source, &to, amount.into(), false)?;
+            T::Assets::mint_into(asset_id, &to, amount.into())?;
 
             return Ok(().into());
         }
