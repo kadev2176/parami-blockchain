@@ -7,7 +7,8 @@ use std::{sync::Arc, time::Duration};
 
 // Local Runtime Types
 use parami_para_runtime::{
-    opaque::Block, AccountId, AssetId, Balance, BlockNumber, Hash, Index as Nonce, RuntimeApi, NftId, DecentralizedId
+    opaque::Block, AccountId, AssetId, Balance, BlockNumber, DecentralizedId, Hash, Index as Nonce,
+    NftId, RuntimeApi,
 };
 
 // Cumulus Imports
