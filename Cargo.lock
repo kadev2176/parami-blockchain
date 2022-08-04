@@ -6054,6 +6054,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-assetmanager"
+version = "3.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-runtime",
+ "sp-runtime-interface",
+]
+
+[[package]]
 name = "parami-chainbridge"
 version = "3.0.0"
 dependencies = [
@@ -6165,6 +6178,7 @@ dependencies = [
  "pallet-utility",
  "parami-ad",
  "parami-advertiser",
+ "parami-assetmanager",
  "parami-chainbridge",
  "parami-did",
  "parami-linker",

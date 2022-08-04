@@ -895,6 +895,10 @@ impl parami_tag::Config for Runtime {
     type WeightInfo = parami_tag::weights::SubstrateWeight<Runtime>;
 }
 
+impl parami_assetmanager::Config for Runtime {
+    type AssetId = AssetId;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -943,6 +947,7 @@ construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Config<T>, Event<T>, ValidateUnsigned} = 107,
         Swap: parami_swap::{Pallet, Call, Storage, Config<T>, Event<T>} = 108,
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,
+        AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110
     }
 );
 

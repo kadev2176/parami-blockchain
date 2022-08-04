@@ -47,6 +47,7 @@ parami-swap = { path = '../../pallets/swap', default-features = false }
 parami-swap-rpc-runtime-api = { path = '../../pallets/swap/rpc/runtime-api', default-features = false }
 parami-tag = { path = '../../pallets/tag', default-features = false }
 parami-traits = { path = '../../pallets/traits', default-features = false }
+parami-assetmanager = { path = '../../pallets/assetmanager', default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
