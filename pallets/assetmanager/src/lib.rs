@@ -51,7 +51,8 @@ pub mod pallet {
 }
 
 pub trait AssetIdManager<T: pallet::Config> {
-    fn next_id() -> Result<AssetOf<T>, Error>;
+    type AssetId;
+    fn next_id() -> Result<Self::AssetId, Error>;
 }
 
 pub enum Error {
@@ -59,6 +60,8 @@ pub enum Error {
 }
 
 impl<T: pallet::Config> AssetIdManager<T> for pallet::Pallet<T> {
+    type AssetId = AssetOf<T>;
+
     fn next_id() -> Result<AssetOf<T>, Error> {
         let id = <NextAssetId<T>>::try_mutate(|id| {
             let current_id = *id;

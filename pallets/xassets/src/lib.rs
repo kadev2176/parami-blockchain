@@ -50,9 +50,12 @@ pub mod pallet {
         traits::{tokens::WithdrawConsequence, ExistenceRequirement, WithdrawReasons},
     };
     use frame_system::pallet_prelude::*;
+    use parami_assetmanager::AssetIdManager;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + parami_chainbridge::Config {
+    pub trait Config:
+        frame_system::Config + parami_chainbridge::Config + parami_assetmanager::Config
+    {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -72,6 +75,7 @@ pub mod pallet {
         type PalletId: Get<PalletId>;
 
         type AssetId: Parameter + Member + Default + Copy + MaxEncodedLen;
+        type AssetIdManager: AssetIdManager<Self>;
 
         /// Ids can be defined by the runtime and passed in, perhaps from blake2b_128 hashes.
         type HashResourceId: Get<ResourceId>;

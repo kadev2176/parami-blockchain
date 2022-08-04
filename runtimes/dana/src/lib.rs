@@ -10,6 +10,7 @@ use codec::{Decode, Encode};
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
+use parami_assetmanager::AssetIdManager;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -794,6 +795,7 @@ parameter_types! {
 
 impl parami_xassets::Config for Runtime {
     type AssetId = AssetId;
+    type AssetIdManager = AssetManager;
     type Event = Event;
     type BridgeOrigin = parami_chainbridge::EnsureBridge<Runtime>;
     type Currency = Balances;
@@ -851,6 +853,7 @@ impl parami_nft::Config for Runtime {
     type Event = Event;
     type AssetId = AssetId;
     type Assets = Assets;
+    type AssetIdManager = AssetManager;
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;

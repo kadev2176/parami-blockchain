@@ -24,6 +24,7 @@ version = '2.1.1'
 
 [dependencies]
 parami-chainbridge = { path = '../chainbridge', default-features = false }
+parami-assetmanager = { path = '../assetmanager', default-features = false }
 
 serde = { version = '1.0.0', optional = true }
 rand = { default-features = false, features = [
