@@ -9,6 +9,8 @@ use sp_runtime::traits::CheckedAdd;
 pub use pallet::*;
 type AssetOf<T> = <T as pallet::Config>::AssetId;
 
+pub mod migrations;
+
 #[frame_support::pallet]
 pub mod pallet {
     use crate::*;
