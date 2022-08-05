@@ -520,10 +520,10 @@ fn should_sumbit_porting() {
         assert_eq!(
             <Ported<Test>>::get((Network::Ethereum, &namespace, token)).expect("should be ported"),
             // genesis config creates the first token, so we got 2 here.
-            2,
+            NEXT_INSTANCE_ID,
         );
 
-        let external = <External<Test>>::get(2).expect("external should have data");
+        let external = <External<Test>>::get(NEXT_INSTANCE_ID).expect("external should have data");
         assert_eq!(external.owner, did);
         assert_eq!(external.network, Network::Ethereum);
         assert_eq!(external.namespace, namespace);
@@ -532,15 +532,15 @@ fn should_sumbit_porting() {
         let subaccount_id =
             <Test as crate::Config>::PalletId::get().into_sub_account_truncating(DID_BOB);
 
-        let metadata = <Metadata<Test>>::get(2).expect("meta should have data");
+        let metadata = <Metadata<Test>>::get(NEXT_INSTANCE_ID).expect("meta should have data");
         assert_eq!(metadata.owner, did);
-        assert_eq!(metadata.class_id, 2);
+        assert_eq!(metadata.class_id, NEXT_INSTANCE_ID);
         assert_eq!(metadata.pot, subaccount_id);
         assert_eq!(metadata.minted, false);
-        assert_eq!(metadata.token_asset_id, 2);
+        assert_eq!(metadata.token_asset_id, NEXT_INSTANCE_ID);
 
         let preferred = <Preferred<Test>>::get(DID_BOB).expect("prefered should have data");
-        assert_eq!(preferred, 2);
+        assert_eq!(preferred, NEXT_INSTANCE_ID);
     });
 }
 

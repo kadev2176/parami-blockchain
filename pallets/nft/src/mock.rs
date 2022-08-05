@@ -31,7 +31,7 @@ pub const NAMESPACE: [u8; 20] = [
     0x8E, 0x7A, 0x26, 0x6d,
 ];
 
-pub const NEXT_INSTANCE_ID: AssetId = 2;
+pub const NEXT_INSTANCE_ID: AssetId = 5000;
 
 frame_support::construct_runtime!(
     pub enum Test where
@@ -274,9 +274,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .assimilate_storage(&mut t)
     .unwrap();
 
-    parami_assetmanager::GenesisConfig::<Test> { next_asset_id: 2 }
-        .assimilate_storage(&mut t)
-        .unwrap();
+    parami_assetmanager::GenesisConfig::<Test> {
+        next_asset_id: NEXT_INSTANCE_ID,
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
 
     parami_nft::GenesisConfig::<Test> {
         deposit: Default::default(),
