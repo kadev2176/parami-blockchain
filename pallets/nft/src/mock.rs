@@ -50,6 +50,7 @@ frame_support::construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Linker: parami_linker::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Event<T>},
+        AssetManager: parami_assetmanager::{Pallet}
     }
 );
 
@@ -222,6 +223,10 @@ impl parami_linker::Config for Test {
     type WeightInfo = ();
 }
 
+impl parami_assetmanager::Config for Test {
+    type AssetId = u64;
+}
+
 parameter_types! {
     pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
@@ -245,6 +250,7 @@ impl parami_nft::Config for Test {
     type Swaps = Swap;
     type WeightInfo = ();
     type UnsignedPriority = ();
+    type AssetIdManager = AssetManager;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

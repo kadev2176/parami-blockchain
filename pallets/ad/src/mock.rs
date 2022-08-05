@@ -50,6 +50,7 @@ frame_support::construct_runtime!(
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>},
         Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
+        AssetIdManager: parami_assetmanager::{Pallet}
     }
 );
 
@@ -182,6 +183,10 @@ parameter_types! {
     pub const NftPalletId: PalletId = PalletId(*b"prm/nft ");
 }
 
+impl parami_assetmanager::Config for Test {
+    type AssetId = u64;
+}
+
 impl parami_nft::Config for Test {
     type Event = Event;
     type AssetId = AssetId;
@@ -197,6 +202,7 @@ impl parami_nft::Config for Test {
     type Swaps = Swap;
     type WeightInfo = ();
     type UnsignedPriority = ();
+    type AssetIdManager = AssetIdManager;
 }
 
 impl parami_ocw::Config for Test {}

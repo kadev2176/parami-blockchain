@@ -6019,6 +6019,7 @@ dependencies = [
  "pallet-balances",
  "pallet-uniques",
  "parami-advertiser",
+ "parami-assetmanager",
  "parami-did",
  "parami-nft",
  "parami-ocw",
