@@ -274,6 +274,10 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .assimilate_storage(&mut t)
     .unwrap();
 
+    parami_assetmanager::GenesisConfig::<Test> { next_asset_id: 2 }
+        .assimilate_storage(&mut t)
+        .unwrap();
+
     parami_nft::GenesisConfig::<Test> {
         deposit: Default::default(),
         deposits: Default::default(),

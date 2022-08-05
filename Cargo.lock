@@ -6493,6 +6493,7 @@ dependencies = [
  "parachain-info",
  "parami-ad",
  "parami-advertiser",
+ "parami-assetmanager",
  "parami-chainbridge",
  "parami-did",
  "parami-linker",

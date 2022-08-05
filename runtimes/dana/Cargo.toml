@@ -129,6 +129,7 @@ std = [
     'parami-swap-rpc-runtime-api/std',
     'parami-tag/std',
     'parami-traits/std',
+    'parami-assetmanager/std',
 
     'sp-api/std',
     'sp-block-builder/std',
