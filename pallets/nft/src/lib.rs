@@ -395,7 +395,7 @@ pub mod pallet {
                 Error::<T>::BadMetadata
             );
             ensure!(
-                0 < name.len() && symbol.len() <= limit,
+                0 < symbol.len() && symbol.len() <= limit,
                 Error::<T>::BadMetadata
             );
 
@@ -681,7 +681,7 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
     fn create(owner: DidOf<T>) -> Result<NftOf<T>, DispatchError> {
         let id =
-            <T as crate::Config>::AssetIdManager::next_id().map_err(|e| Error::<T>::Overflow)?;
+            <T as crate::Config>::AssetIdManager::next_id().map_err(|_e| Error::<T>::Overflow)?;
         let pot = T::PalletId::get().into_sub_account_truncating(&owner);
 
         ensure!(!<Metadata<T>>::contains_key(id), Error::<T>::Exists);

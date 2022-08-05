@@ -805,6 +805,7 @@ impl parami_xassets::Config for Runtime {
     type HashResourceId = HashResourceId;
     type NativeTokenResourceId = NativeTokenResourceId;
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
+    type StringLimit = StringLimit;
     type Assets = Assets;
     type ForceOrigin = EnsureRootOrHalfCouncil;
     type PalletId = XAssetPalletId;
