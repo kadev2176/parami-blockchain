@@ -5,7 +5,7 @@
 <div align="center">
 
 [![GitHub Actions](https://img.shields.io/github/workflow/status/parami-foundation/parami-blockchain/Actions/main)](https://github.com/parami-foundation/parami-blockchain/actions/workflows/actions.yml)
-[![Codecov](https://img.shields.io/codecov/c/gh/parami-foundation/parami-blockchain)](https://app.codecov.io/gh/parami-protocol/parami-blockchain/)
+[![Codecov](https://img.shields.io/codecov/c/gh/parami-protocol/parami-blockchain)](https://app.codecov.io/gh/parami-protocol/parami-blockchain/)
 [![Bors enabled](https://img.shields.io/badge/bot-bors-green)](https://app.bors.tech/repositories/45560)
 [![GitHub Tag](https://img.shields.io/github/v/tag/parami-foundation/parami-blockchain?label=release)](https://github.com/parami-foundation/parami-blockchain/tags)
 [![GitHub](https://img.shields.io/github/license/parami-foundation/parami-blockchain)](https://github.com/parami-foundation/parami-blockchain/blob/main/LICENSE)
