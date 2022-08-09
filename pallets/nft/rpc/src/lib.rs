@@ -1,11 +1,11 @@
 use codec::Codec;
 use jsonrpsee::{
-    core::{async_trait, Error, RpcResult},
+    core::{Error, RpcResult},
     proc_macros::rpc,
     types::error::{CallError, ErrorObject, INTERNAL_ERROR_CODE},
 };
 pub use parami_nft_rpc_runtime_api::{ApiResult, NftRuntimeApi};
-use parami_primitives::{BalanceWrapper, DecentralizedId};
+use parami_primitives::BalanceWrapper;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_runtime::{
@@ -19,8 +19,7 @@ pub trait NftApi<BlockHash, NftId, DecentralizedId, Balance>
 where
     Balance: MaybeDisplay + MaybeFromStr,
 {
-    /// TODO(ironman_ch): add more comment here
-    #[method(name = "nft_get_claim_info")]
+    #[method(name = "nft_getClaimInfo")]
     fn get_claim_info(
         &self,
         nft_id: NftId,

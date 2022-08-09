@@ -503,7 +503,7 @@ pub mod pallet {
                 }
             });
 
-            /// When all the token has been unlocked, remove the Deposits of ${did}
+            // When all the token has been unlocked, remove the Deposits of ${did}
             if unlocked_tokens == total_tokens {
                 <Deposits<T>>::remove(nft, &did);
             }
