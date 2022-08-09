@@ -11,6 +11,12 @@ type AssetOf<T> = <T as pallet::Config>::AssetId;
 
 pub mod migrations;
 
+#[cfg(test)]
+mod mock;
+
+#[cfg(test)]
+mod tests;
+
 #[frame_support::pallet]
 pub mod pallet {
     use crate::*;
@@ -57,6 +63,7 @@ pub trait AssetIdManager<T: pallet::Config> {
     fn next_id() -> Result<Self::AssetId, Error>;
 }
 
+#[derive(Debug)]
 pub enum Error {
     Overflow,
 }
