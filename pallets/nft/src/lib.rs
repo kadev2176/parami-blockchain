@@ -470,13 +470,14 @@ pub mod pallet {
         }
 
         /// Claim the fragments.
+        /// ClaimInfo calculation Rules: ref to comment on [`get_claim_info_inner`](fn@get_claim_info_inner)
         #[pallet::weight(<T as Config>::WeightInfo::claim())]
         pub fn claim(origin: OriginFor<T>, nft: NftOf<T>) -> DispatchResult {
             let (did, who) = EnsureDid::<T>::ensure_origin(origin)?;
 
             let claimed_tokens: BalanceOf<T> =
                 <ClaimedFragmentAmount<T>>::get(nft, &did).unwrap_or(0u32.into());
-            let (total_tokens, unlock_tokens, claimable_tokens) = Self::get_claim_info_inner(
+            let (total_tokens, unlocked_tokens, claimable_tokens) = Self::get_claim_info_inner(
                 nft,
                 &did,
                 T::InitialMintingValueBase::get(),
@@ -502,7 +503,8 @@ pub mod pallet {
                 }
             });
 
-            if unlock_tokens == total_tokens {
+            /// When all the token has been unlocked, remove the Deposits of ${did}
+            if unlocked_tokens == total_tokens {
                 <Deposits<T>>::remove(nft, &did);
             }
 
@@ -735,6 +737,11 @@ impl<T: Config> Pallet<T> {
         Ok(value)
     }
 
+    /// ClaimInfo calculation Rules:
+    ///   a. tokens_of_backer = depositOf(backer) / total_deposit
+    ///   b. unlock following linear unlock style in T::InitialMintingLockupPeriod::get()
+    ///   c. so, given block_number n, unlocked_token = tokens_of_backer * (n - minted_block_number) / InitialMintingLockupPeriod
+    ///   d. the, given block_number n, claimable_token = unlock_token - claimed_token.
     fn get_claim_info_inner(
         nft: NftOf<T>,
         did: &DidOf<T>,
