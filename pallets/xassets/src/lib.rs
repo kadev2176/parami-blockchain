@@ -297,6 +297,10 @@ pub mod pallet {
             T::Assets::set(asset_id, &owner_account, name, symbol, decimal)?;
 
             Self::force_set_resource(origin, resource_id, asset_id)?;
+            parami_chainbridge::Pallet::<T>::register_resource(
+                resource_id,
+                "XAssets.handle_transfer_fungibles".into(),
+            )?;
 
             Ok(())
         }

@@ -159,7 +159,7 @@ impl pallet_assets::Config for MockRuntime {
     type MetadataDepositBase = ();
     type MetadataDepositPerByte = ();
     type ApprovalDeposit = ();
-    type StringLimit = ();
+    type StringLimit = StringLimit;
     type Freezer = ();
     type Extra = ();
     type WeightInfo = pallet_assets::weights::SubstrateWeight<MockRuntime>;
