@@ -417,14 +417,25 @@ fn can_transfer_token() {
             let resource_id = H256::from_slice("00000000001111111111222222222233".as_bytes());
             let user_id = 10000u64;
             let chain_id = 100u8;
-            let asset_id = 1;
+            let asset_id = 0;
             let recipient: Vec<u8> = "address".as_bytes().into();
             let bridge_fee: u64 = 20;
             mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
             let _ = mock::Balances::deposit_creating(&user_id, 1001);
-            mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).unwrap();
-            mock::Assets::force_create(Origin::root(), asset_id, user_id, true, 1).unwrap();
-            mock::Assets::mint(Origin::signed(user_id), asset_id, user_id, 101).unwrap();
+            assert_ok!(mock::XAssets::create_xasset(
+                Origin::root(),
+                Into::<Vec<u8>>::into("COIN"),
+                Into::<Vec<u8>>::into("COIN"),
+                18,
+                resource_id,
+            ));
+            mock::Assets::mint(
+                Origin::signed(mock::XAssets::generate_fee_pot()),
+                asset_id,
+                user_id,
+                101,
+            )
+            .unwrap();
             assert_ok!(mock::XAssets::update_transfer_token_fee(
                 Origin::root(),
                 100,
@@ -544,13 +555,18 @@ fn fail_to_transfer_if_no_enough_balance() {
         .execute_with(|| {
             let resource_id = H256::from_slice("00000000001111111111222222222233".as_bytes());
             let chain_id = 100u8;
-            let asset_id = 1;
+            let asset_id = 0;
             let recipient: Vec<u8> = "address".as_bytes().into();
             mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
-            mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).unwrap();
-            mock::Assets::force_create(Origin::root(), asset_id, chain_id as u64, true, 1).unwrap();
+            assert_ok!(mock::XAssets::create_xasset(
+                Origin::root(),
+                Into::<Vec<u8>>::into("COIN"),
+                Into::<Vec<u8>>::into("COIN"),
+                18,
+                resource_id,
+            ));
             mock::Assets::mint(
-                Origin::signed(chain_id as u64),
+                Origin::signed(mock::XAssets::generate_fee_pot()),
                 asset_id,
                 chain_id as u64,
                 10,
@@ -572,21 +588,20 @@ fn fail_to_transfer_if_no_enough_balance() {
 #[test]
 fn should_transfer_assets() {
     let asset_resource_id = parami_chainbridge::derive_resource_id(233, &blake2_128(b"test"));
-    let asset_id = 1;
-    let chain_id = 0;
+    let asset_id = 0;
     let user_account: u64 = 1;
 
     TestExternalitiesBuilder::default()
         .build()
         .execute_with(|| {
             // Check inital state
-            assert_ok!(mock::XAssets::force_set_resource(
+            assert_ok!(mock::XAssets::create_xasset(
                 Origin::root(),
+                Into::<Vec<u8>>::into("COIN"),
+                Into::<Vec<u8>>::into("COIN"),
+                18,
                 asset_resource_id,
-                1
             ));
-
-            mock::Assets::force_create(Origin::root(), asset_id, chain_id as u64, true, 1).unwrap();
 
             assert_eq!(mock::Assets::total_issuance(asset_id), 0);
             assert_eq!(mock::Assets::balance(asset_id, user_account), 0);
