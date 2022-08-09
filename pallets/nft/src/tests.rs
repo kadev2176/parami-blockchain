@@ -1,4 +1,7 @@
-use crate::{mock::*, Deposit, Deposits, Error, External, Metadata, Ported, Porting, Preferred};
+use crate::{
+    mock::*, ClaimedFragmentAmount, Deposit, Deposits, Error, External, Metadata, Ported, Porting,
+    Preferred,
+};
 
 use codec::Decode;
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Mutate};
@@ -271,7 +274,7 @@ fn should_fail_when_minted() {
 }
 
 #[test]
-fn should_fail_when_insufficient() {
+fn mint_should_fail_when_insufficient_deposit() {
     new_test_ext().execute_with(|| {
         let r = Nft::mint(
             Origin::signed(ALICE),
@@ -285,7 +288,7 @@ fn should_fail_when_insufficient() {
 }
 
 #[test]
-fn should_claim() {
+fn all_roles_claim_should_success_when_time_elapsed_100_percent() {
     new_test_ext().execute_with(|| {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
@@ -298,6 +301,8 @@ fn should_claim() {
             b"Test Token".to_vec(),
             b"XTT".to_vec()
         ));
+
+        System::set_block_number(5);
 
         assert_ok!(Nft::claim(Origin::signed(BOB), nft));
         assert_ok!(Nft::claim(Origin::signed(CHARLIE), nft));
@@ -313,12 +318,139 @@ fn should_claim() {
             Error::<Test>::NotExists
         );
 
-        System::set_block_number(5);
-
         assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
 
         assert_eq!(Assets::balance(nft, &ALICE), 1_000_000 * DOLLARS);
         assert_eq!(<Deposits<Test>>::get(nft, &DID_ALICE), None);
+    });
+}
+
+#[test]
+fn creator_claim_should_success_as_linear_unlock_program_when_time_elapsed_60_percent() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2000 * DOLLARS));
+        assert_ok!(Nft::back(Origin::signed(CHARLIE), nft, 1000 * DOLLARS));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        System::set_block_number(3);
+
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 600_000 * DOLLARS);
+        assert_eq!(<Deposits<Test>>::get(nft, &DID_ALICE), Some(3000 * DOLLARS));
+        assert_eq!(
+            <ClaimedFragmentAmount<Test>>::get(nft, &DID_ALICE),
+            Some(600_000 * DOLLARS)
+        );
+    });
+}
+
+#[test]
+fn creator_claim_should_success_as_linear_unlock_program_when_time_elapsed_120_percent() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2000 * DOLLARS));
+        assert_ok!(Nft::back(Origin::signed(CHARLIE), nft, 1000 * DOLLARS));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        System::set_block_number(6);
+
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 1_000_000 * DOLLARS);
+        assert_eq!(<Deposits<Test>>::get(nft, &DID_ALICE), None);
+        assert_eq!(
+            <ClaimedFragmentAmount<Test>>::get(nft, &DID_ALICE),
+            Some(1_000_000 * DOLLARS)
+        );
+    });
+}
+
+#[test]
+fn creator_claim_should_success_when_claim_multi_times_in_different_block() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2000 * DOLLARS));
+        assert_ok!(Nft::back(Origin::signed(CHARLIE), nft, 1000 * DOLLARS));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        System::set_block_number(1);
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 200_000 * DOLLARS);
+
+        System::set_block_number(2);
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 400_000 * DOLLARS);
+
+        System::set_block_number(7);
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 1_000_000 * DOLLARS);
+    });
+}
+
+#[test]
+fn claim_should_success_when_claim_multi_times_in_same_block() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2000 * DOLLARS));
+        assert_ok!(Nft::back(Origin::signed(CHARLIE), nft, 1000 * DOLLARS));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        System::set_block_number(1);
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 200_000 * DOLLARS);
+
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 200_000 * DOLLARS);
+
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
+        assert_eq!(Assets::balance(nft, &ALICE), 200_000 * DOLLARS);
+    });
+}
+
+#[test]
+fn claim_should_fail_success_when_claimable_tokens_is_zero() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 2000 * DOLLARS));
+        assert_ok!(Nft::back(Origin::signed(CHARLIE), nft, 1000 * DOLLARS));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"XTT".to_vec()
+        ));
+
+        assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
     });
 }
 

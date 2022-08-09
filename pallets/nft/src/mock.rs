@@ -245,6 +245,7 @@ impl parami_nft::Config for Test {
     type Swaps = Swap;
     type WeightInfo = ();
     type UnsignedPriority = ();
+    type NftId = u32;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

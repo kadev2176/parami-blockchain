@@ -10,6 +10,7 @@ use std::sync::Arc;
 use jsonrpsee::RpcModule;
 use parami_dana_runtime::{
     opaque::Block, AccountId, AssetId, Balance, BlockNumber, DecentralizedId, Hash, Index as Nonce,
+    NftId,
 };
 use sc_finality_grandpa::{
     FinalityProofProvider, GrandpaJustificationStream, SharedAuthoritySet, SharedVoterState,
@@ -62,6 +63,7 @@ where
     C::Api: pallet_mmr_rpc::MmrRuntimeApi<Block, <Block as sp_runtime::traits::Block>::Hash>,
     C::Api: pallet_transaction_payment_rpc::TransactionPaymentRuntimeApi<Block, Balance>,
     C::Api: parami_swap_rpc::SwapRuntimeApi<Block, AssetId, Balance>,
+    C::Api: parami_nft_rpc::NftRuntimeApi<Block, NftId, DecentralizedId, Balance>,
     C::Api: BlockBuilder<Block>,
     P: TransactionPool + 'static,
     B: sc_client_api::Backend<Block> + Send + Sync + 'static,
@@ -70,6 +72,7 @@ where
     use pallet_mmr_rpc::{Mmr, MmrApiServer};
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use parami_did_rpc::{DidApiServer, DidRpcHandler};
+    use parami_nft_rpc::{NftApiServer, NftRpcHandler};
     use parami_swap_rpc::{SwapApiServer, SwapsRpcHandler};
     use substrate_frame_rpc_system::{System, SystemApiServer};
 
@@ -115,6 +118,7 @@ where
         io.merge(did_rpc)?;
     }
     io.merge(SwapsRpcHandler::new(client.clone()).into_rpc())?;
+    io.merge(NftRpcHandler::new(client.clone()).into_rpc())?;
 
     Ok(io)
 }

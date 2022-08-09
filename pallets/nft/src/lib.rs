@@ -147,6 +147,15 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
+
+        type NftId: Parameter
+            + Member
+            + MaybeSerializeDeserialize
+            + AtLeast32BitUnsigned
+            + Default
+            + Bounded
+            + Copy
+            + MaxEncodedLen;
     }
 
     #[pallet::pallet]
@@ -169,6 +178,10 @@ pub mod pallet {
         T::DecentralizedId, // Supporter
         BalanceOf<T>,
     >;
+
+    #[pallet::storage]
+    pub(super) type ClaimedFragmentAmount<T: Config> =
+        StorageDoubleMap<_, Twox64Concat, NftOf<T>, Identity, T::DecentralizedId, BalanceOf<T>>;
 
     /// Importing in progress
     #[pallet::storage]
@@ -457,39 +470,45 @@ pub mod pallet {
         }
 
         /// Claim the fragments.
+        /// ClaimInfo calculation Rules: ref to comment on [`get_claim_info_inner`](fn@get_claim_info_inner)
         #[pallet::weight(<T as Config>::WeightInfo::claim())]
         pub fn claim(origin: OriginFor<T>, nft: NftOf<T>) -> DispatchResult {
             let (did, who) = EnsureDid::<T>::ensure_origin(origin)?;
 
-            let height = <frame_system::Pallet<T>>::block_number();
+            let claimed_tokens: BalanceOf<T> =
+                <ClaimedFragmentAmount<T>>::get(nft, &did).unwrap_or(0u32.into());
+            let (total_tokens, unlocked_tokens, claimable_tokens) = Self::get_claim_info_inner(
+                nft,
+                &did,
+                T::InitialMintingValueBase::get(),
+                T::InitialMintingLockupPeriod::get(),
+                &claimed_tokens,
+            )?;
 
             let meta = <Metadata<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
 
-            if meta.owner == did {
-                let minted_block_number = <Date<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
-                ensure!(
-                    height - minted_block_number >= T::InitialMintingLockupPeriod::get(),
-                    Error::<T>::NotExists
-                );
+            T::Assets::transfer(
+                meta.token_asset_id,
+                &meta.pot,
+                &who,
+                claimable_tokens,
+                false,
+            )?;
+
+            <ClaimedFragmentAmount<T>>::mutate(nft, &did, |maybe| {
+                if let Some(already_claimed) = maybe {
+                    already_claimed.saturating_accrue(claimable_tokens);
+                } else {
+                    *maybe = Some(claimable_tokens);
+                }
+            });
+
+            /// When all the token has been unlocked, remove the Deposits of ${did}
+            if unlocked_tokens == total_tokens {
+                <Deposits<T>>::remove(nft, &did);
             }
 
-            let total = <Deposit<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
-            let deposit = <Deposits<T>>::get(nft, &did).ok_or(Error::<T>::NotExists)?;
-            let initial = T::InitialMintingValueBase::get();
-
-            let total: U512 = Self::try_into(total)?;
-            let deposit: U512 = Self::try_into(deposit)?;
-            let initial: U512 = Self::try_into(initial)?;
-
-            let tokens = initial * deposit / total;
-
-            let tokens = Self::try_into(tokens)?;
-
-            T::Assets::transfer(meta.token_asset_id, &meta.pot, &who, tokens, false)?;
-
-            <Deposits<T>>::remove(nft, &did);
-
-            Self::deposit_event(Event::Claimed(did, nft, tokens));
+            Self::deposit_event(Event::Claimed(did, nft, claimable_tokens));
 
             Ok(())
         }
@@ -717,9 +736,59 @@ impl<T: Config> Pallet<T> {
 
         Ok(value)
     }
+
+    /// ClaimInfo calculation Rules:
+    ///   a. tokens_of_backer = depositOf(backer) / total_deposit
+    ///   b. unlock following linear unlock style in T::InitialMintingLockupPeriod::get()
+    ///   c. so, given block_number n, unlocked_token = tokens_of_backer * (n - minted_block_number) / InitialMintingLockupPeriod
+    ///   d. the, given block_number n, claimable_token = unlock_token - claimed_token.
+    fn get_claim_info_inner(
+        nft: NftOf<T>,
+        did: &DidOf<T>,
+        initial_tokens: BalanceOf<T>,
+        initial_minting_lockup_period: HeightOf<T>,
+        claimed_tokens: &BalanceOf<T>,
+    ) -> Result<(BalanceOf<T>, BalanceOf<T>, BalanceOf<T>), DispatchError> {
+        let height = <frame_system::Pallet<T>>::block_number();
+
+        let minted_block_number = <Date<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
+
+        let mut passed_blocks = height - minted_block_number;
+
+        // calculate total tokens which is owned by did
+        let total = <Deposit<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
+        let deposit = <Deposits<T>>::get(nft, &did).ok_or(Error::<T>::NotExists)?;
+        let initial = initial_tokens;
+
+        let total: U512 = Self::try_into(total)?;
+        let deposit: U512 = Self::try_into(deposit)?;
+        let initial: U512 = Self::try_into(initial)?;
+
+        let tokens = initial * deposit / total;
+
+        // calculate unlocked tokens
+
+        if passed_blocks > initial_minting_lockup_period {
+            passed_blocks = initial_minting_lockup_period;
+        }
+        let passed_blocks: U512 = Self::try_into(passed_blocks)?;
+        let lockup_period: U512 = Self::try_into(initial_minting_lockup_period)?;
+
+        let unlocked_tokens = tokens * passed_blocks / lockup_period;
+        let unlocked_tokens: BalanceOf<T> = Self::try_into(unlocked_tokens)?;
+
+        // calculate claimable_tokens
+        let claimable_tokens = unlocked_tokens - *claimed_tokens;
+
+        Ok((Self::try_into(tokens)?, unlocked_tokens, claimable_tokens))
+    }
 }
 
 impl<T: Config> Nfts<T::AccountId> for Pallet<T> {
+    type DecentralizedId = DidOf<T>;
+    type Balance = BalanceOf<T>;
+    type NftId = <T as pallet::Config>::AssetId;
+
     fn force_transfer_all_fractions(
         src: &T::AccountId,
         dest: &T::AccountId,
@@ -730,5 +799,20 @@ impl<T: Config> Nfts<T::AccountId> for Pallet<T> {
         }
 
         Ok(())
+    }
+
+    fn get_claim_info(
+        nft_id: Self::NftId,
+        claimer: &Self::DecentralizedId,
+    ) -> Result<(Self::Balance, Self::Balance, Self::Balance), DispatchError> {
+        let claimed_tokens: BalanceOf<T> =
+            <ClaimedFragmentAmount<T>>::get(nft_id, &claimer).unwrap_or(0u32.into());
+        Self::get_claim_info_inner(
+            nft_id,
+            claimer,
+            T::InitialMintingValueBase::get(),
+            T::InitialMintingLockupPeriod::get(),
+            &claimed_tokens,
+        )
     }
 }

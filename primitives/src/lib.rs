@@ -131,6 +131,9 @@ pub type Moment = u64;
 /// DID of an account.
 pub type DecentralizedId = sp_core::H160;
 
+/// ID of NFT
+pub type NftId = u32;
+
 pub const fn deposit(items: u32, bytes: u32) -> Balance {
     use constants::CENTS;
 

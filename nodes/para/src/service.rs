@@ -7,7 +7,8 @@ use std::{sync::Arc, time::Duration};
 
 // Local Runtime Types
 use parami_para_runtime::{
-    opaque::Block, AccountId, AssetId, Balance, BlockNumber, Hash, Index as Nonce, RuntimeApi,
+    opaque::Block, AccountId, AssetId, Balance, BlockNumber, DecentralizedId, Hash, Index as Nonce,
+    NftId, RuntimeApi,
 };
 
 // Cumulus Imports
@@ -233,6 +234,7 @@ where
         + substrate_frame_rpc_system::AccountNonceApi<Block, AccountId, Nonce>
         + pallet_mmr_rpc::MmrRuntimeApi<Block, <Block as sp_runtime::traits::Block>::Hash>
         + parami_swap_rpc::SwapRuntimeApi<Block, AssetId, Balance>
+        + parami_nft_rpc::NftRuntimeApi<Block, NftId, DecentralizedId, Balance>
         + pallet_contracts_rpc::ContractsRuntimeApi<Block, AccountId, Balance, BlockNumber, Hash>,
     sc_client_api::StateBackendFor<TFullBackend<Block>, Block>: sp_api::StateBackend<BlakeTwo256>,
     Executor: sc_executor::NativeExecutionDispatch + 'static,
