@@ -131,7 +131,7 @@ jobs:
         run: |
           cargo tarpaulin --forward --release --locked -t 120 -o Xml \
           --ignore-tests --workspace \
-          --exclude parami-primitives parami-traits parami-swap-rpc parami-did-rpc \
+          --exclude parami-primitives parami-traits parami-swap-rpc parami-did-rpc parami-nft-rpc \
           parami-dana parami-para parami-dana-runtime parami-para-runtime \
           --exclude-files **/mock.rs **/weights.rs **/weights/* **/migrations.rs **/benchmarking.rs **/rpc/*
         if: matrix.arch == 'x86_64' && matrix.os == 'linux'
