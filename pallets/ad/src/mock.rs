@@ -203,6 +203,7 @@ impl parami_nft::Config for Test {
     type WeightInfo = ();
     type UnsignedPriority = ();
     type AssetIdManager = AssetIdManager;
+    type NftId = u32;
 }
 
 impl parami_ocw::Config for Test {}

@@ -1,12 +1,8 @@
 use parami_dana_runtime::{AccountId, AuraConfig, AuraId, GenesisConfig, GrandpaConfig, Signature};
 use sc_service::ChainType;
-use sp_authority_discovery::AuthorityId as AuthorityDiscoveryId;
 use sp_core::{sr25519, Pair, Public};
 use sp_finality_grandpa::AuthorityId as GrandpaId;
-use sp_runtime::{
-    traits::{IdentifyAccount, Verify},
-    Perbill,
-};
+use sp_runtime::traits::{IdentifyAccount, Verify};
 
 // The URL for the telemetry server.
 // const STAGING_TELEMETRY_URL: &str = "wss://telemetry.polkadot.io/submit/";

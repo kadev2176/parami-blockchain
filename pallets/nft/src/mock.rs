@@ -251,6 +251,7 @@ impl parami_nft::Config for Test {
     type WeightInfo = ();
     type UnsignedPriority = ();
     type AssetIdManager = AssetManager;
+    type NftId = u32;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
