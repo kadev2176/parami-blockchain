@@ -20,7 +20,10 @@ use frame_support::{
     dispatch::DispatchResultWithPostInfo,
     ensure,
     traits::{
-        tokens::fungibles::{Inspect, Mutate, Transfer as FungTransfer},
+        tokens::fungibles::metadata::Mutate as MetadataMutate,
+        tokens::fungibles::{
+            Create as FungCreate, Inspect, Mutate as FungMutate, Transfer as FungTransfer,
+        },
         Currency, EnsureOrigin,
         ExistenceRequirement::AllowDeath,
         Get,
@@ -30,7 +33,7 @@ use frame_support::{
 use frame_system::ensure_signed;
 use parami_chainbridge::{ChainId, ResourceId};
 use sp_core::U256;
-use sp_runtime::traits::{AccountIdConversion, SaturatedConversion};
+use sp_runtime::traits::{AccountIdConversion, One, SaturatedConversion};
 use sp_std::prelude::*;
 
 use weights::WeightInfo;
@@ -47,12 +50,15 @@ pub mod pallet {
     use super::*;
     use frame_support::{
         pallet_prelude::*,
-        traits::{tokens::WithdrawConsequence, ExistenceRequirement, WithdrawReasons},
+        traits::{ExistenceRequirement, WithdrawReasons},
     };
     use frame_system::pallet_prelude::*;
+    use parami_assetmanager::AssetIdManager;
 
     #[pallet::config]
-    pub trait Config: frame_system::Config + parami_chainbridge::Config {
+    pub trait Config:
+        frame_system::Config + parami_chainbridge::Config + parami_assetmanager::Config
+    {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
 
@@ -66,12 +72,15 @@ pub mod pallet {
         type Currency: Currency<<Self as frame_system::Config>::AccountId>;
 
         type Assets: FungTransfer<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>
-            + Mutate<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>;
+            + FungMutate<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>
+            + MetadataMutate<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>
+            + FungCreate<AccountOf<Self>, AssetId = AssetOf<Self>>;
 
         #[pallet::constant]
         type PalletId: Get<PalletId>;
 
         type AssetId: Parameter + Member + Default + Copy + MaxEncodedLen;
+        type AssetIdManager: AssetIdManager<Self, AssetId = AssetOf<Self>>;
 
         /// Ids can be defined by the runtime and passed in, perhaps from blake2b_128 hashes.
         type HashResourceId: Get<ResourceId>;
@@ -82,6 +91,10 @@ pub mod pallet {
         type WeightInfo: WeightInfo;
 
         type ForceOrigin: EnsureOrigin<Self::Origin>;
+
+        /// The maximum length of a name or symbol stored on-chain.
+        #[pallet::constant]
+        type StringLimit: Get<u32>;
     }
 
     #[pallet::pallet]
@@ -126,6 +139,8 @@ pub mod pallet {
         NotExists,
         InsufficientFund,
         InsufficientTransferFee,
+        BadAssetMetadata,
+        AssetIdOverflow,
     }
 
     #[pallet::call]
@@ -243,6 +258,50 @@ pub mod pallet {
             T::ForceOrigin::ensure_origin(origin)?;
             <ResourceMap<T>>::insert(asset_id, resource_id);
             <ResourceId2Asset<T>>::insert(resource_id, asset_id);
+            Ok(())
+        }
+
+        #[pallet::weight(<T as Config>::WeightInfo::create_xasset())]
+        pub fn create_xasset(
+            origin: OriginFor<T>,
+            name: Vec<u8>,
+            symbol: Vec<u8>,
+            decimal: u8,
+            resource_id: ResourceId,
+        ) -> DispatchResult {
+            T::ForceOrigin::ensure_origin(origin.clone())?;
+
+            let limit = T::StringLimit::get() as usize;
+            ensure!(
+                name.len() > 0 && name.len() <= limit,
+                Error::<T>::BadAssetMetadata
+            );
+            ensure!(
+                0 < symbol.len() && symbol.len() <= limit,
+                Error::<T>::BadAssetMetadata
+            );
+
+            let is_valid_char = |c: &u8| c.is_ascii_whitespace() || c.is_ascii_alphanumeric();
+            ensure!(
+                name[0].is_ascii_alphabetic() && name.iter().all(is_valid_char),
+                Error::<T>::BadAssetMetadata
+            );
+            ensure!(
+                symbol[0].is_ascii_alphabetic() && symbol.iter().all(is_valid_char),
+                Error::<T>::BadAssetMetadata
+            );
+            let asset_id =
+                T::AssetIdManager::next_id().map_err(|_e| Error::<T>::AssetIdOverflow)?;
+            let owner_account = Self::generate_fee_pot();
+            T::Assets::create(asset_id, owner_account.clone(), true, One::one())?;
+            T::Assets::set(asset_id, &owner_account, name, symbol, decimal)?;
+
+            Self::force_set_resource(origin, resource_id, asset_id)?;
+            parami_chainbridge::Pallet::<T>::register_resource(
+                resource_id,
+                "XAssets.handle_transfer_fungibles".into(),
+            )?;
+
             Ok(())
         }
 

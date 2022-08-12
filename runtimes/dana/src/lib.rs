@@ -10,6 +10,7 @@ use codec::{Decode, Encode};
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
+use parami_assetmanager::AssetIdManager;
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -103,7 +104,10 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    AddResouceId2Asset<Runtime>,
+    (
+        AddResouceId2Asset<Runtime>,
+        parami_assetmanager::migrations::v1::SetInitialAssetId<Runtime>,
+    ),
 >;
 
 /// Era type as expected by this runtime.
@@ -795,12 +799,14 @@ parameter_types! {
 
 impl parami_xassets::Config for Runtime {
     type AssetId = AssetId;
+    type AssetIdManager = AssetManager;
     type Event = Event;
     type BridgeOrigin = parami_chainbridge::EnsureBridge<Runtime>;
     type Currency = Balances;
     type HashResourceId = HashResourceId;
     type NativeTokenResourceId = NativeTokenResourceId;
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
+    type StringLimit = StringLimit;
     type Assets = Assets;
     type ForceOrigin = EnsureRootOrHalfCouncil;
     type PalletId = XAssetPalletId;
@@ -852,6 +858,7 @@ impl parami_nft::Config for Runtime {
     type Event = Event;
     type AssetId = AssetId;
     type Assets = Assets;
+    type AssetIdManager = AssetManager;
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
@@ -895,6 +902,10 @@ impl parami_tag::Config for Runtime {
     type CallOrigin = parami_advertiser::EnsureAdvertiser<Self>;
     type ForceOrigin = EnsureRootOrHalfCouncil;
     type WeightInfo = parami_tag::weights::SubstrateWeight<Runtime>;
+}
+
+impl parami_assetmanager::Config for Runtime {
+    type AssetId = AssetId;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -945,6 +956,7 @@ construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Config<T>, Event<T>, ValidateUnsigned} = 107,
         Swap: parami_swap::{Pallet, Call, Storage, Config<T>, Event<T>} = 108,
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,
+        AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110
     }
 );
 

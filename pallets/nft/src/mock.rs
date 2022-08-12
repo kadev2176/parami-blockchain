@@ -31,7 +31,7 @@ pub const NAMESPACE: [u8; 20] = [
     0x8E, 0x7A, 0x26, 0x6d,
 ];
 
-pub const NEXT_INSTANCE_ID: AssetId = 2;
+pub const NEXT_INSTANCE_ID: AssetId = 5000;
 
 frame_support::construct_runtime!(
     pub enum Test where
@@ -50,6 +50,7 @@ frame_support::construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Linker: parami_linker::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Event<T>},
+        AssetManager: parami_assetmanager::{Pallet}
     }
 );
 
@@ -222,6 +223,10 @@ impl parami_linker::Config for Test {
     type WeightInfo = ();
 }
 
+impl parami_assetmanager::Config for Test {
+    type AssetId = u64;
+}
+
 parameter_types! {
     pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
@@ -245,6 +250,7 @@ impl parami_nft::Config for Test {
     type Swaps = Swap;
     type WeightInfo = ();
     type UnsignedPriority = ();
+    type AssetIdManager = AssetManager;
     type NftId = u32;
 }
 
@@ -265,6 +271,12 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
 
     parami_did::GenesisConfig::<Test> {
         ids: vec![(ALICE, DID_ALICE), (BOB, DID_BOB), (CHARLIE, DID_CHARLIE)],
+    }
+    .assimilate_storage(&mut t)
+    .unwrap();
+
+    parami_assetmanager::GenesisConfig::<Test> {
+        next_asset_id: NEXT_INSTANCE_ID,
     }
     .assimilate_storage(&mut t)
     .unwrap();

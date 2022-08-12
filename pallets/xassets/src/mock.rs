@@ -58,6 +58,10 @@ impl WeightInfo for MockWeightInfo {
     fn update_transfer_token_fee() -> Weight {
         0 as Weight
     }
+
+    fn create_xasset() -> Weight {
+        0 as Weight
+    }
 }
 
 pub(crate) const RELAYER_A: u64 = 0x2;
@@ -77,7 +81,8 @@ frame_support::construct_runtime!(
         Balances: pallet_balances::{Pallet, Call, Config<T>, Storage, Event<T>},
         ChainBridge: parami_chainbridge::{Pallet, Call, Storage, Config, Event<T>},
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
-        XAssets: parami_xassets::{Pallet, Call, Event<T>}
+        XAssets: parami_xassets::{Pallet, Call, Event<T>},
+        AssetIdManager: parami_assetmanager::{Pallet}
     }
 );
 
@@ -154,7 +159,7 @@ impl pallet_assets::Config for MockRuntime {
     type MetadataDepositBase = ();
     type MetadataDepositPerByte = ();
     type ApprovalDeposit = ();
-    type StringLimit = ();
+    type StringLimit = StringLimit;
     type Freezer = ();
     type Extra = ();
     type WeightInfo = pallet_assets::weights::SubstrateWeight<MockRuntime>;
@@ -166,6 +171,7 @@ parameter_types! {
     pub const XAssetPalletId: PalletId = PalletId(*b"xassets ");
     pub const ProposalLifetime: u64 = 10;
     pub HashId: parami_chainbridge::ResourceId = parami_chainbridge::derive_resource_id(233, &blake2_128(b"hash"));
+    pub const StringLimit: u32 = 50;
 }
 
 impl parami_chainbridge::Config for MockRuntime {
@@ -176,6 +182,10 @@ impl parami_chainbridge::Config for MockRuntime {
     type AdminOrigin = EnsureRoot<Self::AccountId>;
     type ProposalLifetime = ProposalLifetime;
     type WeightInfo = parami_chainbridge::weights::SubstrateWeight<MockRuntime>;
+}
+
+impl parami_assetmanager::Config for MockRuntime {
+    type AssetId = u32;
 }
 
 impl parami_xassets::Config for MockRuntime {
@@ -189,6 +199,8 @@ impl parami_xassets::Config for MockRuntime {
     type AssetId = u32;
     type ForceOrigin = EnsureRoot<Self::AccountId>;
     type PalletId = XAssetPalletId;
+    type AssetIdManager = AssetIdManager;
+    type StringLimit = StringLimit;
 }
 
 pub struct TestExternalitiesBuilder {}

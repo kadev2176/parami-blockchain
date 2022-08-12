@@ -29,6 +29,7 @@ parami-linker = { path = '../linker', default-features = false, optional = true 
 parami-ocw = { path = '../ocw', default-features = false }
 parami-swap = { path = '../swap', default-features = false, optional = true }
 parami-traits = { path = '../traits', default-features = false }
+parami-assetmanager = { path = '../assetmanager', default-features = false }
 
 ethabi = { git = 'https://github.com/rust-ethereum/ethabi.git', tag = 'v17.1.0', default-features = false, features = [
     'parity-codec',

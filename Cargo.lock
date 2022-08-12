@@ -6019,6 +6019,7 @@ dependencies = [
  "pallet-balances",
  "pallet-uniques",
  "parami-advertiser",
+ "parami-assetmanager",
  "parami-did",
  "parami-nft",
  "parami-ocw",
@@ -6050,6 +6051,23 @@ dependencies = [
  "sp-core",
  "sp-io",
  "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
+name = "parami-assetmanager"
+version = "3.0.0"
+dependencies = [
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-runtime-interface",
  "sp-std",
 ]
 
@@ -6166,6 +6184,7 @@ dependencies = [
  "pallet-utility",
  "parami-ad",
  "parami-advertiser",
+ "parami-assetmanager",
  "parami-chainbridge",
  "parami-did",
  "parami-linker",
@@ -6300,6 +6319,7 @@ dependencies = [
  "pallet-assets",
  "pallet-balances",
  "pallet-uniques",
+ "parami-assetmanager",
  "parami-did",
  "parami-linker",
  "parami-ocw",
@@ -6506,6 +6526,7 @@ dependencies = [
  "parachain-info",
  "parami-ad",
  "parami-advertiser",
+ "parami-assetmanager",
  "parami-chainbridge",
  "parami-did",
  "parami-linker",
@@ -6645,6 +6666,7 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
+ "parami-assetmanager",
  "parami-chainbridge",
  "parity-scale-codec",
  "rand 0.7.3",

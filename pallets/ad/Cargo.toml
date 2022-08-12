@@ -45,6 +45,7 @@ parami-primitives = { path = '../../primitives', default-features = false }
 
 [dev-dependencies]
 parami-ocw = { path = '../ocw' }
+parami-assetmanager = { path = '../assetmanager', default-features = false }
 
 sp-io = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.24' }
 

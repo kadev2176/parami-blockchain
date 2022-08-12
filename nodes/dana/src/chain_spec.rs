@@ -168,6 +168,7 @@ fn testnet_genesis(
                 .collect(),
         },
         assets: Default::default(),
+        asset_manager: Default::default(),
 
         aura: AuraConfig {
             authorities: initial_authorities.iter().map(|x| (x.2.clone())).collect(),

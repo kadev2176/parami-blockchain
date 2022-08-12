@@ -1506,6 +1506,10 @@ impl parami_chainbridge::Config for Runtime {
     type WeightInfo = parami_chainbridge::weights::SubstrateWeight<Runtime>;
 }
 
+impl parami_assetmanager::Config for Runtime {
+    type AssetId = AssetId;
+}
+
 parameter_types! {
     // &blake2_128(b"hash")
     // 0x000000000000000000000000000000f44be64d2de895454c3467021928e55ee9
@@ -1521,6 +1525,7 @@ parameter_types! {
 
 impl parami_xassets::Config for Runtime {
     type AssetId = AssetId;
+    type AssetIdManager = AssetManager;
     type Event = Event;
     type BridgeOrigin = parami_chainbridge::EnsureBridge<Runtime>;
     type Currency = Balances;
@@ -1528,6 +1533,7 @@ impl parami_xassets::Config for Runtime {
     type NativeTokenResourceId = NativeTokenId;
     type WeightInfo = parami_xassets::weights::SubstrateWeight<Runtime>;
     type Assets = Assets;
+    type StringLimit = StringLimit;
     type ForceOrigin = EnsureRootOrHalfCouncil;
     type PalletId = XAssetPalletId;
 }
@@ -1577,6 +1583,7 @@ impl parami_nft::Config for Runtime {
     type Event = Event;
     type AssetId = AssetId;
     type Assets = Assets;
+    type AssetIdManager = AssetManager;
     type InitialMintingDeposit = InitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
@@ -1700,6 +1707,7 @@ construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Config<T>, Event<T>} = 107,
         Swap: parami_swap::{Pallet, Call, Storage, Config<T>, Event<T>} = 108,
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,
+        AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110
     }
 );
 

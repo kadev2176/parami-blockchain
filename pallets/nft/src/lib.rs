@@ -37,6 +37,7 @@ use frame_support::{
     PalletId,
 };
 use frame_system::offchain::SendTransactionTypes;
+use parami_assetmanager::AssetIdManager;
 use parami_did::EnsureDid;
 use parami_traits::{
     types::{Network, Task},
@@ -80,6 +81,7 @@ pub mod pallet {
         + parami_did::Config
         + parami_ocw::Config
         + SendTransactionTypes<Call<Self>>
+        + parami_assetmanager::Config
     {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -93,6 +95,8 @@ pub mod pallet {
             + Bounded
             + Copy
             + MaxEncodedLen;
+
+        type AssetIdManager: AssetIdManager<Self, AssetId = AssetOf<Self>>;
 
         /// The assets trait to create, mint, and transfer fragments (fungible token)
         type Assets: FungCreate<AccountOf<Self>, AssetId = AssetOf<Self>>
@@ -404,7 +408,7 @@ pub mod pallet {
                 Error::<T>::BadMetadata
             );
             ensure!(
-                0 < name.len() && symbol.len() <= limit,
+                0 < symbol.len() && symbol.len() <= limit,
                 Error::<T>::BadMetadata
             );
 
@@ -695,12 +699,8 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
     fn create(owner: DidOf<T>) -> Result<NftOf<T>, DispatchError> {
-        let id = <NextClassId<T>>::try_mutate(|id| -> Result<NftOf<T>, DispatchError> {
-            let current_id = *id;
-            *id = id.checked_add(&One::one()).ok_or(Error::<T>::Overflow)?;
-            Ok(current_id)
-        })?;
-
+        let id =
+            <T as crate::Config>::AssetIdManager::next_id().map_err(|_e| Error::<T>::Overflow)?;
         let pot = T::PalletId::get().into_sub_account_truncating(&owner);
 
         ensure!(!<Metadata<T>>::contains_key(id), Error::<T>::Exists);
