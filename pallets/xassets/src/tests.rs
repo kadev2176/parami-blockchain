@@ -112,6 +112,8 @@ fn transfer_native() {
 
             assert_ok!(mock::XAssets::update_native_fee(Origin::root(), bridge_fee));
 
+            let total_issuance = <MockRuntime as crate::Config>::Currency::total_issuance();
+
             assert_ok!(mock::XAssets::transfer_native(
                 Origin::signed(RELAYER_A),
                 amount.clone(),
@@ -119,6 +121,10 @@ fn transfer_native() {
                 dest_chain,
             ));
 
+            assert_eq!(
+                <MockRuntime as crate::Config>::Currency::total_issuance(),
+                total_issuance - amount + bridge_fee
+            );
             expect_event(parami_chainbridge::Event::FungibleTransfer(
                 dest_chain,
                 1,
@@ -199,7 +205,7 @@ fn execute_remark_bad_origin() {
 }
 
 #[test]
-fn transfer() {
+fn should_handle_transfer_native_token() {
     TestExternalitiesBuilder::default()
         .build()
         .execute_with(|| {
@@ -208,6 +214,7 @@ fn transfer() {
             let resource_id = NativeTokenResourceId::get();
             let total_balance = mock::Balances::total_issuance();
             // Transfer and check result
+            assert_eq!(Balances::free_balance(user), 0);
             assert_ok!(mock::XAssets::handle_transfer_fungibles(
                 Origin::signed(mock::ChainBridge::account_id()),
                 user,
@@ -586,7 +593,7 @@ fn fail_to_transfer_if_no_enough_balance() {
 }
 
 #[test]
-fn should_transfer_assets() {
+fn should_handle_transfer_assets() {
     let asset_resource_id = parami_chainbridge::derive_resource_id(233, &blake2_128(b"test"));
     let asset_id = 0;
     let user_account: u64 = 1;
