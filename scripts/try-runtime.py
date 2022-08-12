@@ -24,7 +24,7 @@ Note: You are downloading states of ALL pallets. It might take a while.
       to speed up downloading, you could specify only relavent pallet names
       Example: python3 try-runtime.py live Ad Nft
       """)
-        pallet_args = "".join([f"--pallets {pallet}" for pallet in argv[2:]])
+        pallet_args = " ".join([f"--pallets {pallet}" for pallet in argv[2:]])
         snap_filename = f"snap_{int(time())}.bin"
         system(f'RUST_LOG=runtime=trace,try-runtime::cli=trace,executor=trace cargo run --release --bin=parami --features=try-runtime -- try-runtime --execution=Native on-runtime-upgrade live --uri "wss://rpc.parami.io:443/ws" -s {snap_filename} {pallet_args}')
         exit(0)

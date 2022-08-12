@@ -106,6 +106,11 @@ pub type Executive = frame_executive::Executive<
     AllPalletsWithSystem,
     (
         AddResouceId2Asset<Runtime>,
+        parami_ad::migrations::v4::ResetHeight<Runtime>,
+        parami_did::migrations::v2::ResetHeight<Runtime>,
+        parami_nft::migrations::v3::ResetHeight<Runtime>,
+        parami_tag::migrations::v2::ResetHeight<Runtime>,
+        parami_swap::migrations::v1::ResetHeight<Runtime>,
         parami_assetmanager::migrations::v1::SetInitialAssetId<Runtime>,
     ),
 >;

@@ -14,7 +14,7 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod migrations;
+pub mod migrations;
 mod types;
 
 use frame_support::{

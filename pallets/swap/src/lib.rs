@@ -18,8 +18,10 @@ mod benchmarking;
 mod farming;
 mod functions;
 mod impl_swaps;
+pub mod migrations;
 mod types;
 
+use frame_support::traits::StorageVersion;
 use frame_support::{
     dispatch::DispatchResult,
     ensure,
@@ -43,6 +45,7 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type SwapOf<T> = types::Swap<HeightOf<T>, BalanceOf<T>>;
 type LiquidityOf<T> = types::Liquidity<AccountOf<T>, BalanceOf<T>, HeightOf<T>, AssetOf<T>>;
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
@@ -85,6 +88,7 @@ pub mod pallet {
     }
 
     #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
     #[pallet::generate_store(pub(super) trait Store)]
     pub struct Pallet<T>(_);
 

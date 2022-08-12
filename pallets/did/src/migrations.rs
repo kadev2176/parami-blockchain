@@ -1,10 +1,10 @@
+use crate::StorageVersion;
 use crate::{Config, Metadata, Pallet};
+use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::{traits::Get, weights::Weight};
 use sp_runtime::traits::Saturating;
 
 pub fn migrate<T: Config>() -> Weight {
-    use frame_support::traits::StorageVersion;
-
     let version = StorageVersion::get::<Pallet<T>>();
     let mut weight: Weight = 0;
 
@@ -27,5 +27,55 @@ mod v1 {
         });
 
         weight
+    }
+}
+
+pub mod v2 {
+    use super::*;
+    use crate::MetaOf;
+
+    pub struct ResetHeight<T>(sp_std::marker::PhantomData<T>);
+
+    impl<T: crate::Config> OnRuntimeUpgrade for ResetHeight<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let version = StorageVersion::get::<Pallet<T>>();
+            if version != 1 {
+                return 0;
+            }
+
+            Metadata::<T>::translate_values(|m| {
+                Some(MetaOf::<T> {
+                    created: 0u32.into(),
+                    ..m
+                })
+            });
+            StorageVersion::put::<Pallet<T>>(&StorageVersion::new(2));
+
+            1
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<(), &'static str> {
+            use frame_support::log::info;
+            let meta_count: u32 = Metadata::<T>::iter_values()
+                .filter(|m| m.created != 0u32.into())
+                .map(|_| 1u32)
+                .sum();
+            info!("non zero meta count = {:?}", meta_count);
+
+            Ok(())
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade() -> Result<(), &'static str> {
+            use frame_support::log::info;
+            let meta_count: u32 = Metadata::<T>::iter_values()
+                .filter(|m| m.created == 0u32.into())
+                .map(|_| 1u32)
+                .sum();
+            info!("zero meta count = {:?}", meta_count);
+
+            Ok(())
+        }
     }
 }
