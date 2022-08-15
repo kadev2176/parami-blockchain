@@ -538,6 +538,27 @@ fn fail_to_tranfer_token_if_transfer_is_not_enabled() {
 }
 
 #[test]
+fn fail_to_tranfer_native_token_if_transfer_is_not_enabled() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let chain_id = 100u8;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+
+            mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+            assert_noop!(
+                mock::XAssets::transfer_native(
+                    Origin::signed(chain_id as u64),
+                    100,
+                    recipient.clone(),
+                    chain_id,
+                ),
+                parami_xassets::Error::<mock::MockRuntime>::TransferNotEnabled
+            );
+        });
+}
+
+#[test]
 fn fail_to_tranfer_token_if_not_exist_asset_2_resource_id_config() {
     TestExternalitiesBuilder::default()
         .build()
