@@ -17,8 +17,8 @@ pub trait Nfts<AccountId> {
 
 impl<AccountId> Nfts<AccountId> for () {
     type DecentralizedId = u32;
-    type Balance = u128;
     type NftId = u32;
+    type Balance = u128;
 
     fn force_transfer_all_fractions(
         _src: &AccountId,
