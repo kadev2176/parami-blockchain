@@ -54,3 +54,58 @@ pub mod v1 {
         }
     }
 }
+
+pub mod v2 {
+    use frame_support::assert_ok;
+    use parami_traits::Swaps;
+
+    use crate::{Metadata, SwapOf};
+
+    use super::*;
+
+    pub struct ResetHeight<T>(sp_std::marker::PhantomData<T>);
+
+    impl<T: crate::Config> OnRuntimeUpgrade for ResetHeight<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let version = StorageVersion::get::<Pallet<T>>();
+            if version != 1 {
+                return 0;
+            }
+
+            Metadata::<T>::translate_values(|m| {
+                Some(SwapOf::<T> {
+                    created: 0u32.into(),
+                    ..m
+                })
+            });
+
+            StorageVersion::put::<Pallet<T>>(&StorageVersion::new(2));
+            1
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<(), &'static str> {
+            use frame_support::log::info;
+
+            let count: u32 = Metadata::<T>::iter_values()
+                .filter(|m| m.created != 0u32.into())
+                .map(|_| 1u32)
+                .sum();
+
+            info!("non zero count: {:?}", count);
+
+            Ok(())
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade() -> Result<(), &'static str> {
+            let count: u32 = Metadata::<T>::iter_values()
+                .filter(|m| m.created != 0u32.into())
+                .map(|_| 1u32)
+                .sum();
+            assert_eq!(count, 0);
+
+            Ok(())
+        }
+    }
+}
