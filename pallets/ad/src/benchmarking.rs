@@ -1,7 +1,7 @@
-use crate::*;
 use crate::BalanceOf;
 #[allow(unused)]
 use crate::Pallet as Ad;
+use crate::*;
 use frame_benchmarking::{
     account, benchmarks, impl_benchmark_test_suite, whitelisted_caller, BenchmarkError,
 };
@@ -11,8 +11,8 @@ use parami_advertiser::Pallet as Advertiser;
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
 use parami_primitives::constants::DOLLARS;
-use parami_tag::Pallet as Tag;
 use parami_swap::Pallet as Swap;
+use parami_tag::Pallet as Tag;
 use sp_runtime::traits::{Bounded, Saturating, Zero};
 
 fn prepare_nft<T>(caller: &T::AccountId) -> <T as parami_nft::Config>::AssetId
@@ -47,9 +47,18 @@ where
     let _swap_res = Swap::<T>::buy_tokens(
         RawOrigin::Signed(caller.clone()).into(),
         nft_id_u32.into(),
-        (500_000 * DOLLARS).try_into().map_err(|e| "balance conversion").unwrap(),
-        (3000 * DOLLARS).try_into().map_err(|e| "balance conversion").unwrap(),
-        100000000u32.try_into().map_err(|e| "block number conversion").unwrap()
+        (500_000 * DOLLARS)
+            .try_into()
+            .map_err(|e| "balance conversion")
+            .unwrap(),
+        (3000 * DOLLARS)
+            .try_into()
+            .map_err(|e| "balance conversion")
+            .unwrap(),
+        100000000u32
+            .try_into()
+            .map_err(|e| "block number conversion")
+            .unwrap(),
     );
     // Nft::<T>::claim(RawOrigin::Signed(caller.clone()).into(), nft_id);
 
