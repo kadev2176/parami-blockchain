@@ -130,6 +130,9 @@ pub mod pallet {
         ValueQuery,
     >;
 
+    #[pallet::storage]
+    pub type EnableCrossBridgeTransfer<T: Config> = StorageValue<_, bool, ValueQuery>;
+
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {}
 
@@ -141,6 +144,7 @@ pub mod pallet {
         InsufficientTransferFee,
         BadAssetMetadata,
         AssetIdOverflow,
+        TransferNotEnabled,
     }
 
     #[pallet::call]
@@ -159,6 +163,17 @@ pub mod pallet {
             Ok(().into())
         }
 
+        #[pallet::weight(<T as Config>::WeightInfo::set_enable_cross_bridge_transfer())]
+        pub fn set_enable_cross_bridge_transfer(
+            origin: OriginFor<T>,
+            enable_cross_bridge_transfer: bool,
+        ) -> DispatchResultWithPostInfo {
+            ensure_root(origin)?;
+            EnableCrossBridgeTransfer::<T>::put(enable_cross_bridge_transfer);
+
+            Ok(().into())
+        }
+
         #[pallet::weight(<T as Config>::WeightInfo::transfer_native())]
         pub fn transfer_native(
             origin: OriginFor<T>,
@@ -167,6 +182,11 @@ pub mod pallet {
             dest_id: ChainId,
         ) -> DispatchResultWithPostInfo {
             let source = ensure_signed(origin)?;
+            ensure!(
+                EnableCrossBridgeTransfer::<T>::try_get().unwrap_or(false),
+                Error::<T>::TransferNotEnabled
+            );
+
             ensure!(
                 <parami_chainbridge::Pallet<T>>::chain_whitelisted(dest_id),
                 Error::<T>::InvalidTransfer
@@ -226,6 +246,10 @@ pub mod pallet {
             ensure!(
                 <parami_chainbridge::Pallet<T>>::chain_whitelisted(dest_id),
                 Error::<T>::InvalidTransfer
+            );
+            ensure!(
+                EnableCrossBridgeTransfer::<T>::try_get().unwrap_or(false),
+                Error::<T>::TransferNotEnabled
             );
 
             let resource_id = <ResourceMap<T>>::get(asset).ok_or(Error::<T>::NotExists)?;

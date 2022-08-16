@@ -18,6 +18,8 @@ pub trait WeightInfo {
     fn update_transfer_token_fee() -> Weight;
 
     fn create_xasset() -> Weight;
+
+    fn set_enable_cross_bridge_transfer() -> Weight;
 }
 
 pub struct SubstrateWeight<T>(PhantomData<T>);
@@ -55,6 +57,10 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
     }
 
     fn update_transfer_token_fee() -> Weight {
+        195_000_000 as Weight
+    }
+
+    fn set_enable_cross_bridge_transfer() -> Weight {
         195_000_000 as Weight
     }
 }

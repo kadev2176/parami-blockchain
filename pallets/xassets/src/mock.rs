@@ -62,6 +62,10 @@ impl WeightInfo for MockWeightInfo {
     fn create_xasset() -> Weight {
         0 as Weight
     }
+
+    fn set_enable_cross_bridge_transfer() -> Weight {
+        0 as Weight
+    }
 }
 
 pub(crate) const RELAYER_A: u64 = 0x2;

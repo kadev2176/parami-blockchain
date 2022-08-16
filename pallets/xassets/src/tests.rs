@@ -77,6 +77,10 @@ fn failed_transfer_native() {
             let bridge_fee: u64 = 20;
             let amount = 10;
 
+            assert_ok!(mock::XAssets::set_enable_cross_bridge_transfer(
+                Origin::root(),
+                true
+            ));
             assert_ok!(mock::ChainBridge::whitelist_chain(
                 Origin::root(),
                 dest_chain.clone()
@@ -105,6 +109,10 @@ fn transfer_native() {
             let recipient = vec![99];
             let bridge_fee: u64 = 20;
 
+            assert_ok!(mock::XAssets::set_enable_cross_bridge_transfer(
+                Origin::root(),
+                true
+            ));
             assert_ok!(mock::ChainBridge::whitelist_chain(
                 Origin::root(),
                 dest_chain.clone()
@@ -386,7 +394,12 @@ fn failed_transfer_token() {
             let asset_id = 1;
             let bridge_fee: u64 = 200;
             let recipient: Vec<u8> = "address".as_bytes().into();
+            assert_ok!(mock::XAssets::set_enable_cross_bridge_transfer(
+                Origin::root(),
+                true
+            ));
             mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+
             mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).unwrap();
             mock::Assets::force_create(Origin::root(), asset_id, chain_id as u64, true, 1).unwrap();
             mock::Assets::mint(
@@ -428,6 +441,10 @@ fn can_transfer_token() {
             let recipient: Vec<u8> = "address".as_bytes().into();
             let bridge_fee: u64 = 20;
             mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+            assert_ok!(mock::XAssets::set_enable_cross_bridge_transfer(
+                Origin::root(),
+                true
+            ));
             let _ = mock::Balances::deposit_creating(&user_id, 1001);
             assert_ok!(mock::XAssets::create_xasset(
                 Origin::root(),
@@ -498,6 +515,50 @@ fn fail_to_tranfer_token_if_chain_is_not_whitelisted() {
 }
 
 #[test]
+fn fail_to_tranfer_token_if_transfer_is_not_enabled() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let chain_id = 100u8;
+            let asset_id = 1;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+
+            mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+            assert_noop!(
+                mock::XAssets::transfer_token(
+                    Origin::signed(chain_id as u64),
+                    100,
+                    recipient.clone(),
+                    chain_id,
+                    asset_id,
+                ),
+                parami_xassets::Error::<mock::MockRuntime>::TransferNotEnabled
+            );
+        });
+}
+
+#[test]
+fn fail_to_tranfer_native_token_if_transfer_is_not_enabled() {
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let chain_id = 100u8;
+            let recipient: Vec<u8> = "address".as_bytes().into();
+
+            mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
+            assert_noop!(
+                mock::XAssets::transfer_native(
+                    Origin::signed(chain_id as u64),
+                    100,
+                    recipient.clone(),
+                    chain_id,
+                ),
+                parami_xassets::Error::<mock::MockRuntime>::TransferNotEnabled
+            );
+        });
+}
+
+#[test]
 fn fail_to_tranfer_token_if_not_exist_asset_2_resource_id_config() {
     TestExternalitiesBuilder::default()
         .build()
@@ -506,7 +567,10 @@ fn fail_to_tranfer_token_if_not_exist_asset_2_resource_id_config() {
             let chain_id = 100u8;
             let asset_id = 1;
             let recipient: Vec<u8> = "address".as_bytes().into();
-
+            assert_ok!(mock::XAssets::set_enable_cross_bridge_transfer(
+                Origin::root(),
+                true
+            ));
             mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
             assert_ok!(mock::Assets::force_create(
                 Origin::root(),
@@ -539,6 +603,10 @@ fn fail_to_transfer_if_no_asset() {
             let chain_id = 100u8;
             let asset_id = 1;
             let recipient: Vec<u8> = "address".as_bytes().into();
+            assert_ok!(mock::XAssets::set_enable_cross_bridge_transfer(
+                Origin::root(),
+                true
+            ));
             mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
             mock::XAssets::force_set_resource(Origin::root(), resource_id, asset_id).unwrap();
 
@@ -564,6 +632,10 @@ fn fail_to_transfer_if_no_enough_balance() {
             let chain_id = 100u8;
             let asset_id = 0;
             let recipient: Vec<u8> = "address".as_bytes().into();
+            assert_ok!(mock::XAssets::set_enable_cross_bridge_transfer(
+                Origin::root(),
+                true
+            ));
             mock::ChainBridge::whitelist_chain(Origin::root(), chain_id).unwrap();
             assert_ok!(mock::XAssets::create_xasset(
                 Origin::root(),
