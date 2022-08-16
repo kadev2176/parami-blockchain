@@ -1,8 +1,7 @@
-use super::*;
-
 use crate::BalanceOf;
 #[allow(unused)]
 use crate::Pallet as Ad;
+use crate::*;
 use frame_benchmarking::{
     account, benchmarks, impl_benchmark_test_suite, whitelisted_caller, BenchmarkError,
 };
@@ -12,15 +11,17 @@ use parami_advertiser::Pallet as Advertiser;
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
 use parami_primitives::constants::DOLLARS;
+use parami_swap::Pallet as Swap;
 use parami_tag::Pallet as Tag;
-use sp_runtime::traits::{Bounded, Saturating};
+use sp_runtime::traits::{Bounded, Saturating, Zero};
 
-fn prepare_nft<T>(caller: &T::AccountId) -> T::AssetId
+fn prepare_nft<T>(caller: &T::AccountId) -> <T as parami_nft::Config>::AssetId
 where
     T: parami_advertiser::Config,
     T: parami_did::Config,
     T: parami_nft::Config,
     T: parami_tag::Config,
+    T: parami_swap::Config,
     T: crate::Config,
 {
     let balance: BalanceOf<T> = (1000 * DOLLARS)
@@ -28,20 +29,38 @@ where
         .map_err(|e| "balance conversion")
         .unwrap();
 
-    let nft_id = Zero::zero();
+    let nft_id_u32 = 1u32;
+    let nft_id = nft_id_u32.into();
 
     let kol: T::AccountId = account("kol", 1, 1);
     Did::<T>::register(RawOrigin::Signed(kol.clone()).into(), None);
 
-    Nft::<T>::kick(RawOrigin::Signed(kol.clone()).into());
-    Nft::<T>::back(RawOrigin::Signed(caller.clone()).into(), nft_id, balance);
-    Nft::<T>::mint(
+    let _kick_res = Nft::<T>::kick(RawOrigin::Signed(kol.clone()).into());
+    let _back_res = Nft::<T>::back(RawOrigin::Signed(caller.clone()).into(), nft_id, balance);
+    let _mint_res = Nft::<T>::mint(
         RawOrigin::Signed(kol).into(),
         nft_id,
         b"Test Token".to_vec(),
         b"XTT".to_vec(),
     );
-    Nft::<T>::claim(RawOrigin::Signed(caller.clone()).into(), nft_id);
+
+    let _swap_res = Swap::<T>::buy_tokens(
+        RawOrigin::Signed(caller.clone()).into(),
+        nft_id_u32.into(),
+        (500_000 * DOLLARS)
+            .try_into()
+            .map_err(|e| "balance conversion")
+            .unwrap(),
+        (3000 * DOLLARS)
+            .try_into()
+            .map_err(|e| "balance conversion")
+            .unwrap(),
+        100000000u32
+            .try_into()
+            .map_err(|e| "block number conversion")
+            .unwrap(),
+    );
+    // Nft::<T>::claim(RawOrigin::Signed(caller.clone()).into(), nft_id);
 
     nft_id
 }
@@ -94,6 +113,7 @@ benchmarks! {
         T: parami_did::Config,
         T: parami_nft::Config,
         T: parami_tag::Config,
+        T: parami_swap::Config,
         T: crate::Config
     }
 
@@ -144,7 +164,7 @@ benchmarks! {
 
     }: _(RawOrigin::Signed(caller.clone()), ad, nft_id, 1000u32.into(), None, None)
     verify {
-        assert_ne!(<SlotOf<T>>::get(T::AssetId::zero()), None);
+        assert_ne!(<SlotOf<T>>::get(nft_id), None);
     }
 
     add_budget {
@@ -165,15 +185,15 @@ benchmarks! {
         let (caller, ad) = prepare_ad::<T>();
         let nft_id = prepare_nft::<T>(&caller);
 
-        Ad::<T>::bid_with_fraction(RawOrigin::Signed(caller.clone()).into(), ad, Zero::zero(), 1000u32.into(), None, None);
+        Ad::<T>::bid_with_fraction(RawOrigin::Signed(caller.clone()).into(), ad, nft_id, 1000u32.into(), None, None);
 
         let visitor: T::AccountId = account("visitor", 2, 2);
         Did::<T>::register(RawOrigin::Signed(visitor.clone()).into(), None);
         let did = Did::<T>::did_of(&visitor).unwrap();
 
-    }: _(RawOrigin::Signed(caller.clone()), ad, Zero::zero(), did, vec![(vec![1u8; 6], 5)], None)
+    }: _(RawOrigin::Signed(caller.clone()), ad, nft_id, did, vec![(vec![1u8; 6], 5)], None)
     verify {
-        assert_ne!(<T as parami_nft::Config>::Assets::balance(T::AssetId::zero(), &visitor), Zero::zero());
+        assert_ne!(<T as parami_nft::Config>::Assets::balance(nft_id, &visitor), Zero::zero());
     }
 
     impl_benchmark_test_suite!(Ad, crate::mock::new_test_ext(), crate::mock::Test);
