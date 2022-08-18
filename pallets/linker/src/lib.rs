@@ -147,6 +147,9 @@ pub mod pallet {
     #[pallet::getter(fn registrar)]
     pub(super) type Registrar<T: Config> = StorageMap<_, Identity, DidOf<T>, bool>;
 
+    #[pallet::storage]
+    pub(super) type LinkerAccount<T: Config> = StorageValue<_, AccountOf<T>, OptionQuery>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -191,6 +194,7 @@ pub mod pallet {
         NotExists,
         UnexpectedAddress,
         UnsupportedSite,
+        NotAuthroized,
     }
 
     #[pallet::call]
@@ -260,6 +264,38 @@ pub mod pallet {
             Did::<T>::create(account, Some(registrar))?;
 
             Ok(().into())
+        }
+
+        #[pallet::weight(1_000_000)]
+        pub fn set_linker_account(
+            origin: OriginFor<T>,
+            account: AccountOf<T>,
+        ) -> DispatchResultWithPostInfo {
+            ensure_root(origin)?;
+
+            LinkerAccount::<T>::put(account);
+
+            Ok(().into())
+        }
+
+        #[pallet::weight(0)]
+        pub fn bind(
+            origin: OriginFor<T>,
+            did: DidOf<T>,
+            network: Network,
+            profile: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            let account = ensure_signed(origin)?;
+            ensure!(
+                LinkerAccount::<T>::get()
+                    .filter(|a| *a == account)
+                    .is_some(),
+                Error::<T>::NotAuthroized
+            );
+
+            Self::insert_link(did, network, profile, DidOf::<T>::default())?;
+
+            Ok(Pays::No.into())
         }
 
         #[pallet::weight(<T as Config>::WeightInfo::submit_link(profile.len() as u32))]

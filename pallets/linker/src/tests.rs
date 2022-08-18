@@ -509,7 +509,6 @@ fn should_link_via_registrar() {
         );
 
         assert_ok!(Linker::deposit(Origin::signed(ALICE), 10));
-
         assert_ok!(Linker::force_trust(Origin::root(), DID_ALICE));
 
         assert_ok!(Linker::submit_link(
@@ -537,5 +536,43 @@ fn should_force_unlink() {
             DID_ALICE,
             Network::Polkadot,
         ));
+    })
+}
+
+#[test]
+fn should_bind_by_linker() {
+    let profile = b"https://t.me/AmeliaParami".to_vec();
+
+    new_test_ext().execute_with(|| {
+        assert_ok!(Linker::set_linker_account(Origin::root(), ALICE));
+        assert_ok!(Linker::bind(
+            Origin::signed(ALICE),
+            DID_BOB,
+            Network::Telegram,
+            profile.clone()
+        ));
+
+        assert_eq!(Linked::<Test>::get(Network::Telegram, &profile), true);
+        assert_eq!(
+            LinksOf::<Test>::get(DID_BOB, Network::Telegram).unwrap(),
+            profile
+        );
+    })
+}
+
+#[test]
+fn fail_to_bind_if_origin_not_linker_account() {
+    let profile = b"https://t.me/AmeliaParami".to_vec();
+
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Linker::bind(
+                Origin::signed(ALICE),
+                DID_BOB,
+                Network::Telegram,
+                profile.clone()
+            ),
+            Error::<Test>::NotAuthroized
+        );
     })
 }
