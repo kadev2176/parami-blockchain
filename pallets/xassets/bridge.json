@@ -1,0 +1,42 @@
+{
+  "assets": [
+    {
+      "name": "Chainlink Token",
+      "symbol": "LINK",
+      "resource_id": "0x0000000000000000000000000000006803d3c2a2dd1449f97ebc1ec624cccf00",
+      "decimals": 18,
+      "chains": [
+        {
+          "chain_id": 233,
+          "type": "substrate",
+          "asset_id": 10000
+        },
+        {
+          "chain_id": 0,
+          "type": "ethereum",
+          "contract_address": "0x514910771AF9Ca656af840dff83E8264EcF986CA"
+        }
+      ],
+      "direction": [
+        {
+          "from": 0,
+          "to": 233
+        }
+      ]
+    }
+  ],
+  "chains": [
+    {
+      "id": 233,
+      "type": "substrate",
+      "name": "Parami Dana",
+      "endpoint": "wss://rpc-global.parami.io"
+    },
+    {
+      "id": 0,
+      "type": "ethereum",
+      "name": "Ethereum Mainnet",
+      "network_id": "1"
+    }
+  ]
+}
