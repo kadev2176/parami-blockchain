@@ -31,6 +31,8 @@ parami-swap = { path = '../swap', default-features = false, optional = true }
 parami-traits = { path = '../traits', default-features = false }
 parami-assetmanager = { path = '../assetmanager', default-features = false }
 
+parami-primitives = { path = '../../primitives', default-features = false }
+
 ethabi = { git = 'https://github.com/rust-ethereum/ethabi.git', tag = 'v17.1.0', default-features = false, features = [
     'parity-codec',
     'rlp',
@@ -70,6 +72,8 @@ std = [
     'parami-ocw/std',
     'parami-swap/std',
     'parami-traits/std',
+    'parami-primitives/std',
+    'parami-assetmanager/std',
 
     'ethabi/full-serde',
     'hex/std',

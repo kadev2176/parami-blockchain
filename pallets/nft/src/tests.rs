@@ -27,7 +27,9 @@ fn should_import() {
             Origin::signed(BOB),
             Network::Ethereum,
             namespace.clone(),
-            token.clone()
+            token.clone(),
+            SIGNING_ETH_ADDR.into(),
+            SIGNATURE,
         ));
 
         let maybe_porting = <Porting<Test>>::get((Network::Ethereum, &namespace, &token));
@@ -53,8 +55,10 @@ fn should_fail_when_imported() {
             Nft::port(
                 Origin::signed(BOB),
                 Network::Ethereum,
-                namespace,
-                token.clone()
+                namespace.clone(),
+                token.clone(),
+                SIGNING_ETH_ADDR.into(),
+                SIGNATURE,
             ),
             Error::<Test>::Exists
         );
@@ -75,25 +79,9 @@ fn should_fail_when_importing() {
             Network::Ethereum,
             namespace.clone(),
             token.clone(),
+            SIGNING_ETH_ADDR.into(),
+            SIGNATURE,
         ));
-
-        assert_noop!(
-            Nft::port(
-                Origin::signed(ALICE),
-                Network::Ethereum,
-                namespace,
-                token.clone()
-            ),
-            Error::<Test>::Exists
-        );
-    });
-}
-
-#[test]
-fn should_fail_when_did_not_linked_network() {
-    new_test_ext().execute_with(|| {
-        let namespace = NAMESPACE.to_vec();
-        let token = vec![0x02];
 
         assert_noop!(
             Nft::port(
@@ -101,8 +89,10 @@ fn should_fail_when_did_not_linked_network() {
                 Network::Ethereum,
                 namespace.clone(),
                 token.clone(),
+                SIGNING_ETH_ADDR.into(),
+                SIGNATURE,
             ),
-            Error::<Test>::NetworkNotLinked
+            Error::<Test>::Exists
         );
     });
 }
@@ -156,7 +146,7 @@ fn should_back() {
 }
 
 #[test]
-fn should_fail_when_self() {
+fn should_fail_when_back_self() {
     new_test_ext().execute_with(|| {
         assert_noop!(
             Nft::back(Origin::signed(ALICE), 0, 50),
@@ -510,10 +500,10 @@ fn should_success_when_validate_etherum_token_owner() {
         vec![mock_validate_request(ether_endpoint.into(), body, res)],
         |_| {
             let result = Nft::ocw_validate_etherum_token_owner(
-                links,
                 ether_endpoint,
                 b"contractaddress",
                 &token.to_be_bytes(),
+                &SIGNING_ETH_ADDR,
             );
 
             assert_ok!(result);
@@ -535,10 +525,10 @@ fn should_fail_when_task_owner_not_token_owner() {
         vec![mock_validate_request(ether_endpoint.into(), body, res)],
         |_| {
             let result = Nft::ocw_validate_etherum_token_owner(
-                links,
                 ether_endpoint,
                 b"contractaddress",
                 &token.to_be_bytes(),
+                &[0xee; 20],
             );
 
             assert_noop!(result, Error::<Test>::NotTokenOwner);
@@ -561,10 +551,10 @@ fn should_fail_when_server_response_not_expected() {
         vec![mock_validate_request(ether_endpoint.into(), body, res)],
         |_| {
             let result = Nft::ocw_validate_etherum_token_owner(
-                links,
                 ether_endpoint,
                 b"contractaddress",
                 &token.to_be_bytes(),
+                &SIGNING_ETH_ADDR,
             );
 
             assert_noop!(result, Error::<Test>::OcwParseError);
@@ -597,6 +587,8 @@ fn should_import_nft_by_ocw() {
                 Network::Ethereum,
                 namespace.clone(),
                 token.into(),
+                SIGNING_ETH_ADDR.into(),
+                SIGNATURE
             ));
 
             assert_ok!(Nft::ocw_begin_block(System::block_number()));
@@ -635,7 +627,9 @@ fn should_sumbit_porting() {
             Origin::signed(BOB),
             Network::Ethereum,
             namespace.clone(),
-            token.clone()
+            token.clone(),
+            SIGNING_ETH_ADDR.into(),
+            SIGNATURE,
         ));
         assert_ok!(Nft::submit_porting(
             frame_system::RawOrigin::None.into(),

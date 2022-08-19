@@ -42,6 +42,7 @@ pub struct TemplateRuntimeExecutor;
 impl sc_executor::NativeExecutionDispatch for TemplateRuntimeExecutor {
     type ExtendHostFunctions = (
         frame_benchmarking::benchmarking::HostFunctions,
+        parami_primitives::signature::hashing::HostFunctions,
         parami_linker::hashing::HostFunctions,
         parami_linker::images::HostFunctions,
         parami_nft::eth_abi::HostFunctions,

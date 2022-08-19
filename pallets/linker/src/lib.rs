@@ -1,6 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use btc::hashing;
 pub use ocw::images;
 pub use pallet::*;
 
@@ -23,7 +22,8 @@ mod impl_links;
 mod migrations;
 mod ocw;
 mod types;
-mod witness;
+
+pub use btc::hashing;
 
 use frame_support::{
     dispatch::{DispatchResult, DispatchResultWithPostInfo},
@@ -33,6 +33,7 @@ use frame_support::{
 };
 use frame_system::offchain::SendTransactionTypes;
 use parami_did::{EnsureDid, Pallet as Did};
+use parami_primitives::signature::recover_address;
 use parami_traits::{
     types::{Network, Task},
     Tags,
@@ -195,6 +196,18 @@ pub mod pallet {
         UnexpectedAddress,
         UnsupportedSite,
         NotAuthroized,
+        Unknown,
+    }
+
+    impl<T: Config> Into<Error<T>> for parami_primitives::signature::Error {
+        fn into(self) -> Error<T> {
+            use parami_primitives::signature::Error::*;
+            match self {
+                InvalidSignature => Error::<T>::InvalidSignature,
+                InvalidAddress => Error::<T>::InvalidAddress,
+                UnsupportedNetwork => Error::<T>::UnsupportedSite,
+            }
+        }
     }
 
     #[pallet::call]
@@ -234,15 +247,16 @@ pub mod pallet {
             origin: OriginFor<T>,
             crypto: Network,
             address: Vec<u8>,
-            signature: types::Signature,
+            signature: parami_primitives::signature::Signature,
         ) -> DispatchResult {
             let (did, _) = EnsureDid::<T>::ensure_origin(origin)?;
 
             ensure!(address.len() >= 2, Error::<T>::InvalidAddress);
 
-            let bytes = Self::generate_message(&did);
+            let bytes = parami_primitives::signature::generate_message(&did);
 
-            let recovered = Self::recover_address(crypto, address.clone(), signature, bytes)?;
+            let recovered = recover_address(crypto, address.clone(), signature, bytes)
+                .map_err(|e| Into::<Error<T>>::into(e))?;
 
             ensure!(recovered == address, Error::<T>::UnexpectedAddress);
 

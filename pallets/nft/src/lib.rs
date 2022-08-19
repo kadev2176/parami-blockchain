@@ -45,15 +45,14 @@ use parami_traits::{
 };
 use sp_core::U512;
 use sp_runtime::{
-    traits::{
-        AccountIdConversion, AtLeast32BitUnsigned, Bounded, CheckedAdd, One, Saturating, Zero,
-    },
+    traits::{AccountIdConversion, AtLeast32BitUnsigned, Bounded, One, Saturating, Zero},
     DispatchError, RuntimeDebug,
 };
 use sp_std::{
     convert::{TryFrom, TryInto},
     prelude::*,
 };
+use types::ImportTask;
 
 use weights::WeightInfo;
 
@@ -65,7 +64,7 @@ type ExternalOf<T> = types::External<DidOf<T>>;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<DidOf<T>, AccountOf<T>, NftOf<T>, AssetOf<T>>;
 type NftOf<T> = <T as Config>::AssetId;
-type TaskOf<T> = Task<ExternalOf<T>, HeightOf<T>>;
+type TaskOf<T> = Task<ImportTask<DidOf<T>>, HeightOf<T>>;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
 
@@ -293,6 +292,7 @@ pub mod pallet {
         NetworkNotLinked,
         OcwParseError,
         NotTokenOwner,
+        InvalidSignature,
     }
 
     #[pallet::call]
@@ -304,6 +304,8 @@ pub mod pallet {
             network: Network,
             namespace: Vec<u8>,
             token: Vec<u8>,
+            owner_address: Vec<u8>,
+            signature: parami_primitives::signature::Signature,
         ) -> DispatchResult {
             let (owner, _) = EnsureDid::<T>::ensure_origin(origin)?;
 
@@ -317,11 +319,15 @@ pub mod pallet {
                 Error::<T>::Exists
             );
 
-            // user should link network first
-            ensure!(
-                T::Links::all_links(&owner).contains_key(&network),
-                Error::<T>::NetworkNotLinked
-            );
+            let msg = parami_primitives::signature::generate_message(owner.clone());
+            let address = parami_primitives::signature::recover_address(
+                network,
+                owner_address.clone(),
+                signature,
+                msg,
+            )
+            .map_err(|_e| Error::<T>::InvalidSignature)?;
+            ensure!(address == owner_address, Error::<T>::InvalidSignature);
 
             let created = <frame_system::Pallet<T>>::block_number();
             let lifetime = T::PendingLifetime::get();
@@ -330,11 +336,12 @@ pub mod pallet {
             <Porting<T>>::insert(
                 (network, &namespace.clone(), &token.clone()),
                 Task {
-                    task: types::External {
+                    task: types::ImportTask {
                         owner,
                         network,
                         namespace,
                         token,
+                        owner_address: address,
                     },
                     deadline,
                     created,

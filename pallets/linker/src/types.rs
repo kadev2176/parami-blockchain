@@ -36,5 +36,3 @@ impl RawImage {
         return self.data[pos];
     }
 }
-
-pub type Signature = [u8; 65];

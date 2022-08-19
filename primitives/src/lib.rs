@@ -5,6 +5,7 @@ pub use enums::*;
 pub mod constants;
 mod enums;
 pub mod names;
+pub mod signature;
 
 use codec::{Decode, Encode, MaxEncodedLen};
 use scale_info::TypeInfo;

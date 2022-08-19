@@ -6107,6 +6107,7 @@ dependencies = [
  "parami-linker",
  "parami-nft",
  "parami-nft-rpc",
+ "parami-primitives",
  "parami-swap-rpc",
  "rand 0.7.3",
  "sc-basic-authorship",
@@ -6262,7 +6263,6 @@ dependencies = [
 name = "parami-linker"
 version = "3.0.0"
 dependencies = [
- "base58",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
@@ -6272,10 +6272,10 @@ dependencies = [
  "pallet-balances",
  "parami-did",
  "parami-ocw",
+ "parami-primitives",
  "parami-tag",
  "parami-traits",
  "parity-scale-codec",
- "ripemd160",
  "scale-info",
  "serde",
  "sp-core",
@@ -6415,6 +6415,7 @@ dependencies = [
  "parami-nft",
  "parami-nft-rpc",
  "parami-para-runtime",
+ "parami-primitives",
  "parami-swap-rpc",
  "parity-scale-codec",
  "polkadot-cli",
@@ -6571,11 +6572,16 @@ dependencies = [
 name = "parami-primitives"
 version = "3.0.0"
 dependencies = [
+ "base58",
  "parity-scale-codec",
+ "ripemd160",
  "scale-info",
  "serde",
  "sp-core",
+ "sp-io",
  "sp-runtime",
+ "sp-runtime-interface",
+ "sp-std",
 ]
 
 [[package]]

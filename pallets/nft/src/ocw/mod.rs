@@ -11,7 +11,6 @@ use frame_system::offchain::{SendTransactionTypes, SubmitTransaction};
 use log;
 use parami_ocw::JsonValue;
 use parami_ocw::{submit_unsigned, Pallet as Ocw};
-use parami_traits::Links;
 use scale_info::prelude::string::String;
 use sp_std::prelude::Vec;
 use sp_std::str;
@@ -54,14 +53,12 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
                     continue;
                 }
 
-                let links = T::Links::links(&task.task.owner, task.task.network);
-
                 let result = match task.task.network {
                     Ethereum => Self::ocw_validate_etherum_token_owner(
-                        &links,
                         endpoint,
                         &task.task.namespace,
                         &task.task.token,
+                        &task.task.owner_address,
                     ),
                     _ => {
                         // drop unsupported sites
@@ -136,14 +133,18 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
     }
 
     pub(super) fn ocw_validate_etherum_token_owner(
-        links: &[Vec<u8>],
         rpc: &str,
         namespace: &[u8],
         token: &[u8],
+        owner_address: &[u8],
     ) -> DispatchResult {
         let token_owner = Self::ocw_fetch_etherum_token_owner(rpc, namespace, token)?;
-
-        Self::ocw_validate_token_owner(links, &token_owner)
+        let owner_address = U256::from(owner_address);
+        if token_owner == owner_address {
+            Ok(())
+        } else {
+            Err(Error::<T>::NotTokenOwner)?
+        }
     }
 
     pub(super) fn ocw_fetch_etherum_token_owner(
@@ -170,18 +171,6 @@ impl<T: Config + SendTransactionTypes<Call<T>>> Pallet<T> {
                 }
             }
             _ => return Err(Error::<T>::OcwParseError)?,
-        }
-    }
-
-    pub(super) fn ocw_validate_token_owner(
-        links: &[Vec<u8>],
-        token_owner: &U256,
-    ) -> DispatchResult {
-        let links: Vec<U256> = links.into_iter().map(|l| U256::from(l as &[u8])).collect();
-        if links.contains(token_owner) {
-            Ok(())
-        } else {
-            Err(Error::<T>::NotTokenOwner)?
         }
     }
 }

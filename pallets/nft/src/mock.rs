@@ -23,12 +23,29 @@ pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
 pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
 
 pub const DID_ALICE: H160 = H160([0xff; 20]);
-pub const DID_BOB: H160 = H160([0xee; 20]);
+
+// Encoded did for "hwtGPq42GojPtyx5ngtSRSpJfjN"
+pub const DID_BOB: H160 = H160([
+    50, 172, 121, 157, 53, 222, 114, 162, 174, 87, 164, 108, 169, 117, 49, 159, 187, 177, 37, 169,
+]);
 pub const DID_CHARLIE: H160 = H160([0xdd; 20]);
 
 pub const NAMESPACE: [u8; 20] = [
     0x06, 0x01, 0x2c, 0x8c, 0xf9, 0x7B, 0xEa, 0xD5, 0xde, 0xAe, 0x23, 0x70, 0x70, 0xF9, 0x58, 0x7f,
     0x8E, 0x7A, 0x26, 0x6d,
+];
+
+// Encoded h160: 0xDbd04424318D1e06B34259ADd64BF10A8eb45A87
+pub const SIGNING_ETH_ADDR: [u8; 20] = [
+    219, 208, 68, 36, 49, 141, 30, 6, 179, 66, 89, 173, 214, 75, 241, 10, 142, 180, 90, 135,
+];
+
+// Signed Message: "Link: did:ad3:hwtGPq42GojPtyx5ngtSRSpJfjN"
+pub const SIGNATURE: [u8; 65] = [
+    68, 6, 208, 75, 184, 53, 208, 33, 90, 149, 84, 13, 145, 252, 165, 179, 3, 83, 124, 156, 20, 18,
+    234, 246, 123, 185, 118, 72, 149, 44, 57, 105, 71, 156, 144, 219, 142, 94, 66, 215, 141, 73,
+    122, 28, 98, 222, 177, 3, 206, 98, 179, 53, 105, 4, 251, 36, 1, 77, 8, 95, 189, 28, 158, 64,
+    28,
 ];
 
 pub const NEXT_INSTANCE_ID: AssetId = 5000;
