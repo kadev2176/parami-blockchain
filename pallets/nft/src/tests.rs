@@ -487,7 +487,7 @@ fn offchain_execute(
 #[test]
 fn should_success_when_validate_etherum_token_owner() {
     let ether_endpoint = "http://etherum.endpoint/example";
-    let links: &[Vec<u8>] = &[vec![
+    let _links: &[Vec<u8>] = &[vec![
         219, 208, 68, 36, 49, 141, 30, 6, 179, 66, 89, 173, 214, 75, 241, 10, 142, 180, 90, 135,
     ]];
     let contract_address = b"contractaddress";
@@ -514,7 +514,7 @@ fn should_success_when_validate_etherum_token_owner() {
 #[test]
 fn should_fail_when_task_owner_not_token_owner() {
     let ether_endpoint = "http://etherum.endpoint/example";
-    let links: &[Vec<u8>] = &[[0; 32].into()];
+    let _links: &[Vec<u8>] = &[[0; 32].into()];
     let contract_address = b"contractaddress";
     let token = 546u64;
 
@@ -540,7 +540,7 @@ fn should_fail_when_task_owner_not_token_owner() {
 #[test]
 fn should_fail_when_server_response_not_expected() {
     let ether_endpoint = "http://etherum.endpoint/example";
-    let links: &[Vec<u8>] = &[[0; 32].into()];
+    let _links: &[Vec<u8>] = &[[0; 32].into()];
     let contract_address = b"contractaddress";
     let token = 546u64;
 

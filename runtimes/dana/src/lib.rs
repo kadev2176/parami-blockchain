@@ -6,11 +6,11 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use codec::{Decode, Encode};
+use codec::Encode;
 pub use frame_system::Call as SystemCall;
 pub use pallet_balances::Call as BalancesCall;
 pub use pallet_timestamp::Call as TimestampCall;
-use parami_assetmanager::AssetIdManager;
+
 use sp_api::impl_runtime_apis;
 pub use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_core::{crypto::KeyTypeId, OpaqueMetadata};
@@ -19,10 +19,7 @@ use sp_io::hashing::blake2_128;
 pub use sp_runtime::BuildStorage;
 use sp_runtime::{
     create_runtime_str, generic, impl_opaque_keys,
-    traits::{
-        BlakeTwo256, Block as BlockT, ConvertInto, Extrinsic, Keccak256, NumberFor, StaticLookup,
-        Verify,
-    },
+    traits::{BlakeTwo256, Block as BlockT, Extrinsic, Keccak256, NumberFor, StaticLookup, Verify},
     transaction_validity::{TransactionPriority, TransactionSource, TransactionValidity},
     ApplyExtrinsicResult, DispatchError, FixedPointNumber, Perbill, Percent, Permill, Perquintill,
     SaturatedConversion,
@@ -37,9 +34,9 @@ use sp_version::RuntimeVersion;
 use frame_support::{
     construct_runtime, parameter_types,
     traits::{
-        AsEnsureOriginWithArg, ConstU128, ConstU16, ConstU32, ContainsLengthBound, Currency,
-        EnsureOneOf, EqualPrivilegeOnly, Everything, Imbalance, KeyOwnerProofSystem,
-        LockIdentifier, Nothing, OnRuntimeUpgrade, OnUnbalanced, SortedMembers, U128CurrencyToVote,
+        AsEnsureOriginWithArg, ConstU128, ConstU32, ContainsLengthBound, Currency, EnsureOneOf,
+        EqualPrivilegeOnly, Everything, Imbalance, KeyOwnerProofSystem, OnUnbalanced,
+        SortedMembers,
     },
     weights::{
         constants::{BlockExecutionWeight, ExtrinsicBaseWeight, RocksDbWeight, WEIGHT_PER_SECOND},
@@ -67,7 +64,6 @@ pub use parami_primitives::{
 use parami_swap::LinearFarmingCurve;
 use parami_traits::Nfts;
 use parami_traits::Swaps;
-use parami_xassets::migrations::v1::AddResouceId2Asset;
 
 mod migrations;
 
@@ -169,7 +165,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 342,
+    spec_version: 343,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,

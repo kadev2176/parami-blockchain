@@ -57,7 +57,6 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
-    use parami_primitives::DecentralizedId;
 
     use super::*;
 

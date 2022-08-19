@@ -27,8 +27,8 @@ impl<AccountId> Nfts<AccountId> for () {
         Ok(())
     }
     fn get_claim_info(
-        nft_id: Self::NftId,
-        claimer: &Self::DecentralizedId,
+        _nft_id: Self::NftId,
+        _claimer: &Self::DecentralizedId,
     ) -> Result<(Self::Balance, Self::Balance, Self::Balance), DispatchError> {
         Ok((0u32.into(), 0u32.into(), 0u32.into()))
     }

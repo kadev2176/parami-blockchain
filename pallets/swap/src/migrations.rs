@@ -56,7 +56,6 @@ pub mod v1 {
 }
 
 pub mod v2 {
-    use frame_support::assert_ok;
     use parami_traits::Swaps;
 
     use crate::{Metadata, SwapOf};

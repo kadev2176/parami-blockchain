@@ -29,8 +29,8 @@ use parami_did_utils::derive_storage_key;
 use parami_traits::Nfts;
 use sp_runtime::{
     traits::{
-        AtLeast32BitUnsigned, Bounded, Hash, LookupError, MaybeDisplay, MaybeMallocSizeOf,
-        MaybeSerializeDeserialize, Member, SimpleBitOps, StaticLookup,
+        Hash, LookupError, MaybeDisplay, MaybeMallocSizeOf, MaybeSerializeDeserialize, Member,
+        SimpleBitOps, StaticLookup,
     },
     DispatchError, MultiAddress,
 };
