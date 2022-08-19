@@ -57,6 +57,8 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
+    use parami_primitives::DecentralizedId;
+
     use super::*;
 
     #[pallet::config]
@@ -131,6 +133,9 @@ pub mod pallet {
     #[pallet::getter(fn slot_of)]
     pub(super) type SlotOf<T: Config> = StorageMap<_, Twox64Concat, NftOf<T>, SlotMetaOf<T>>;
 
+    #[pallet::storage]
+    pub(super) type Ad2DelegateAccount<T: Config> = StorageMap<_, Identity, HashOf<T>, DidOf<T>>;
+
     /// Payouts of an advertisement
     #[pallet::storage]
     #[pallet::getter(fn payout)]
@@ -202,7 +207,7 @@ pub mod pallet {
         InsufficientFungibles,
         NotExists,
         NotMinted,
-        NotOwned,
+        NotOwnedOrDelegated,
         Paid,
         ScoreOutOfRange,
         TagNotExists,
@@ -226,6 +231,7 @@ pub mod pallet {
             payout_base: BalanceOf<T>,
             payout_min: BalanceOf<T>,
             payout_max: BalanceOf<T>,
+            delegate_account: Option<DidOf<T>>,
         ) -> DispatchResult {
             let created = <frame_system::Pallet<T>>::block_number();
 
@@ -278,6 +284,10 @@ pub mod pallet {
                 T::Tags::add_tag(&id, tag)?;
             }
 
+            if let Some(did) = delegate_account {
+                Ad2DelegateAccount::<T>::insert(id, did);
+            }
+
             Self::deposit_event(Event::Created(id, creator));
 
             Ok(())
@@ -296,7 +306,7 @@ pub mod pallet {
             let endtime = <EndtimeOf<T>>::get(&id).ok_or(Error::<T>::NotExists)?;
             ensure!(endtime > height, Error::<T>::Deadline);
 
-            let mut meta = Self::ensure_owned(did, id)?;
+            let mut meta = Self::ensure_owned_or_delegated(did, id)?;
 
             meta.reward_rate = reward_rate;
 
@@ -320,7 +330,7 @@ pub mod pallet {
             let endtime = <EndtimeOf<T>>::get(&id).ok_or(Error::<T>::NotExists)?;
             ensure!(endtime > height, Error::<T>::Deadline);
 
-            Self::ensure_owned(did, id)?;
+            Self::ensure_owned_or_delegated(did, id)?;
 
             for tag in &tags {
                 ensure!(T::Tags::exists(tag), Error::<T>::TagNotExists);
@@ -363,7 +373,7 @@ pub mod pallet {
                 _ => Zero::zero(),
             };
 
-            let ad_meta = Self::ensure_owned(did, ad_id)?;
+            let ad_meta = Self::ensure_owned_or_delegated(did, ad_id)?;
 
             let nft_meta = Nft::<T>::meta(nft_id).ok_or(Error::<T>::NotMinted)?;
             ensure!(nft_meta.minted, Error::<T>::NotMinted);
@@ -449,7 +459,7 @@ pub mod pallet {
             ensure!(endtime > height, Error::<T>::Deadline);
 
             let slot = <SlotOf<T>>::get(nft_id).ok_or(Error::<T>::SlotNotExists)?;
-            ensure!(slot.ad_id == ad_id, Error::<T>::NotOwned);
+            ensure!(slot.ad_id == ad_id, Error::<T>::NotOwnedOrDelegated);
 
             ensure!(
                 T::Assets::balance(slot.fraction_id, &who) >= fraction_value,
@@ -500,7 +510,7 @@ pub mod pallet {
             let endtime = <EndtimeOf<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
             ensure!(endtime > height, Error::<T>::Deadline);
 
-            let ad_meta = Self::ensure_owned(did, ad_id)?;
+            let ad_meta = Self::ensure_owned_or_delegated(did, ad_id)?;
             let nft_meta = Nft::<T>::meta(nft_id).ok_or(Error::<T>::NotMinted)?;
             ensure!(nft_meta.minted, Error::<T>::NotMinted);
 
@@ -729,9 +739,15 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    fn ensure_owned(did: DidOf<T>, id: HashOf<T>) -> Result<MetaOf<T>, DispatchError> {
+    fn ensure_owned_or_delegated(did: DidOf<T>, id: HashOf<T>) -> Result<MetaOf<T>, DispatchError> {
         let meta = <Metadata<T>>::get(&id).ok_or(Error::<T>::NotExists)?;
-        ensure!(meta.creator == did, Error::<T>::NotOwned);
+        ensure!(
+            meta.creator == did
+                || Ad2DelegateAccount::<T>::get(id)
+                    .filter(|delegate| *delegate == did)
+                    .is_some(),
+            Error::<T>::NotOwnedOrDelegated
+        );
 
         Ok(meta)
     }

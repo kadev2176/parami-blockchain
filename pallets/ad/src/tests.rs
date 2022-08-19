@@ -29,7 +29,8 @@ fn should_create() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         assert_eq!(<AdsOf<Test>>::get(&DID_ALICE).unwrap().len(), 1);
@@ -74,7 +75,8 @@ fn should_fail_when_min_greater_than_max() {
                 1,
                 1u128,
                 11u128,
-                10u128
+                10u128,
+                None,
             ),
             Error::<Test>::WrongPayoutSetting
         );
@@ -99,7 +101,8 @@ fn should_fail_when_tag_not_exists() {
                 1,
                 1u128,
                 0,
-                10u128
+                10u128,
+                None
             ),
             Error::<Test>::TagNotExists
         );
@@ -117,7 +120,8 @@ fn should_update_reward_rate() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -144,14 +148,15 @@ fn should_fail_when_not_exists_or_not_owned() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
 
         assert_noop!(
             Ad::update_reward_rate(Origin::signed(BOB), ad, 2),
-            Error::<Test>::NotOwned
+            Error::<Test>::NotOwnedOrDelegated
         );
     });
 }
@@ -178,7 +183,8 @@ fn should_update_tags() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -217,7 +223,8 @@ fn should_bid() {
             endtime,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let ad1 = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -256,7 +263,8 @@ fn should_bid() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let ad2 = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -334,7 +342,8 @@ fn should_fail_to_add_budget_when_fungible_not_same_with_bid() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let nft = Nft::preferred(DID_ALICE).unwrap();
@@ -394,7 +403,8 @@ fn should_add_budget() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let nft = Nft::preferred(DID_ALICE).unwrap();
@@ -457,7 +467,8 @@ fn should_drawback_when_ad_expired() {
             43200 * 2,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -522,7 +533,8 @@ fn _prepare_pay(base: u128, min: u128, max: u128) -> (HashOf<Test>, NftOf<Test>)
         1,
         base,
         min,
-        max
+        max,
+        None
     ));
 
     let ad = <Metadata<Test>>::iter_keys().next().unwrap();
@@ -686,7 +698,8 @@ fn should_pay_dual() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         assert_ok!(Assets::force_create(
@@ -733,6 +746,129 @@ fn should_pay_dual() {
 }
 
 #[test]
+fn fail_to_pay_if_not_owner_or_delegated() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        // create ad
+
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
+            [0u8; 64].into(),
+            1,
+            1,
+            1u128,
+            0,
+            10u128,
+            None
+        ));
+
+        assert_ok!(Assets::force_create(
+            Origin::root(),
+            9,
+            MultiAddress::Id(BOB),
+            true,
+            1
+        ));
+        assert_ok!(Assets::mint(
+            Origin::signed(BOB),
+            9,
+            MultiAddress::Id(BOB),
+            1000
+        ));
+
+        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        // bid
+
+        assert_ok!(Ad::bid_with_fraction(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            13,
+            Some(9),
+            Some(13)
+        ));
+
+        // 2. pay
+        assert_noop!(
+            Ad::pay(
+                Origin::signed(ALICE),
+                ad,
+                nft,
+                DID_CHARLIE,
+                vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+                None
+            ),
+            Error::<Test>::NotOwnedOrDelegated
+        );
+    });
+}
+
+#[test]
+fn should_pay_if_delegated() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        // create ad
+
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
+            [0u8; 64].into(),
+            1,
+            1,
+            1u128,
+            0,
+            10u128,
+            Some(DID_ALICE)
+        ));
+
+        assert_ok!(Assets::force_create(
+            Origin::root(),
+            9,
+            MultiAddress::Id(BOB),
+            true,
+            1
+        ));
+        assert_ok!(Assets::mint(
+            Origin::signed(BOB),
+            9,
+            MultiAddress::Id(BOB),
+            1000
+        ));
+
+        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        // bid
+
+        assert_ok!(Ad::bid_with_fraction(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            13,
+            Some(9),
+            Some(13)
+        ));
+
+        // 2. pay
+        assert_ok!(Ad::pay(
+            Origin::signed(ALICE),
+            ad,
+            nft,
+            DID_CHARLIE,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None
+        ));
+    });
+}
+
+#[test]
 fn should_pay_failed() {
     use sp_runtime::MultiAddress;
 
@@ -751,7 +887,8 @@ fn should_pay_failed() {
             1,
             1u128,
             0,
-            10u128
+            10u128,
+            None
         ));
 
         assert_ok!(Assets::force_create(
