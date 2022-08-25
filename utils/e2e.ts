@@ -22,7 +22,7 @@ import { submit } from './utils';
   });
 
   spinnies.add('did', {
-    text: '          DID: pending...',
+    text: ' User DID: pending...',
   });
 
   spinnies.add('kol', {
@@ -55,7 +55,7 @@ import { submit } from './utils';
   spinnies.remove('preparing');
   const didOf = await chain.query.did.didOf(m.address);
   const did = didOf.toString();
-  spinnies.succeed('did', { text: `          DID: ${did}` });
+  spinnies.succeed('did', { text: ` User DID: ${did}` });
 
   // 2. Prepare KOL
 
@@ -134,14 +134,14 @@ import { submit } from './utils';
   await submit(
     chain,
     chain.tx.ad.create(
-      2n * 10n ** 18n,
       [tag],
       'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
       10,
       500000,
       1n * 10n ** 18n,
       1n * 10n ** 18n,
-      50n * 10n ** 18n
+      50n * 10n ** 18n,
+      null
     ),
     a
   );
@@ -150,22 +150,26 @@ import { submit } from './utils';
   spinnies.update('ad', { text: `Advertisement: ${ad}` });
 
   spinnies.update('preparing', {
-    text: 'Bidding...',
+    text: `Bidding by ${a.address}...`,
   });
-  await submit(chain, chain.tx.ad.bid(ad, nft, 1n * 10n ** 18n, null, null), a);
+
+  await submit(chain, chain.tx.swap.sellCurrency(nft, 40n * 10n ** 18n, 2_000n * 10n ** 18n, 50000), a);
+
+  await submit(chain, chain.tx.ad.bidWithFraction(ad, nft, 1_000n * 10n ** 18n, null, null), a);
   spinnies.succeed('ad');
 
   spinnies.remove('preparing');
 
   // 4. Payout
 
-  spinnies.add('pay', { text: 'Paying...' });
-  const before = await chain.query.assets.account(0, m.address);
-  const beforeBalance = (before as any).balance.toHuman().replaceAll(',', '');
+  spinnies.add('pay', { text: `Paying to ${m.address}...` });
+  const before = await chain.query.assets.account(nft, m.address);
+  const beforeBalance = !!before && !!(before as any).toHuman() ? (before as any).toHuman().balance : '0';
   await submit(chain, chain.tx.ad.pay(ad, nft, did, [[tag, 5]], null), a);
-  const after = await chain.query.assets.account(0, m.address);
-  const afterBalance = (after as any).balance.toHuman().replaceAll(',', '');
-  spinnies.succeed('pay', { text: `Paid ${afterBalance - beforeBalance}` });
+  const after = await chain.query.assets.account(nft, m.address);
+  const { balance = '' } = (after as any).toHuman();
+  const afterBalance = balance;
+  spinnies.succeed('pay', { text: `Paid: before is ${beforeBalance}, after is ${afterBalance}` });
 
   await chain.disconnect();
 })();

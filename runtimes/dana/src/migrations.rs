@@ -76,6 +76,7 @@ impl OnRuntimeUpgrade for RemoveDeprecatedPallets {
     }
 }
 
+#[cfg(feature = "try-runtime")]
 pub fn pallet_key_count(module: &[u8]) -> usize {
     let mut prefix = Vec::new();
     let key = sp_io::hashing::twox_128(module);
