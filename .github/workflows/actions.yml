@@ -56,6 +56,17 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           os: ${{ matrix.os }}
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/            
+          key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.arch }}-cargo-
 
       - name: Build Release
         run: cargo build --release --locked
@@ -118,6 +129,18 @@ jobs:
       - name: Install tarpaulin
         run: cargo install --locked --force cargo-tarpaulin
         if: matrix.arch == 'x86_64' && matrix.os == 'linux'
+
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/            
+          key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.arch }}-cargo-
 
       - name: Build Tests
         run: cargo test --no-run --locked
@@ -184,6 +207,18 @@ jobs:
           arch: ${{ matrix.arch }}
           os: ${{ matrix.os }}
 
+      - name: Set up cargo cache
+        uses: actions/cache@v3
+        continue-on-error: false
+        with:
+          path: |
+            ~/.cargo/registry/index/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/db/
+            target/            
+          key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: ${{ matrix.arch }}-cargo-
+          
       - name: Build Benchmarks
         run: cargo build --release --locked --features=runtime-benchmarks
 
