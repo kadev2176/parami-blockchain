@@ -199,7 +199,7 @@ fn recover_address_trx(
     Ok(pk)
 }
 
-fn usize_to_u8_array(length: usize) -> Vec<u8> {
+pub fn usize_to_u8_array(length: usize) -> Vec<u8> {
     if length > 100 {
         return b"0".to_vec();
     }
