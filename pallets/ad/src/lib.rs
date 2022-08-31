@@ -32,12 +32,16 @@ use frame_support::{
 
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::pallet_prelude::*;
+use parami_did::EnsureDid;
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
 use parami_traits::Tags;
+use sp_core::crypto::AccountId32;
+use sp_core::crypto::ByteArray;
+use sp_io::hashing::keccak_256;
 use sp_runtime::{
-    traits::{AccountIdConversion, Hash, Saturating, Zero},
-    DispatchError,
+    traits::{AccountIdConversion, Hash, Saturating, Verify, Zero},
+    DispatchError, MultiSignature,
 };
 use sp_std::prelude::*;
 use weights::WeightInfo;
@@ -57,7 +61,6 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 #[frame_support::pallet]
 pub mod pallet {
-
     use super::*;
 
     #[pallet::config]
@@ -216,6 +219,7 @@ pub mod pallet {
         DrawbackFailedForDidNotExists,
         SlotNotExists,
         FungibleNotForSlot,
+        InvalidSignature,
     }
 
     #[pallet::call]
@@ -491,6 +495,34 @@ pub mod pallet {
             Ok(())
         }
 
+        /// The signature param is combined by ad_id, nft_id, visitor, scores, referrer
+        ///
+        #[pallet::weight(0)]
+        pub fn claim(
+            origin: OriginFor<T>,
+            ad_id: HashOf<T>,
+            nft_id: NftOf<T>,
+            visitor: DidOf<T>,
+            scores: Vec<(Vec<u8>, i8)>,
+            referrer: Option<DidOf<T>>,
+            signature: MultiSignature,
+            signer: AccountId32, // advertiser or delegator
+        ) -> DispatchResult {
+            let (_, _) = EnsureDid::<T>::ensure_origin(origin)?;
+            let msg = Self::construct_claim_sig_msg(&ad_id, nft_id, &visitor, &scores, &referrer);
+
+            ensure!(
+                signature.verify(msg.as_slice(), &signer.clone().into()),
+                Error::<T>::InvalidSignature
+            );
+
+            let signer_account = T::AccountId::decode(&mut signer.as_slice().clone())
+                .map_err(|_e| Error::<T>::NotOwnedOrDelegated)?;
+            let signer_did = Did::<T>::lookup_did_by_account_id(signer_account)
+                .ok_or(Error::<T>::NotOwnedOrDelegated)?;
+            Self::pay_inner(&ad_id, nft_id, &visitor, &scores, &referrer, &signer_did)
+        }
+
         #[pallet::weight(<T as Config>::WeightInfo::pay())]
         pub fn pay(
             origin: OriginFor<T>,
@@ -500,134 +532,9 @@ pub mod pallet {
             scores: Vec<(Vec<u8>, i8)>,
             referrer: Option<DidOf<T>>,
         ) -> DispatchResult {
-            ensure!(!scores.is_empty(), Error::<T>::EmptyTags);
-
             let (did, _who) = T::CallOrigin::ensure_origin(origin)?;
 
-            let height = <frame_system::Pallet<T>>::block_number();
-
-            let endtime = <EndtimeOf<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
-            ensure!(endtime > height, Error::<T>::Deadline);
-
-            let ad_meta = Self::ensure_owned_or_delegated(did, ad_id)?;
-            let nft_meta = Nft::<T>::meta(nft_id).ok_or(Error::<T>::NotMinted)?;
-            ensure!(nft_meta.minted, Error::<T>::NotMinted);
-
-            let deadline = <DeadlineOf<T>>::get(nft_id, &ad_id).ok_or(Error::<T>::NotExists)?;
-            ensure!(deadline > height, Error::<T>::Deadline);
-
-            ensure!(
-                !<Payout<T>>::contains_key(&ad_id, &visitor),
-                Error::<T>::Paid
-            );
-
-            // 1. get slot, check current ad
-            let slot = <SlotOf<T>>::get(nft_id).ok_or(Error::<T>::NotExists)?;
-            ensure!(slot.ad_id == ad_id, Error::<T>::Underbid);
-
-            // 2. scoring visitor
-            let mut scoring = 5i32;
-
-            let tags = T::Tags::tags_of(&ad_id);
-            let personas = T::Tags::personas_of(&visitor);
-            let length = tags.len();
-            for (tag, score) in personas {
-                let delta = if tags.contains_key(&tag) {
-                    score.saturating_mul(10)
-                } else {
-                    score
-                };
-                scoring.saturating_accrue(delta);
-            }
-
-            scoring /= length.saturating_mul(10).saturating_add(1) as i32;
-
-            if scoring < 0 {
-                scoring = 0;
-            }
-
-            let scoring = scoring as u32;
-
-            let mut amount = ad_meta.payout_base.saturating_mul(scoring.into());
-            if amount < ad_meta.payout_min {
-                amount = ad_meta.payout_min;
-            }
-            if amount > ad_meta.payout_max {
-                amount = ad_meta.payout_max;
-            }
-
-            ensure!(
-                Self::slot_current_fraction_balance(&slot) >= amount,
-                Error::<T>::InsufficientFractions
-            );
-
-            let fungibles = if let Some(fungible_id) = slot.fungible_id {
-                let fungibles = amount.clone();
-                let fungibles_balance = T::Assets::balance(fungible_id, &slot.budget_pot);
-                ensure!(
-                    fungibles_balance >= fungibles,
-                    Error::<T>::InsufficientFungibles
-                );
-                fungibles
-            } else {
-                Zero::zero()
-            };
-
-            // 3. influence visitor
-            for (tag, score) in scores {
-                ensure!(T::Tags::has_tag(&ad_id, &tag), Error::<T>::TagNotExists);
-                ensure!(score >= -5 && score <= 5, Error::<T>::ScoreOutOfRange);
-
-                T::Tags::influence(&visitor, &tag, score as i32)?;
-            }
-
-            // 4. payout assets
-
-            let account =
-                Did::<T>::lookup_did(visitor).ok_or(parami_did::Error::<T>::DidNotExists)?;
-
-            let award = if let Some(referrer) = referrer {
-                let rate = ad_meta.reward_rate.into();
-                let award = amount.saturating_mul(rate) / 100u32.into();
-
-                let referrer =
-                    Did::<T>::lookup_did(referrer).ok_or(parami_did::Error::<T>::DidNotExists)?;
-
-                T::Assets::transfer(slot.nft_id, &slot.budget_pot, &referrer, award, false)?;
-
-                award
-            } else {
-                Zero::zero()
-            };
-
-            let reward = amount.saturating_sub(award);
-
-            T::Assets::transfer(slot.nft_id, &slot.budget_pot, &account, reward, false)?;
-
-            if let Some(fungible_id) = slot.fungible_id {
-                T::Assets::transfer(fungible_id, &slot.budget_pot, &account, fungibles, false)?;
-            }
-
-            <SlotOf<T>>::insert(nft_id, &slot);
-
-            <Payout<T>>::insert(&ad_id, &visitor, height);
-
-            Self::deposit_event(Event::Paid(
-                ad_id,
-                slot.nft_id,
-                visitor,
-                reward,
-                referrer,
-                award,
-            ));
-
-            // 5. drawback if advertiser does not have enough fees
-
-            if Self::slot_current_fraction_balance(&slot) < T::MinimumFeeBalance::get() {
-                Self::drawback(&slot)?;
-            }
-
-            Ok(())
+            Self::pay_inner(&ad_id, nft_id, &visitor, &scores, &referrer, &did)
         }
     }
 
@@ -759,5 +666,163 @@ impl<T: Config> Pallet<T> {
         let nft_raw = <NftOf<T>>::encode(&nft_id);
         let hash = <T as frame_system::Config>::Hashing::hash(&nft_raw);
         <T as Config>::PalletId::get().into_sub_account_truncating(hash)
+    }
+
+    fn construct_claim_sig_msg(
+        ad_id: &HashOf<T>,
+        nft_id: NftOf<T>,
+        visitor: &DidOf<T>,
+        scores: &Vec<(Vec<u8>, i8)>,
+        referrer: &Option<DidOf<T>>,
+    ) -> [u8; 32] {
+        let mut msg_vec: Vec<u8> = vec![];
+        msg_vec.extend(ad_id.as_ref());
+        msg_vec.extend(nft_id.encode());
+        msg_vec.extend(visitor.as_ref());
+
+        for (tag, score) in scores {
+            msg_vec.extend(tag);
+            msg_vec.extend(score.encode());
+        }
+
+        if let Some(referrer_did) = referrer {
+            msg_vec.extend(referrer_did.as_ref());
+        }
+        keccak_256(msg_vec.as_slice())
+    }
+
+    fn pay_inner(
+        ad_id: &HashOf<T>,
+        nft_id: NftOf<T>,
+        visitor: &DidOf<T>,
+        scores: &Vec<(Vec<u8>, i8)>,
+        referrer: &Option<DidOf<T>>,
+        did: &DidOf<T>,
+    ) -> Result<(), DispatchError> {
+        ensure!(!scores.is_empty(), Error::<T>::EmptyTags);
+
+        let height = <frame_system::Pallet<T>>::block_number();
+
+        let endtime = <EndtimeOf<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
+        ensure!(endtime > height, Error::<T>::Deadline);
+
+        let ad_meta = Self::ensure_owned_or_delegated(*did, *ad_id)?;
+        let nft_meta = Nft::<T>::meta(nft_id).ok_or(Error::<T>::NotMinted)?;
+        ensure!(nft_meta.minted, Error::<T>::NotMinted);
+
+        let deadline = <DeadlineOf<T>>::get(nft_id, &ad_id).ok_or(Error::<T>::NotExists)?;
+        ensure!(deadline > height, Error::<T>::Deadline);
+
+        ensure!(
+            !<Payout<T>>::contains_key(&ad_id, &visitor),
+            Error::<T>::Paid
+        );
+
+        // 1. get slot, check current ad
+        let slot = <SlotOf<T>>::get(nft_id).ok_or(Error::<T>::NotExists)?;
+        ensure!(slot.ad_id == *ad_id, Error::<T>::Underbid);
+
+        // 2. scoring visitor
+        let mut scoring = 5i32;
+
+        let tags = T::Tags::tags_of(&ad_id);
+        let personas = T::Tags::personas_of(&visitor);
+        let length = tags.len();
+        for (tag, score) in personas {
+            let delta = if tags.contains_key(&tag) {
+                score.saturating_mul(10)
+            } else {
+                score
+            };
+            scoring.saturating_accrue(delta);
+        }
+
+        scoring /= length.saturating_mul(10).saturating_add(1) as i32;
+
+        if scoring < 0 {
+            scoring = 0;
+        }
+
+        let scoring = scoring as u32;
+
+        let mut amount = ad_meta.payout_base.saturating_mul(scoring.into());
+        if amount < ad_meta.payout_min {
+            amount = ad_meta.payout_min;
+        }
+        if amount > ad_meta.payout_max {
+            amount = ad_meta.payout_max;
+        }
+
+        ensure!(
+            Self::slot_current_fraction_balance(&slot) >= amount,
+            Error::<T>::InsufficientFractions
+        );
+
+        let fungibles = if let Some(fungible_id) = slot.fungible_id {
+            let fungibles = amount.clone();
+            let fungibles_balance = T::Assets::balance(fungible_id, &slot.budget_pot);
+            ensure!(
+                fungibles_balance >= fungibles,
+                Error::<T>::InsufficientFungibles
+            );
+            fungibles
+        } else {
+            Zero::zero()
+        };
+
+        // 3. influence visitor
+        for (tag, score) in scores {
+            ensure!(T::Tags::has_tag(&ad_id, &tag), Error::<T>::TagNotExists);
+            ensure!(*score >= -5 && *score <= 5, Error::<T>::ScoreOutOfRange);
+
+            T::Tags::influence(&visitor, &tag, *score as i32)?;
+        }
+
+        // 4. payout assets
+
+        let account = Did::<T>::lookup_did(*visitor).ok_or(parami_did::Error::<T>::DidNotExists)?;
+
+        let award = if let Some(referrer) = referrer {
+            let rate = ad_meta.reward_rate.into();
+            let award = amount.saturating_mul(rate) / 100u32.into();
+
+            let referrer =
+                Did::<T>::lookup_did(*referrer).ok_or(parami_did::Error::<T>::DidNotExists)?;
+
+            T::Assets::transfer(slot.nft_id, &slot.budget_pot, &referrer, award, false)?;
+
+            award
+        } else {
+            Zero::zero()
+        };
+
+        let reward = amount.saturating_sub(award);
+
+        T::Assets::transfer(slot.nft_id, &slot.budget_pot, &account, reward, false)?;
+
+        if let Some(fungible_id) = slot.fungible_id {
+            T::Assets::transfer(fungible_id, &slot.budget_pot, &account, fungibles, false)?;
+        }
+
+        <SlotOf<T>>::insert(nft_id, &slot);
+
+        <Payout<T>>::insert(&ad_id, &visitor, height);
+
+        Self::deposit_event(Event::Paid(
+            ad_id.clone(),
+            slot.nft_id,
+            visitor.clone(),
+            reward,
+            referrer.clone(),
+            award,
+        ));
+
+        // 5. drawback if advertiser does not have enough fees
+
+        if Self::slot_current_fraction_balance(&slot) < T::MinimumFeeBalance::get() {
+            Self::drawback(&slot)?;
+        }
+
+        Ok(())
     }
 }

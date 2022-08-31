@@ -333,6 +333,10 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
+    pub fn lookup_did_by_account_id(a: AccountOf<T>) -> Option<T::DecentralizedId> {
+        <DidOf<T>>::get(a)
+    }
+
     pub fn lookup_address(a: MultiAddress<AccountOf<T>, ()>) -> Option<AccountOf<T>> {
         match a {
             MultiAddress::Id(i) => Some(i),

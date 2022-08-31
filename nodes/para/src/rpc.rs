@@ -59,7 +59,7 @@ where
     use pallet_mmr_rpc::{Mmr, MmrApiServer};
     use pallet_transaction_payment_rpc::{TransactionPayment, TransactionPaymentApiServer};
     use parami_did_rpc::{DidApiServer, DidRpcHandler};
-    use parami_nft_rpc::NftApiServer;
+    use parami_nft_rpc::{NftApiServer, NftRpcHandler};
     use parami_swap_rpc::{SwapApiServer, SwapsRpcHandler};
     use substrate_frame_rpc_system::{System, SystemApiServer};
 
@@ -86,6 +86,7 @@ where
         io.merge(did_rpc)?;
     }
     io.merge(SwapsRpcHandler::new(client.clone()).into_rpc())?;
+    io.merge(NftRpcHandler::new(client.clone()).into_rpc())?;
 
     Ok(io)
 }

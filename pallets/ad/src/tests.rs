@@ -1,6 +1,8 @@
 use crate::{mock::*, AdsOf, Config, DeadlineOf, EndtimeOf, Error, Metadata, SlotOf};
 use frame_support::{assert_noop, assert_ok, traits::Hooks};
 use parami_traits::Tags;
+use sp_core::crypto::AccountId32;
+use sp_core::{ByteArray, Pair};
 use sp_runtime::traits::Hash;
 use sp_runtime::MultiAddress;
 use sp_std::collections::btree_map::BTreeMap;
@@ -938,6 +940,54 @@ fn should_pay_failed() {
                 None
             ),
             Error::<Test>::InsufficientFractions
+        );
+    });
+}
+
+#[test]
+fn should_claim_success() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay!();
+
+        // 2. generate sig
+
+        let bob_secret_pair: sp_core::sr25519::Pair =
+            sp_core::sr25519::Pair::from_string("/Bob", None).unwrap();
+        let bod_account_id_32 = AccountId32::new(bob_secret_pair.public().as_array_ref().clone());
+        println!(
+            "ss58 address for BOB is {:?}",
+            bob_secret_pair.public().as_slice()
+        );
+        let msg = Ad::construct_claim_sig_msg(
+            &ad,
+            nft,
+            &DID_CHARLIE,
+            &vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            &None,
+        );
+        let signature = bob_secret_pair.sign(msg.as_slice());
+
+        // 3. claim
+        let res = Ad::claim(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            DID_CHARLIE,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None,
+            sp_runtime::MultiSignature::Sr25519(signature),
+            bod_account_id_32,
+        );
+
+        assert_ok!(res);
+
+        let nft_meta = Nft::meta(nft).unwrap();
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 502);
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            11
         );
     });
 }

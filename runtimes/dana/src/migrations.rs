@@ -1,4 +1,5 @@
 use crate::VERSION;
+#[cfg(feature = "try-runtime")]
 use frame_support::storage::PrefixIterator;
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::weights::Weight;

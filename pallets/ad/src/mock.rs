@@ -16,7 +16,11 @@ type Block = system::mocking::MockBlock<Test>;
 pub type Extrinsic = TestXt<Call, ()>;
 
 pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
-pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
+//public key of secret phrase "/Bob"
+pub const BOB: sr25519::Public = sr25519::Public([
+    202, 53, 5, 56, 6, 22, 158, 222, 140, 155, 250, 77, 126, 205, 109, 249, 77, 192, 15, 146, 38,
+    242, 60, 222, 145, 142, 98, 183, 108, 10, 190, 123,
+]);
 pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
 pub const TAGA5_TAGB2: sr25519::Public = sr25519::Public([4; 32]);
 pub const TAGA0_TAGB0: sr25519::Public = sr25519::Public([5; 32]);
