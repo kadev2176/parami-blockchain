@@ -26,7 +26,7 @@ use frame_support::{
         tokens::fungibles::{Inspect as FungInspect, Transfer as FungTransfer},
         Currency, StorageVersion,
     },
-    weights::Weight,
+    weights::{Pays, Weight},
     Blake2_256, PalletId, StorageHasher,
 };
 
@@ -497,7 +497,7 @@ pub mod pallet {
 
         /// The signature param is combined by ad_id, nft_id, visitor, scores, referrer
         ///
-        #[pallet::weight(0)]
+        #[pallet::weight((0, Pays::No))]
         pub fn claim(
             origin: OriginFor<T>,
             ad_id: HashOf<T>,

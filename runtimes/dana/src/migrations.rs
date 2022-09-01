@@ -3,7 +3,6 @@ use crate::VERSION;
 use frame_support::storage::PrefixIterator;
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::weights::Weight;
-use sp_std::prelude::*;
 
 const DEPRECATED_PALLETS: &'static [&'static [u8]] = &[
     b"Staking",

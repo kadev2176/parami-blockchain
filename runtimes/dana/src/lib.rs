@@ -128,7 +128,7 @@ type EnsureRootOrPluralityCouncil = EnsureOneOf<EnsureRoot<AccountId>, Plurality
 /// at least 3/4
 type MajoritarianCouncil =
     pallet_collective::EnsureProportionAtLeast<AccountId, CouncilCollective, 3, 4>;
-type EnsureRootOrMajoritarianCouncil = EnsureOneOf<EnsureRoot<AccountId>, MajoritarianCouncil>;
+// type EnsureRootOrMajoritarianCouncil = EnsureOneOf<EnsureRoot<AccountId>, MajoritarianCouncil>;
 
 /// whole
 type OverallCouncil =
@@ -165,7 +165,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 344,
+    spec_version: 345,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
