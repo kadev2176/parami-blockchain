@@ -1,13 +1,15 @@
 import { ApiPromise, Keyring, WsProvider } from '@polkadot/api';
 import { mnemonicGenerate } from '@polkadot/util-crypto';
 import Spinnies from 'spinnies';
-
+import { u8aToHex, hexToU8a, stringToU8a } from '@polkadot/util';
+import { keccak256AsU8a, keccakAsHex } from '@polkadot/util-crypto';
+import * as $ from "parity-scale-codec";
 import { submit } from './utils';
 
 (async () => {
   const spinnies = new Spinnies();
 
-  const provider = new WsProvider('ws://localhost:9944');
+  const provider = new WsProvider('ws://127.0.0.1:9944');
   const keyring = new Keyring({ type: 'sr25519' });
 
   const chain = await ApiPromise.create({ provider });
@@ -160,16 +162,52 @@ import { submit } from './utils';
 
   spinnies.remove('preparing');
 
-  // 4. Payout
+  // 4. generate advertiser's signature
+  spinnies.add('generate Signature', { text: `Generating...`});
+  const scores = [{tag: tag, score: 5}];
+  const adIdU8a = hexToU8a(ad);
+  const nftIdU8a = $.u32.encode(parseInt(nft));
+  const didU8a = hexToU8a(did);
 
-  spinnies.add('pay', { text: `Paying to ${m.address}...` });
+  // const scoresU8a =  new Uint8Array([...$.str.encode(tag), ...$.i8.encode(5)])
+  const scoresU8a = scores.reduce((pre, current) => {
+    return new Uint8Array([...pre, ...stringToU8a(current.tag), ...$.i8.encode(current.score)])
+  }, new Uint8Array());
+
+  let messageU8a = new Uint8Array([...adIdU8a, ...nftIdU8a, ...didU8a, ...scoresU8a]);
+
+  console.log('message bytes', messageU8a);
+  console.log('message hex', u8aToHex(messageU8a));
+
+  const messageU8aHash = keccak256AsU8a(messageU8a);
+
+  console.log('message hash u8a', messageU8aHash);
+  console.log('message hash hex', u8aToHex(messageU8aHash));
+
+  const signature = a.sign(messageU8aHash);
+  
+  spinnies.succeed(`generate Signature`);
+  // 5. Payout
+
+  spinnies.add('claim', { text: `Claiming...` });
   const before = await chain.query.assets.account(nft, m.address);
   const beforeBalance = !!before && !!(before as any).toHuman() ? (before as any).toHuman().balance : '0';
-  await submit(chain, chain.tx.ad.pay(ad, nft, did, [[tag, 5]], null), a);
+  
+  await submit(chain, chain.tx.ad.claim(ad, nft, did, [[tag, 5]], null, { Sr25519:  signature }, a.address), a);
+
   const after = await chain.query.assets.account(nft, m.address);
   const { balance = '' } = (after as any).toHuman();
   const afterBalance = balance;
-  spinnies.succeed('pay', { text: `Paid: before is ${beforeBalance}, after is ${afterBalance}` });
+  spinnies.succeed('claim', { text: `Paid: before is ${beforeBalance}, after is ${afterBalance}` });
+  
+  // spinnies.add('pay', { text: `Paying to ${m.address}...` });
+  // const before = await chain.query.assets.account(nft, m.address);
+  // const beforeBalance = !!before && !!(before as any).toHuman() ? (before as any).toHuman().balance : '0';
+  // await submit(chain, chain.tx.ad.pay(ad, nft, did, [[tag, 5]], null), a);
+  // const after = await chain.query.assets.account(nft, m.address);
+  // const { balance = '' } = (after as any).toHuman();
+  // const afterBalance = balance;
+  // spinnies.succeed('pay', { text: `Paid: before is ${beforeBalance}, after is ${afterBalance}` });
 
   await chain.disconnect();
 })();

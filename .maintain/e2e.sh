@@ -13,7 +13,6 @@ done
 
 # Run the tests
 
-cd ./e2e/
 npm i
 npm test
 
