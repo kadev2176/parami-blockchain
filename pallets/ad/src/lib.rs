@@ -309,7 +309,7 @@ pub mod pallet {
             let endtime = <EndtimeOf<T>>::get(&id).ok_or(Error::<T>::NotExists)?;
             ensure!(endtime > height, Error::<T>::Deadline);
 
-            let mut meta = Self::ensure_owned_or_delegated(did, id)?;
+            let mut meta = Self::ensure_owned_or_delegated_by_ad_id(did, id)?;
 
             meta.reward_rate = reward_rate;
 
@@ -333,7 +333,7 @@ pub mod pallet {
             let endtime = <EndtimeOf<T>>::get(&id).ok_or(Error::<T>::NotExists)?;
             ensure!(endtime > height, Error::<T>::Deadline);
 
-            Self::ensure_owned_or_delegated(did, id)?;
+            Self::ensure_owned_or_delegated_by_ad_id(did, id)?;
 
             for tag in &tags {
                 ensure!(T::Tags::exists(tag), Error::<T>::TagNotExists);
@@ -376,7 +376,7 @@ pub mod pallet {
                 _ => Zero::zero(),
             };
 
-            let ad_meta = Self::ensure_owned_or_delegated(did, ad_id)?;
+            let ad_meta = Self::ensure_owned_or_delegated_by_ad_id(did, ad_id)?;
 
             let nft_meta = Nft::<T>::meta(nft_id).ok_or(Error::<T>::NotMinted)?;
             ensure!(nft_meta.minted, Error::<T>::NotMinted);
@@ -509,6 +509,7 @@ pub mod pallet {
             signer: AccountId32, // advertiser or delegator
         ) -> DispatchResult {
             let (_, _) = EnsureDid::<T>::ensure_origin(origin)?;
+
             let msg = Self::construct_claim_sig_msg(&ad_id, nft_id, &visitor, &scores, &referrer);
 
             ensure!(
@@ -520,7 +521,46 @@ pub mod pallet {
                 .map_err(|_e| Error::<T>::NotOwnedOrDelegated)?;
             let signer_did = Did::<T>::lookup_did_by_account_id(signer_account)
                 .ok_or(Error::<T>::NotOwnedOrDelegated)?;
-            Self::pay_inner(&ad_id, nft_id, &visitor, &scores, &referrer, &signer_did)
+            Self::pay_inner(
+                &ad_id,
+                nft_id,
+                &visitor,
+                &scores,
+                &referrer,
+                &Option::Some(signer_did),
+            )
+        }
+
+        #[pallet::weight((0, Pays::No))]
+        pub fn claim_without_advertiser_signature(
+            origin: OriginFor<T>,
+            ad_id: HashOf<T>,
+            nft_id: NftOf<T>,
+            scores: Vec<(Vec<u8>, i8)>,
+            referrer: Option<DidOf<T>>,
+        ) -> DispatchResult {
+            let (origin_did, _) = EnsureDid::<T>::ensure_origin(origin)?;
+
+            ensure!(
+                scores
+                    .iter()
+                    .all(|(tag, _score)| { T::Tags::has_tag(&ad_id, tag) }),
+                Error::<T>::TagNotExists
+            );
+
+            let scores: Vec<(Vec<u8>, i8)> = scores
+                .iter()
+                .map(|(tag, _score)| (tag.to_vec(), -5i8))
+                .collect();
+
+            Self::pay_inner(
+                &ad_id,
+                nft_id,
+                &origin_did,
+                &scores,
+                &referrer,
+                &Option::None,
+            )
         }
 
         #[pallet::weight(<T as Config>::WeightInfo::pay())]
@@ -534,7 +574,14 @@ pub mod pallet {
         ) -> DispatchResult {
             let (did, _who) = T::CallOrigin::ensure_origin(origin)?;
 
-            Self::pay_inner(&ad_id, nft_id, &visitor, &scores, &referrer, &did)
+            Self::pay_inner(
+                &ad_id,
+                nft_id,
+                &visitor,
+                &scores,
+                &referrer,
+                &Option::Some(did),
+            )
         }
     }
 
@@ -645,7 +692,10 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
-    fn ensure_owned_or_delegated(did: DidOf<T>, id: HashOf<T>) -> Result<MetaOf<T>, DispatchError> {
+    fn ensure_owned_or_delegated_by_ad_id(
+        did: DidOf<T>,
+        id: HashOf<T>,
+    ) -> Result<MetaOf<T>, DispatchError> {
         let meta = <Metadata<T>>::get(&id).ok_or(Error::<T>::NotExists)?;
         ensure!(
             meta.creator == did
@@ -656,6 +706,20 @@ impl<T: Config> Pallet<T> {
         );
 
         Ok(meta)
+    }
+
+    fn ensure_owned_or_delegated_by_meta(
+        did: DidOf<T>,
+        meta: &MetaOf<T>,
+    ) -> Result<(), DispatchError> {
+        ensure!(
+            meta.creator == did
+                || Ad2DelegateAccount::<T>::get(meta.id)
+                    .filter(|delegate| *delegate == did)
+                    .is_some(),
+            Error::<T>::NotOwnedOrDelegated
+        );
+        Ok(())
     }
 
     fn slot_current_fraction_balance(slot: &SlotMetaOf<T>) -> BalanceOf<T> {
@@ -697,7 +761,7 @@ impl<T: Config> Pallet<T> {
         visitor: &DidOf<T>,
         scores: &Vec<(Vec<u8>, i8)>,
         referrer: &Option<DidOf<T>>,
-        did: &DidOf<T>,
+        op_did: &Option<DidOf<T>>,
     ) -> Result<(), DispatchError> {
         ensure!(!scores.is_empty(), Error::<T>::EmptyTags);
 
@@ -706,7 +770,12 @@ impl<T: Config> Pallet<T> {
         let endtime = <EndtimeOf<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
         ensure!(endtime > height, Error::<T>::Deadline);
 
-        let ad_meta = Self::ensure_owned_or_delegated(*did, *ad_id)?;
+        let ad_meta = <Metadata<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
+
+        if let Some(did) = op_did {
+            Self::ensure_owned_or_delegated_by_meta(*did, &ad_meta)?;
+        }
+
         let nft_meta = Nft::<T>::meta(nft_id).ok_or(Error::<T>::NotMinted)?;
         ensure!(nft_meta.minted, Error::<T>::NotMinted);
 
