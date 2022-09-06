@@ -23,6 +23,62 @@
           "to": 233
         }
       ]
+    },
+    {
+      "name": "WePiggy Coin",
+      "symbol": "WPC",
+      "decimals": 18,
+      "resource_id": "0x0000000000000000000000000000006803d3c2a2dd1449f97ebc1ec624cccf00",
+      "chains": [
+        {
+          "chain_id": 233,
+          "type": "substrate",
+          "asset_id": 10010
+        },
+        {
+          "chain_id": 0,
+          "type": "ethereum",
+          "contract_address": "0x6f620ec89b8479e97a6985792d0c64f237566746"
+        }
+      ],
+      "direction": [
+        {
+          "from": 0,
+          "to": 233
+        },
+        {
+          "from": 233,
+          "to": 0
+        }
+      ]
+    },
+    {
+      "name": "Tether USD",
+      "symbol": "USDT",
+      "decimals": 6,
+      "resource_id": "0xbcd57a9682cb40b99bb0959efb99a8811e2ef6b234ae3a2b8d3c114c42883d82",
+      "chains": [
+        {
+          "chain_id": 233,
+          "type": "substrate",
+          "asset_id": 10011
+        },
+        {
+          "chain_id": 0,
+          "type": "ethereum",
+          "contract_address": "0xdac17f958d2ee523a2206206994597c13d831ec7"
+        }
+      ],
+      "direction": [
+        {
+          "from": 0,
+          "to": 233
+        },
+        {
+          "from": 233,
+          "to": 0
+        }
+      ]
     }
   ],
   "chains": [
@@ -36,7 +92,9 @@
       "id": 0,
       "type": "ethereum",
       "name": "Ethereum Mainnet",
-      "network_id": "1"
+      "network_id": "1",
+      "bridge": "0x0e58C69918baa6A578E2BA65a58C3Bdcc640EE2f",
+      "erc20Handler": "0x4A00CC0DA9333658CAC63Ddc074681BfF218aeFD"
     }
   ]
 }
