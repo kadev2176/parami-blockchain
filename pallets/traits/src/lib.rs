@@ -7,6 +7,7 @@ mod swaps;
 pub use swaps::Swaps;
 
 mod tags;
+pub use tags::Tag;
 pub use tags::Tags;
 
 mod nfts;

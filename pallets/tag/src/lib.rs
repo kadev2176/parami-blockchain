@@ -27,7 +27,7 @@ use frame_support::{
 };
 #[cfg(not(feature = "std"))]
 use num_traits::Float;
-use parami_traits::Tags;
+use parami_traits::{Tag, Tags};
 use scale_info::TypeInfo;
 use sp_runtime::traits::{Hash, MaybeSerializeDeserialize, Member};
 use sp_std::collections::btree_map::BTreeMap;
@@ -38,9 +38,9 @@ use weights::WeightInfo;
 type AccountOf<T> = <T as frame_system::Config>::AccountId;
 type AdOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
 type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance;
-type HashOf = <Blake2_256 as StorageHasher>::Output;
+type TagHash = <Blake2_256 as StorageHasher>::Output;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
-type MetaOf<T> = types::Metadata<<T as Config>::DecentralizedId, HeightOf<T>>;
+type MetaOf<T> = types::Metadata<Tag, <T as Config>::DecentralizedId, HeightOf<T>>;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
@@ -97,7 +97,7 @@ pub mod pallet {
     /// Metadata of a tag
     #[pallet::storage]
     #[pallet::getter(fn meta)]
-    pub(super) type Metadata<T: Config> = StorageMap<_, Blake2_256, Vec<u8>, MetaOf<T>>;
+    pub(super) type Metadata<T: Config> = StorageMap<_, Identity, TagHash, MetaOf<T>>;
 
     /// Tags of an advertisement
     #[pallet::storage]
@@ -139,7 +139,7 @@ pub mod pallet {
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
         /// Tag created \[hash, creator\]
-        Created(HashOf, T::DecentralizedId),
+        Created(TagHash, T::DecentralizedId),
     }
 
     #[pallet::hooks]
@@ -161,7 +161,7 @@ pub mod pallet {
         pub fn create(origin: OriginFor<T>, tag: Vec<u8>) -> DispatchResult {
             let (did, who) = T::CallOrigin::ensure_origin(origin)?;
 
-            ensure!(!<Metadata<T>>::contains_key(&tag), Error::<T>::Exists);
+            ensure!(!Self::exists(&tag), Error::<T>::Exists);
 
             let fee = T::SubmissionFee::get();
 
@@ -171,7 +171,7 @@ pub mod pallet {
 
             ensure!(res.is_ok(), Error::<T>::InsufficientBalance);
 
-            let hash = Self::inner_create(did, tag);
+            let hash = Self::create_with_cur_block_num(did, tag);
 
             Self::deposit_event(Event::Created(hash, did));
 
@@ -182,11 +182,11 @@ pub mod pallet {
         pub fn force_create(origin: OriginFor<T>, tag: Vec<u8>) -> DispatchResult {
             T::ForceOrigin::ensure_origin(origin)?;
 
-            ensure!(!<Metadata<T>>::contains_key(&tag), Error::<T>::Exists);
+            ensure!(!Self::exists(&tag), Error::<T>::Exists);
 
             let did = T::DecentralizedId::default();
 
-            let hash = Self::inner_create(did, tag);
+            let hash = Self::create_with_cur_block_num(did, tag);
 
             Self::deposit_event(Event::Created(hash, did));
 
@@ -218,9 +218,10 @@ pub mod pallet {
     impl<T: Config> GenesisBuild<T> for GenesisConfig<T> {
         fn build(&self) {
             for tag in &self.tag {
-                <Metadata<T>>::insert(
+                Pallet::<T>::add_meta(
                     tag,
                     types::Metadata {
+                        tag: tag.clone(),
                         creator: T::DecentralizedId::default(),
                         created: Default::default(),
                     },
@@ -257,10 +258,17 @@ pub mod pallet {
 }
 
 impl<T: Config> Pallet<T> {
-    fn inner_create(creator: T::DecentralizedId, tag: Vec<u8>) -> HashOf {
+    fn create_with_cur_block_num(creator: T::DecentralizedId, tag: Vec<u8>) -> TagHash {
         let created = <frame_system::Pallet<T>>::block_number();
 
-        <Metadata<T>>::insert(&tag, types::Metadata { creator, created });
+        Self::add_meta(
+            &tag,
+            types::Metadata {
+                tag: tag.clone(),
+                creator,
+                created,
+            },
+        );
 
         Self::key(&tag)
     }
@@ -286,7 +294,7 @@ impl<T: Config> Pallet<T> {
     fn storage_double_map_to_btree_map<TValue, TSource, F: FnMut(TSource) -> TValue>(
         iter: &mut PrefixIterator<TSource>,
         mut f: F,
-    ) -> BTreeMap<HashOf, TValue> {
+    ) -> BTreeMap<TagHash, TValue> {
         let mut hashes = BTreeMap::new();
         while let Some(value) = iter.next() {
             let prefix = iter.prefix();
@@ -300,20 +308,28 @@ impl<T: Config> Pallet<T> {
 
         hashes
     }
+
+    fn get_metadata_of(tag: &Tag) -> Option<MetaOf<T>> {
+        <Metadata<T>>::get(Self::key(tag))
+    }
+
+    fn add_meta(tag: &Tag, meta: MetaOf<T>) {
+        <Metadata<T>>::insert(Self::key(&tag), meta)
+    }
 }
 
-impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
-    fn key<K: AsRef<Vec<u8>>>(tag: K) -> HashOf {
+impl<T: Config> Tags<TagHash, AdOf<T>, T::DecentralizedId> for Pallet<T> {
+    fn key<K: AsRef<Vec<u8>>>(tag: K) -> TagHash {
         use codec::Encode;
 
         tag.as_ref().using_encoded(Blake2_256::hash)
     }
 
     fn exists<K: AsRef<Vec<u8>>>(tag: K) -> bool {
-        <Metadata<T>>::contains_key(tag.as_ref())
+        <Metadata<T>>::contains_key(Self::key(tag.as_ref()))
     }
 
-    fn tags_of(id: &AdOf<T>) -> BTreeMap<HashOf, bool> {
+    fn tags_of(id: &AdOf<T>) -> BTreeMap<TagHash, bool> {
         Self::storage_double_map_to_btree_map(&mut <TagsOf<T>>::iter_prefix_values(id), |v| v)
     }
 
@@ -339,7 +355,7 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
         <TagsOf<T>>::contains_key(id, tag.as_ref())
     }
 
-    fn personas_of(did: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
+    fn personas_of(did: &T::DecentralizedId) -> BTreeMap<TagHash, i32> {
         Self::storage_double_map_to_btree_map(&mut <PersonasOf<T>>::iter_prefix_values(did), |v| {
             v.current_score
         })
@@ -361,7 +377,7 @@ impl<T: Config> Tags<HashOf, AdOf<T>, T::DecentralizedId> for Pallet<T> {
         Ok(())
     }
 
-    fn influences_of(kol: &T::DecentralizedId) -> BTreeMap<HashOf, i32> {
+    fn influences_of(kol: &T::DecentralizedId) -> BTreeMap<TagHash, i32> {
         Self::storage_double_map_to_btree_map(
             &mut <InfluencesOf<T>>::iter_prefix_values(kol),
             |v| v.current_score,

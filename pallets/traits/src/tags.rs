@@ -1,7 +1,7 @@
 use sp_runtime::DispatchResult;
 use sp_std::{collections::btree_map::BTreeMap, prelude::*};
 
-type Tag = Vec<u8>;
+pub type Tag = Vec<u8>;
 
 pub trait Tags<Hash, AdvertisementId, DecentralizedId> {
     /// Get hashed value of a tag

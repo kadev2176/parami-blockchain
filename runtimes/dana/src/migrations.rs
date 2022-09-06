@@ -3,6 +3,8 @@ use crate::VERSION;
 use frame_support::storage::PrefixIterator;
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::weights::Weight;
+#[cfg(feature = "try-runtime")]
+use sp_std::{vec, vec::Vec};
 
 const DEPRECATED_PALLETS: &'static [&'static [u8]] = &[
     b"Staking",

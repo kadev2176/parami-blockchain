@@ -32,7 +32,7 @@ benchmarks! {
         let name = vec![0u8; n as usize];
     }: _(RawOrigin::Signed(caller), name.clone())
     verify {
-        assert_ne!(<Metadata<T>>::get(&name), None);
+        assert_ne!(Pallet::<T>::get_metadata_of(&name.to_vec()), None);
     }
 
     force_create {
@@ -41,7 +41,7 @@ benchmarks! {
         let name = vec![0u8; n as usize];
     }: _(RawOrigin::Root, name.clone())
     verify {
-        assert_ne!(<Metadata<T>>::get(&name), None);
+        assert_ne!(Pallet::<T>::get_metadata_of(&name.to_vec()), None);
     }
 }
 

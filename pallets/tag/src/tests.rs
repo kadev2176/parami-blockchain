@@ -1,5 +1,6 @@
-use crate::{mock::*, AdOf, Error, Metadata};
+use crate::{mock::*, AdOf, Error, Pallet};
 use frame_support::{assert_noop, assert_ok, traits::Currency};
+use parami_traits::Tags;
 use sp_core::sr25519;
 use sp_runtime::DispatchError;
 use sp_std::collections::btree_map::BTreeMap;
@@ -16,11 +17,21 @@ fn should_create() {
 
         assert_ok!(Tag::create(Origin::signed(alice), tag.clone()));
 
-        let maybe_tag = <Metadata<Test>>::get(&tag);
+        let maybe_tag = Pallet::<Test>::get_metadata_of(&tag);
         assert_ne!(maybe_tag, None);
+
+        assert_eq!(tag, maybe_tag.unwrap().tag);
 
         assert_eq!(Balances::free_balance(&alice), 99);
         assert_eq!(Balances::total_issuance(), 99);
+    });
+}
+
+#[test]
+fn should_test() {
+    new_test_ext().execute_with(|| {
+        let key = Pallet::<Test>::key("Telegram".as_bytes().to_vec());
+        println!("key is {:?}", hex::encode(key));
     });
 }
 
@@ -55,7 +66,7 @@ fn should_fail_when_insufficient() {
             Error::<Test>::InsufficientBalance
         );
 
-        let maybe_tag = <Metadata<Test>>::get(&tag);
+        let maybe_tag = Pallet::<Test>::get_metadata_of(&tag);
         assert_eq!(maybe_tag, None);
 
         assert_eq!(Balances::free_balance(&bob), 1);
@@ -72,7 +83,7 @@ fn should_force_create() {
 
         assert_ok!(Tag::force_create(Origin::root(), tag.clone()));
 
-        let maybe_tag = <Metadata<Test>>::get(&tag);
+        let maybe_tag = Pallet::<Test>::get_metadata_of(&tag);
         assert_ne!(maybe_tag, None);
 
         assert_eq!(Balances::total_issuance(), 100);
