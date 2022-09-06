@@ -306,12 +306,9 @@ pub mod pallet {
             );
 
             let is_valid_char = |c: &u8| c.is_ascii_whitespace() || c.is_ascii_alphanumeric();
+            ensure!(name.iter().all(is_valid_char), Error::<T>::BadAssetMetadata);
             ensure!(
-                name[0].is_ascii_alphabetic() && name.iter().all(is_valid_char),
-                Error::<T>::BadAssetMetadata
-            );
-            ensure!(
-                symbol[0].is_ascii_alphabetic() && symbol.iter().all(is_valid_char),
+                symbol.iter().all(is_valid_char),
                 Error::<T>::BadAssetMetadata
             );
             let asset_id =
