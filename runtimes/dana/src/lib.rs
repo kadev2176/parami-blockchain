@@ -101,6 +101,7 @@ pub type Executive = frame_executive::Executive<
     Runtime,
     AllPalletsWithSystem,
     (
+        parami_tag::migrations::v2::ResetHeight<Runtime>,
         parami_swap::migrations::v2::ResetHeight<Runtime>,
         parami_tag::migrations::v3::AddTagNameMigration<Runtime>,
     ),
@@ -168,7 +169,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 348,
+    spec_version: 349,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,

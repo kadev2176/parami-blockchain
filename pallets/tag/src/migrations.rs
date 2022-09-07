@@ -6,6 +6,7 @@ use codec::{Decode, Encode, MaxEncodedLen};
 use frame_support::traits::OnRuntimeUpgrade;
 use frame_support::traits::StorageVersion;
 use frame_support::{traits::Get, weights::Weight, Identity, RuntimeDebug};
+use log;
 use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
@@ -144,6 +145,10 @@ pub mod v3 {
             for tag in exist_tags {
                 let op_meta: Option<old::V2MetaOf<T>> =
                     old::Metadata::<T>::get(Pallet::<T>::key(&tag.to_vec()));
+                if op_meta.is_none() {
+                    log::error!("tag not existing: {:?}", tag);
+                    continue;
+                }
                 let meta = op_meta.unwrap();
                 Metadata::<T>::insert(
                     Pallet::<T>::key(&tag.to_vec()),
@@ -161,15 +166,19 @@ pub mod v3 {
                     .unwrap();
             let unknown_tag_u8_32: [u8; 32] = unknown_tag.try_into().unwrap();
             let op_meta = old::Metadata::<T>::get(unknown_tag_u8_32);
-            let meta = op_meta.unwrap();
-            Metadata::<T>::insert(
-                unknown_tag_u8_32,
-                types::Metadata {
-                    creator: meta.creator.clone(),
-                    created: meta.created.clone(),
-                    tag: b"unknown".to_vec(),
-                },
-            );
+            if op_meta.is_some() {
+                let meta = op_meta.unwrap();
+                Metadata::<T>::insert(
+                    unknown_tag_u8_32,
+                    types::Metadata {
+                        creator: meta.creator.clone(),
+                        created: meta.created.clone(),
+                        tag: b"unknown".to_vec(),
+                    },
+                );
+            } else {
+                log::error!("tag not existing: unknown tag");
+            }
 
             StorageVersion::put::<Pallet<T>>(&StorageVersion::new(3));
 
