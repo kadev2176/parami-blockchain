@@ -421,14 +421,8 @@ pub mod pallet {
 
             let is_valid_char = |c: &u8| c.is_ascii_whitespace() || c.is_ascii_alphanumeric();
 
-            ensure!(
-                name[0].is_ascii_alphabetic() && name.iter().all(is_valid_char),
-                Error::<T>::BadMetadata
-            );
-            ensure!(
-                symbol[0].is_ascii_alphabetic() && symbol.iter().all(is_valid_char),
-                Error::<T>::BadMetadata
-            );
+            ensure!(name.iter().all(is_valid_char), Error::<T>::BadMetadata);
+            ensure!(symbol.iter().all(is_valid_char), Error::<T>::BadMetadata);
 
             let minted = <frame_system::Pallet<T>>::block_number();
 
