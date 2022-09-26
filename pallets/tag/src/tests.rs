@@ -107,14 +107,13 @@ fn scoring_curve_boundary_cases() {
         assert_ok!(Tag::influence(&did, &tag, 1));
         assert_eq!(Tag::get_score(&did, &tag), 1);
 
-        assert_ok!(Tag::influence(&did, &tag, 6365));
-        assert_eq!(Tag::get_score(&did, &tag), 99);
+        assert_noop!(
+            Tag::influence(&did, &tag, 6365),
+            Error::<Test>::RatingOutOfRange
+        );
 
         assert_ok!(Tag::influence(&did, &tag, 1));
-        assert_eq!(Tag::get_score(&did, &tag), 100);
-
-        assert_ok!(Tag::influence(&did, &tag, 1_000_000));
-        assert_eq!(Tag::get_score(&did, &tag), 100);
+        assert_eq!(Tag::get_score(&did, &tag), 2);
 
         // test loop for 2000
 
@@ -161,8 +160,8 @@ fn tags_trait() {
         let did = DID::from_slice(&[0xff; 20]);
 
         assert_ok!(Tag::influence(&did, &tag1, 5));
-        assert_eq!(Tag::personas_of(&did), BTreeMap::from([(hash1.clone(), 6)]));
-        assert_eq!(Tag::get_score(&did, &tag1), 6);
+        assert_eq!(Tag::personas_of(&did), BTreeMap::from([(hash1.clone(), 5)]));
+        assert_eq!(Tag::get_score(&did, &tag1), 5);
 
         let did = DID::from_slice(&[0xff; 20]);
 

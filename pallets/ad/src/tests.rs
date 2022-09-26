@@ -575,9 +575,10 @@ fn should_pay() {
         let nft_meta = Nft::meta(nft).unwrap();
         assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 502);
 
+        // initially charlie'score is 5 + 0 (in + ext), after get a rating of 5, charlie's score is 5 + (0 * 0.8 + 5 * 10 * 0.2) = 15
         assert_eq!(
             Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
-            11
+            10
         );
     });
 }
@@ -987,7 +988,7 @@ fn should_claim_success_when_signature_exists() {
 
         assert_eq!(
             Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
-            11
+            10
         );
     });
 }
@@ -997,8 +998,6 @@ fn should_claim_success_when_signature_not_exists() {
     new_test_ext().execute_with(|| {
         // 1. prepare
         let (ad, nft) = prepare_pay!();
-
-        let score_before = Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]);
 
         // 2. claim
         let res = Ad::claim_without_advertiser_signature(
@@ -1014,9 +1013,11 @@ fn should_claim_success_when_signature_not_exists() {
         let nft_meta = Nft::meta(nft).unwrap();
         assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 502);
 
+        // previous: (intrinsic, extrinsic) = (5, 0)
+        // after: (intrinsic, extrinsic) = (5, -5)
         assert_eq!(
             Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
-            score_before - 6 // Curious, right? It's a ridiculous implementation
+            0 // Curious, right? It's a ridiculous implementation
         );
     });
 }

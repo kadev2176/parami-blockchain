@@ -159,7 +159,7 @@ benchmarks! {
         let did = Did::<T>::did_of(&applicant).unwrap();
 
         let tag = vec![0u8; n as usize];
-    }: _(RawOrigin::Signed(caller), did.clone(), tag.clone(), 100)
+    }: _(RawOrigin::Signed(caller), did.clone(), tag.clone(), 5)
     verify {
         assert!(T::Tags::get_score(&did, &tag) > 0);
     }

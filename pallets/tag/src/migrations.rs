@@ -1,5 +1,7 @@
+use crate::types::{Score, SingleMetricScore};
 use crate::MetaOf;
 use crate::Metadata;
+use crate::PersonasOf;
 use crate::TagHash;
 use crate::{Config, Pallet};
 use codec::{Decode, Encode, MaxEncodedLen};
@@ -11,90 +13,6 @@ use scale_info::TypeInfo;
 #[cfg(feature = "std")]
 use serde::{Deserialize, Serialize};
 use sp_runtime::traits::Saturating;
-
-pub fn migrate<T: Config>() -> Weight {
-    let version = StorageVersion::get::<Pallet<T>>();
-    let mut weight: Weight = 0;
-
-    if version < 1 {
-        weight.saturating_accrue(v1::migrate::<T>());
-        StorageVersion::new(1).put::<Pallet<T>>();
-    }
-
-    weight
-}
-
-mod v1 {
-    use super::*;
-    use crate::{types::Score, InfluencesOf, PersonasOf};
-
-    pub fn migrate<T: Config>() -> Weight {
-        let mut weight: Weight = 0;
-
-        <PersonasOf<T>>::translate_values(|score| {
-            Some(Pallet::<T>::accrue(&Score::default(), score))
-        });
-        <InfluencesOf<T>>::translate_values(|score| {
-            Some(Pallet::<T>::accrue(&Score::default(), score))
-        });
-
-        weight.saturating_accrue(T::DbWeight::get().reads_writes(1, 1));
-
-        weight
-    }
-}
-
-pub mod v2 {
-    use super::*;
-    pub struct ResetHeight<T>(sp_std::marker::PhantomData<T>);
-
-    impl<T: crate::Config> OnRuntimeUpgrade for ResetHeight<T> {
-        fn on_runtime_upgrade() -> Weight {
-            let version = StorageVersion::get::<Pallet<T>>();
-            if version != 1 {
-                return 0;
-            }
-
-            Metadata::<T>::translate_values(|m| {
-                Some(MetaOf::<T> {
-                    created: 0u32.into(),
-                    ..m
-                })
-            });
-
-            StorageVersion::put::<Pallet<T>>(&StorageVersion::new(2));
-
-            1
-        }
-
-        #[cfg(feature = "try-runtime")]
-        fn pre_upgrade() -> Result<(), &'static str> {
-            use frame_support::log::info;
-
-            let count: u32 = Metadata::<T>::iter_values()
-                .filter(|m| m.created != 0u32.into())
-                .map(|_| 1u32)
-                .sum();
-
-            info!("non zero meta count = {:?}", count);
-
-            Ok(())
-        }
-
-        #[cfg(feature = "try-runtime")]
-        fn post_upgrade() -> Result<(), &'static str> {
-            use frame_support::log::info;
-
-            let count: u32 = Metadata::<T>::iter_values()
-                .filter(|m| m.created == 0u32.into())
-                .map(|_| 1u32)
-                .sum();
-
-            info!("zero meta count = {:?}", count);
-            Ok(())
-        }
-    }
-}
 
 pub mod v3 {
     use crate::types;
@@ -237,6 +155,53 @@ pub mod v3 {
             } else {
                 Ok(())
             }
+        }
+    }
+}
+
+pub mod v4 {
+    use super::*;
+    pub struct MigrationScore<T: Config>(sp_std::marker::PhantomData<T>);
+
+    impl<T: Config> OnRuntimeUpgrade for MigrationScore<T> {
+        fn on_runtime_upgrade() -> Weight {
+            let version = StorageVersion::get::<Pallet<T>>();
+            if version != 1 {
+                return 0;
+            }
+
+            PersonasOf::<T>::translate_values(|v: SingleMetricScore| {
+                let score = v.current_score.max(0).min(50);
+                return Some(Score::new(score as i8));
+            });
+
+            return 1;
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn pre_upgrade() -> Result<(), &'static str> {
+            use frame_support::{log::info, migration::storage_iter_with_suffix};
+
+            let iter = storage_iter_with_suffix::<SingleMetricScore>(b"Tag", b"PersonasOf", b"");
+
+            for score in iter {
+                info!("score: {:?}", score);
+            }
+
+            Ok(())
+        }
+
+        #[cfg(feature = "try-runtime")]
+        fn post_upgrade() -> Result<(), &'static str> {
+            use frame_support::{log::info, migration::storage_iter_with_suffix};
+
+            let iter = storage_iter_with_suffix::<Score>(b"Tag", b"PersonasOf", b"");
+
+            for score in iter {
+                info!("score: {:?}", score);
+            }
+
+            Ok(())
         }
     }
 }

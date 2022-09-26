@@ -1,7 +1,7 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use pallet::*;
-pub use types::Score;
+pub use types::SingleMetricScore;
 
 #[rustfmt::skip]
 pub mod weights;
@@ -119,7 +119,7 @@ pub mod pallet {
         T::DecentralizedId,
         Blake2_256,
         Vec<u8>,
-        types::Score, // (last_output, last_input)
+        types::Score,
         ValueQuery,
     >;
 
@@ -131,7 +131,7 @@ pub mod pallet {
         T::DecentralizedId,
         Blake2_256,
         Vec<u8>,
-        types::Score, // (last_output, last_input)
+        types::SingleMetricScore, // (last_output, last_input)
         ValueQuery,
     >;
 
@@ -145,7 +145,7 @@ pub mod pallet {
     #[pallet::hooks]
     impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
         fn on_runtime_upgrade() -> Weight {
-            migrations::migrate::<T>()
+            0
         }
     }
 
@@ -153,6 +153,7 @@ pub mod pallet {
     pub enum Error<T> {
         Exists,
         InsufficientBalance,
+        RatingOutOfRange,
     }
 
     #[pallet::call]
@@ -199,7 +200,7 @@ pub mod pallet {
         pub tag: Vec<Vec<u8>>,
         pub tags: Vec<(AdOf<T>, Vec<u8>)>,
         pub personas: Vec<(T::DecentralizedId, Vec<u8>, types::Score)>,
-        pub influences: Vec<(T::DecentralizedId, Vec<u8>, types::Score)>,
+        pub influences: Vec<(T::DecentralizedId, Vec<u8>, types::SingleMetricScore)>,
     }
 
     #[cfg(feature = "std")]
@@ -233,21 +234,14 @@ pub mod pallet {
             }
 
             for (did, tag, score) in &self.personas {
-                <PersonasOf<T>>::insert(
-                    did,
-                    tag,
-                    types::Score {
-                        current_score: score.current_score,
-                        last_input: score.last_input,
-                    },
-                );
+                <PersonasOf<T>>::insert(did, tag, score);
             }
 
             for (did, tag, score) in &self.influences {
                 <InfluencesOf<T>>::insert(
                     did,
                     tag,
-                    types::Score {
+                    types::SingleMetricScore {
                         current_score: score.current_score,
                         last_input: score.last_input,
                     },
@@ -273,7 +267,7 @@ impl<T: Config> Pallet<T> {
         Self::key(&tag)
     }
 
-    pub(crate) fn accrue(score: &types::Score, delta: i32) -> types::Score {
+    pub(crate) fn accrue(score: &types::SingleMetricScore, delta: i32) -> types::SingleMetricScore {
         use core::f32::consts::PI;
 
         // f[x] := ArcTan[x/50] * 200 / PI
@@ -285,7 +279,7 @@ impl<T: Config> Pallet<T> {
 
         let current_score = (current_score.round() * 10.0) as i32 / 10;
 
-        types::Score {
+        types::SingleMetricScore {
             current_score,
             last_input,
         }
@@ -357,21 +351,22 @@ impl<T: Config> Tags<TagHash, AdOf<T>, T::DecentralizedId> for Pallet<T> {
 
     fn personas_of(did: &T::DecentralizedId) -> BTreeMap<TagHash, i32> {
         Self::storage_double_map_to_btree_map(&mut <PersonasOf<T>>::iter_prefix_values(did), |v| {
-            v.current_score
+            v.score()
         })
     }
 
     fn get_score<K: AsRef<Vec<u8>>>(did: &T::DecentralizedId, tag: K) -> i32 {
-        <PersonasOf<T>>::get(did, tag.as_ref()).current_score
+        <PersonasOf<T>>::get(did, tag.as_ref()).score()
     }
 
     fn influence<K: AsRef<Vec<u8>>>(
         did: &T::DecentralizedId,
         tag: K,
-        delta: i32,
+        rating: i32,
     ) -> DispatchResult {
+        ensure!(rating >= -5 && rating <= 5, Error::<T>::RatingOutOfRange);
         <PersonasOf<T>>::mutate(&did, tag.as_ref(), |score| {
-            *score = Self::accrue(score, delta);
+            *score = score.accure_extrinsic(rating as i8);
         });
 
         Ok(())
@@ -391,6 +386,22 @@ impl<T: Config> Tags<TagHash, AdOf<T>, T::DecentralizedId> for Pallet<T> {
     fn impact<K: AsRef<Vec<u8>>>(kol: &T::DecentralizedId, tag: K, delta: i32) -> DispatchResult {
         <InfluencesOf<T>>::mutate(&kol, tag.as_ref(), |score| {
             *score = Self::accrue(score, delta);
+        });
+
+        Ok(())
+    }
+
+    fn submit_intrinsic<K: AsRef<Vec<u8>>>(
+        kol: &T::DecentralizedId,
+        tag: K,
+        intrinsic: i8,
+    ) -> DispatchResult {
+        ensure!(
+            intrinsic >= 0 && intrinsic <= 50,
+            Error::<T>::RatingOutOfRange
+        );
+        <PersonasOf<T>>::mutate(&kol, tag.as_ref(), |score| {
+            *score = score.with_intrinsic(intrinsic);
         });
 
         Ok(())
