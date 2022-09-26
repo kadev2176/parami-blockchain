@@ -148,6 +148,7 @@ pub mod pallet {
     #[pallet::getter(fn registrar)]
     pub(super) type Registrar<T: Config> = StorageMap<_, Identity, DidOf<T>, bool>;
 
+    // deprecated, should favor registrar, will remove later.
     #[pallet::storage]
     pub(super) type LinkerAccount<T: Config> = StorageValue<_, AccountOf<T>, OptionQuery>;
 
@@ -281,6 +282,37 @@ pub mod pallet {
         }
 
         #[pallet::weight(1_000_000)]
+        pub fn create_did_and_bind_by_registrar(
+            origin: OriginFor<T>,
+            account: AccountOf<T>,
+            network: Network,
+            profile: Vec<u8>,
+            initial_scores: Vec<(Vec<u8>, i32)>,
+        ) -> DispatchResultWithPostInfo {
+            let (registrar, _) = EnsureDid::<T>::ensure_origin(origin.clone())?;
+
+            ensure!(
+                <Registrar<T>>::get(&registrar) == Some(true),
+                Error::<T>::Blocked
+            );
+
+            let mut did = Did::<T>::lookup_did_by_account_id(account.clone());
+            if did.is_none() {
+                Did::<T>::create(account.clone(), None)?;
+                did = Did::<T>::lookup_did_by_account_id(account.clone());
+            }
+
+            let did = did.unwrap();
+            Self::submit_link(origin, did, network, profile, true)?;
+
+            for (tag, score) in initial_scores {
+                T::Tags::influence(&did, &tag, score)?;
+            }
+
+            Ok(().into())
+        }
+
+        #[pallet::weight(1_000_000)]
         pub fn set_linker_account(
             origin: OriginFor<T>,
             account: AccountOf<T>,
@@ -292,6 +324,7 @@ pub mod pallet {
             Ok(().into())
         }
 
+        // deprecated, should favor create_and_bind_by_registar
         #[pallet::weight(0)]
         pub fn bind(
             origin: OriginFor<T>,

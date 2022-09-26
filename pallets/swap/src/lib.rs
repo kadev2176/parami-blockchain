@@ -268,7 +268,7 @@ pub mod pallet {
         /// * `tokens` - The amount of tokens to be bought
         /// * `max_currency` - The maximum currency to be spent
         /// * `deadline` - The block number at which the swap should be invalidated
-        #[pallet::weight(T::WeightInfo::buy_tokens())]
+        #[pallet::weight((0, Pays::No))]
         pub fn buy_tokens(
             origin: OriginFor<T>,
             #[pallet::compact] token_id: AssetOf<T>,
@@ -292,7 +292,7 @@ pub mod pallet {
         /// * `tokens` - The amount of tokens to be sold
         /// * `min_currency` - The maximum currency to be gained
         /// * `deadline` - The block number at which the swap should be invalidated
-        #[pallet::weight(T::WeightInfo::sell_tokens())]
+        #[pallet::weight((0, Pays::No))]
         pub fn sell_tokens(
             origin: OriginFor<T>,
             #[pallet::compact] token_id: AssetOf<T>,
@@ -316,7 +316,7 @@ pub mod pallet {
         /// * `currency` - The currency to be sold
         /// * `min_tokens` - The minimum amount of tokens to be gained
         /// * `deadline` - The block number at which the swap should be invalidated
-        #[pallet::weight(T::WeightInfo::sell_currency())]
+        #[pallet::weight((0, Pays::No))]
         pub fn sell_currency(
             origin: OriginFor<T>,
             #[pallet::compact] token_id: AssetOf<T>,
@@ -340,7 +340,7 @@ pub mod pallet {
         /// * `currency` - The currency to be bought
         /// * `max_tokens` - The maximum amount of tokens to be spent
         /// * `deadline` - The block number at which the swap should be invalidated
-        #[pallet::weight(T::WeightInfo::buy_currency())]
+        #[pallet::weight((0, Pays::No))]
         pub fn buy_currency(
             origin: OriginFor<T>,
             #[pallet::compact] token_id: AssetOf<T>,

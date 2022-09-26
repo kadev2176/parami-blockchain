@@ -46,6 +46,8 @@ parami-nft = { path = '../../pallets/nft' }
 parami-swap-rpc = { path = '../../pallets/swap/rpc' }
 parami-nft-rpc = { path = '../../pallets/nft/rpc'}
 parami-primitives = { path = '../../primitives', default-features = false }
+parami-did = { path = '../../pallets/did' }
+parami-tag= { path = '../../pallets/tag' }
 
 # Substrate Dependencies
 frame-benchmarking = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.24' }
