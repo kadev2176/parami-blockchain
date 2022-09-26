@@ -287,7 +287,7 @@ pub mod pallet {
             account: AccountOf<T>,
             network: Network,
             profile: Vec<u8>,
-            initial_scores: Vec<(Vec<u8>, i32)>,
+            initial_scores: Vec<(Vec<u8>, i8)>,
         ) -> DispatchResultWithPostInfo {
             let (registrar, _) = EnsureDid::<T>::ensure_origin(origin.clone())?;
 
@@ -306,7 +306,7 @@ pub mod pallet {
             Self::submit_link(origin, did, network, profile, true)?;
 
             for (tag, score) in initial_scores {
-                T::Tags::influence(&did, &tag, score)?;
+                T::Tags::submit_intrinsic(&did, &tag, score)?;
             }
 
             Ok(().into())
