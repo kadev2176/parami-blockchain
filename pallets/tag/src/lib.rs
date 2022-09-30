@@ -68,6 +68,8 @@ pub mod pallet {
             + sp_std::hash::Hash
             + AsRef<[u8]>
             + AsMut<[u8]>
+            + Into<[u8; 20]>
+            + From<[u8; 20]>
             + MaxEncodedLen
             + TypeInfo;
 
