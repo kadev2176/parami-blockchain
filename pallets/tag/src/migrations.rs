@@ -166,12 +166,12 @@ pub mod v4 {
     impl<T: Config> OnRuntimeUpgrade for MigrationScore<T> {
         fn on_runtime_upgrade() -> Weight {
             let version = StorageVersion::get::<Pallet<T>>();
-            if version != 4 {
+            if version != 3 {
                 return 0;
             }
 
             PersonasOf::<T>::translate_values(|v: SingleMetricScore| {
-                let score = v.current_score.max(-50).min(50);
+                let score = v.current_score.max(0).min(50);
                 return Some(Score::new(score as i8));
             });
 
