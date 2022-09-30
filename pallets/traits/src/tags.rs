@@ -169,6 +169,6 @@ pub trait Tags<Hash, AdvertisementId, DecentralizedId> {
     fn submit_intrinsic<K: AsRef<Tag>>(
         did: &DecentralizedId,
         tag: K,
-        intrinsic: i8,
+        intrinsic: i32,
     ) -> DispatchResult;
 }

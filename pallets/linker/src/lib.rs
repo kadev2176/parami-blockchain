@@ -287,7 +287,7 @@ pub mod pallet {
             account: AccountOf<T>,
             network: Network,
             profile: Vec<u8>,
-            initial_scores: Vec<(Vec<u8>, i8)>,
+            initial_scores: Vec<(Vec<u8>, i32)>,
         ) -> DispatchResultWithPostInfo {
             let (registrar, _) = EnsureDid::<T>::ensure_origin(origin.clone())?;
 
@@ -380,7 +380,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             did: DidOf<T>,
             tag: Vec<u8>,
-            score: i8,
+            score: i32,
         ) -> DispatchResultWithPostInfo {
             let (registrar, _) = EnsureDid::<T>::ensure_origin(origin)?;
 

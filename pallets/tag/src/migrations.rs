@@ -172,7 +172,7 @@ pub mod v4 {
 
             PersonasOf::<T>::translate_values(|v: SingleMetricScore| {
                 let score = v.current_score.max(0).min(50);
-                return Some(Score::new(score as i8));
+                return Some(Score::new(score));
             });
 
             StorageVersion::put::<Pallet<T>>(&StorageVersion::new(4));
@@ -201,10 +201,11 @@ pub mod v4 {
         fn post_upgrade() -> Result<(), &'static str> {
             use frame_support::{log::info, migration::storage_iter_with_suffix};
 
-            let mut iter = storage_iter_with_suffix::<Score>(b"Tag", b"PersonasOf", b"");
+            let mut iter = PersonasOf::<T>::iter_values();
 
             let mut num = 0;
-            while let Some(_) = iter.next() {
+            while let Some(score) = iter.next() {
+                log::info!("{:?}", score);
                 num += 1;
             }
 
