@@ -100,10 +100,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (
-        parami_tag::migrations::v3::AddTagNameMigration<Runtime>,
-        parami_tag::migrations::v4::MigrationScore<Runtime>,
-    ),
+    (parami_tag::migrations::v4::MigrationScore<Runtime>,),
 >;
 
 /// Era type as expected by this runtime.

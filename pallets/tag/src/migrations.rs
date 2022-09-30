@@ -165,6 +165,7 @@ pub mod v4 {
 
     impl<T: Config> OnRuntimeUpgrade for MigrationScore<T> {
         fn on_runtime_upgrade() -> Weight {
+            use frame_support::{log::info, migration::storage_iter_with_suffix};
             let version = StorageVersion::get::<Pallet<T>>();
             if version != 3 {
                 return 0;
@@ -177,6 +178,7 @@ pub mod v4 {
 
             StorageVersion::put::<Pallet<T>>(&StorageVersion::new(4));
 
+            info!("running tag migration");
             return 1;
         }
 
@@ -184,6 +186,7 @@ pub mod v4 {
         fn pre_upgrade() -> Result<(), &'static str> {
             use frame_support::{log::info, migration::storage_iter_with_suffix};
 
+            info!("begin before score");
             let mut iter =
                 storage_iter_with_suffix::<SingleMetricScore>(b"Tag", b"PersonasOf", b"");
 
@@ -201,11 +204,11 @@ pub mod v4 {
         fn post_upgrade() -> Result<(), &'static str> {
             use frame_support::{log::info, migration::storage_iter_with_suffix};
 
+            info!("begin after score");
             let mut iter = PersonasOf::<T>::iter_values();
 
             let mut num = 0;
             while let Some(score) = iter.next() {
-                log::info!("{:?}", score);
                 num += 1;
             }
 
