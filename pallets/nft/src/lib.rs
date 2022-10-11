@@ -105,7 +105,7 @@ pub mod pallet {
 
         /// The ICO baseline of donation for currency
         #[pallet::constant]
-        type InitialMintingDeposit: Get<BalanceOf<Self>>;
+        type DefaultInitialMintingDeposit: Get<BalanceOf<Self>>;
 
         /// The ICO lockup period for fragments, KOL will not be able to claim before this period
         #[pallet::constant]
@@ -407,6 +407,7 @@ pub mod pallet {
             nft: NftOf<T>,
             name: Vec<u8>,
             symbol: Vec<u8>,
+            expected_minting_deposit: Option<BalanceOf<T>>,
         ) -> DispatchResult {
             let limit = T::StringLimit::get() as usize - 4;
 
@@ -434,7 +435,9 @@ pub mod pallet {
 
             let deposit = T::Currency::free_balance(&meta.pot);
 
-            let init = T::InitialMintingDeposit::get();
+            let init =
+                expected_minting_deposit.unwrap_or_else(|| T::DefaultInitialMintingDeposit::get());
+
             ensure!(deposit >= init, Error::<T>::InsufficientBalance);
 
             // 2. create NFT token

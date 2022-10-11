@@ -39,6 +39,7 @@ where
         nft_id,
         b"Test Token".to_vec(),
         b"XTT".to_vec(),
+        Some(1_000_000_000u32.into()),
     );
 
     let _swap_res = Swap::<T>::buy_tokens(

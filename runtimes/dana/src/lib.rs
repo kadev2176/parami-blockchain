@@ -839,7 +839,7 @@ impl parami_magic::Config for Runtime {
 }
 
 parameter_types! {
-    pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
+    pub const DefaultInitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 6 * 30 * DAYS;
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
     pub const NftPendingLifetime: BlockNumber = 5;
@@ -852,7 +852,7 @@ impl parami_nft::Config for Runtime {
     type AssetId = AssetId;
     type Assets = Assets;
     type AssetIdManager = AssetManager;
-    type InitialMintingDeposit = InitialMintingDeposit;
+    type DefaultInitialMintingDeposit = DefaultInitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
     type Links = Linker;

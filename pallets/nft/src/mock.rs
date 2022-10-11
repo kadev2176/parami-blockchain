@@ -245,7 +245,7 @@ impl parami_assetmanager::Config for Test {
 }
 
 parameter_types! {
-    pub const InitialMintingDeposit: Balance = 1_000 * DOLLARS;
+    pub const DefaultInitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 5;
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
     pub const PendingLifetime: BlockNumber = 5;
@@ -256,7 +256,7 @@ impl parami_nft::Config for Test {
     type Event = Event;
     type AssetId = AssetId;
     type Assets = Assets;
-    type InitialMintingDeposit = InitialMintingDeposit;
+    type DefaultInitialMintingDeposit = DefaultInitialMintingDeposit;
     type InitialMintingLockupPeriod = InitialMintingLockupPeriod;
     type InitialMintingValueBase = InitialMintingValueBase;
     type Links = Linker;

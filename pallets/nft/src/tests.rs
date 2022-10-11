@@ -179,7 +179,8 @@ fn should_mint() {
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS)
         ));
 
         let deposit = <Deposit<Test>>::get(&nft);
@@ -209,7 +210,8 @@ fn elevate_token_price_to_target(target_ad3_amount_per_1000_token: u128) -> u128
         Origin::signed(ALICE),
         nft,
         b"Test Token".to_vec(),
-        b"XTT".to_vec()
+        b"XTT".to_vec(),
+        Some(1000 * DOLLARS)
     ));
 
     let ad3_balance_of_bob_before_buying_token = Balances::free_balance(BOB);
@@ -243,7 +245,8 @@ fn should_fail_when_minted() {
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS)
         ));
 
         assert_noop!(
@@ -251,9 +254,10 @@ fn should_fail_when_minted() {
                 Origin::signed(ALICE),
                 nft,
                 b"Test Token".to_vec(),
-                b"XTT".to_vec()
+                b"XTT".to_vec(),
+                Some(1000 * DOLLARS)
             ),
-            Error::<Test>::Minted
+            Error::<Test>::Minted,
         );
 
         assert_noop!(
@@ -271,6 +275,7 @@ fn mint_should_fail_when_insufficient_deposit() {
             0,
             b"Test Token".to_vec(),
             b"XTT".to_vec(),
+            Some(1000 * DOLLARS),
         );
 
         assert_noop!(r, Error::<Test>::InsufficientBalance);
@@ -289,7 +294,8 @@ fn all_roles_claim_should_success_when_time_elapsed_100_percent() {
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         System::set_block_number(5);
@@ -327,7 +333,8 @@ fn creator_claim_should_success_as_linear_unlock_program_when_time_elapsed_60_pe
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         System::set_block_number(3);
@@ -354,7 +361,8 @@ fn creator_claim_should_success_as_linear_unlock_program_when_time_elapsed_120_p
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         System::set_block_number(6);
@@ -381,7 +389,8 @@ fn creator_claim_should_success_when_claim_multi_times_in_different_block() {
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         System::set_block_number(1);
@@ -410,7 +419,8 @@ fn claim_should_success_when_claim_multi_times_in_same_block() {
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         System::set_block_number(1);
@@ -437,7 +447,8 @@ fn claim_should_fail_success_when_claimable_tokens_is_zero() {
             Origin::signed(ALICE),
             nft,
             b"Test Token".to_vec(),
-            b"XTT".to_vec()
+            b"XTT".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         assert_ok!(Nft::claim(Origin::signed(ALICE), nft));
@@ -678,7 +689,8 @@ fn should_transfer_all_assets() {
             Origin::signed(ALICE),
             0,
             b"Test Token1".to_vec(),
-            b"XTT1".to_vec()
+            b"XTT1".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         assert_ok!(Nft::back(Origin::signed(BOB), 1, 2000 * DOLLARS));
@@ -686,7 +698,8 @@ fn should_transfer_all_assets() {
             Origin::signed(ALICE),
             1,
             b"Test Token2".to_vec(),
-            b"XTT2".to_vec()
+            b"XTT2".to_vec(),
+            Some(1000 * DOLLARS),
         ));
 
         assert_ok!(Assets::mint_into(0, &ALICE, 500));
@@ -703,5 +716,41 @@ fn should_transfer_all_assets() {
         assert_eq!(Assets::balance(1, &ALICE), 0);
         assert_eq!(Assets::balance(0, &BOB), 500);
         assert_eq!(Assets::balance(1, &BOB), 1000);
+    });
+}
+
+#[test]
+fn should_be_compatiable_if_no_expected_minting_deposit() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 1000 * DOLLARS));
+
+        assert_ok!(Nft::mint(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"XTT".to_vec(),
+            None
+        ));
+    });
+}
+#[test]
+fn should_fail_if_deposit_is_not_enough() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 1000 * DOLLARS));
+
+        assert_noop!(
+            Nft::mint(
+                Origin::signed(ALICE),
+                nft,
+                b"Test Token".to_vec(),
+                b"XTT".to_vec(),
+                Some(2000 * DOLLARS)
+            ),
+            Error::<Test>::InsufficientBalance
+        );
     });
 }

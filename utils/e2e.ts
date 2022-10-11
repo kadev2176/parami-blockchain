@@ -92,7 +92,7 @@ import { submit } from './utils';
   spinnies.update('preparing', {
     text: 'Minting...',
   });
-  await submit(chain, chain.tx.nft.mint(nft, 'Test Token', 'XTT'), k);
+  await submit(chain, chain.tx.nft.mint(nft, 'Test Token', 'XTT', 1000), k);
   spinnies.remove('preparing');
   spinnies.succeed('nft');
   spinnies.succeed('kol');
@@ -185,21 +185,21 @@ import { submit } from './utils';
   console.log('message hash hex', u8aToHex(messageU8aHash));
 
   const signature = a.sign(messageU8aHash);
-  
+
   spinnies.succeed(`generate Signature`);
   // 5. Payout
 
   spinnies.add('claim', { text: `Claiming...` });
   const before = await chain.query.assets.account(nft, m.address);
   const beforeBalance = !!before && !!(before as any).toHuman() ? (before as any).toHuman().balance : '0';
-  
+
   await submit(chain, chain.tx.ad.claim(ad, nft, did, [[tag, 5]], null, { Sr25519:  signature }, a.address), a);
 
   const after = await chain.query.assets.account(nft, m.address);
   const { balance = '' } = (after as any).toHuman();
   const afterBalance = balance;
   spinnies.succeed('claim', { text: `Paid: before is ${beforeBalance}, after is ${afterBalance}` });
-  
+
   // spinnies.add('pay', { text: `Paying to ${m.address}...` });
   // const before = await chain.query.assets.account(nft, m.address);
   // const beforeBalance = !!before && !!(before as any).toHuman() ? (before as any).toHuman().balance : '0';

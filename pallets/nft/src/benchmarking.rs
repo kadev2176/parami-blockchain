@@ -8,6 +8,7 @@ use frame_support::traits::tokens::fungibles::Inspect;
 use frame_system::RawOrigin;
 use parami_did::Pallet as Did;
 use parami_linker::Pallet as Linker;
+use parami_primitives::constants::DOLLARS;
 use sp_io::hashing::keccak_256;
 use sp_runtime::traits::{Bounded, Saturating, Zero};
 
@@ -146,7 +147,7 @@ benchmarks! {
         let nft = <Preferred<T>>::get(&did).unwrap();
 
         Nft::<T>::back(RawOrigin::Signed(supporter).into(), nft, pot)?;
-    }: _(RawOrigin::Signed(caller), nft, name, symbol)
+    }: _(RawOrigin::Signed(caller), nft, name, symbol, Some(1_000_000_000u32.into()))
     verify {
         let meta = <Metadata<T>>::get(nft).unwrap();
         assert!(meta.minted);
@@ -174,7 +175,8 @@ benchmarks! {
 
         Nft::<T>::back(RawOrigin::Signed(caller.clone()).into(), nft, pot)?;
 
-        Nft::<T>::mint(RawOrigin::Signed(kol).into(), nft, b"Test Token".to_vec(), b"XTT".to_vec())?;
+        Nft::<T>::mint(RawOrigin::Signed(kol).into(), nft, b"Test Token".to_vec(), b"XTT".to_vec(),
+                       Some(1_000_000_000u32.into()))?;
     }: _(RawOrigin::Signed(caller.clone()), nft)
     verify {
         assert!(T::Assets::balance(nft, &caller) > Zero::zero());
