@@ -6037,6 +6037,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-ad-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parami-primitives",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-advertiser"
 version = "3.0.0"
 dependencies = [
@@ -6186,6 +6198,7 @@ dependencies = [
  "pallet-uniques",
  "pallet-utility",
  "parami-ad",
+ "parami-ad-runtime-api",
  "parami-advertiser",
  "parami-assetmanager",
  "parami-chainbridge",

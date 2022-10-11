@@ -1152,6 +1152,12 @@ impl_runtime_apis! {
         }
     }
 
+    impl parami_ad_runtime_api::AdRuntimeApi<Block, <BlakeTwo256 as sp_runtime::traits::Hash>::Output, NftId, DecentralizedId, Balance> for Runtime {
+       fn cal_reward(ad_id: <BlakeTwo256 as sp_runtime::traits::Hash>::Output, nft_id: NftId, did: DecentralizedId, referrer: Option<DecentralizedId>) -> Result<BalanceWrapper<Balance>, DispatchError> {
+            Ad::cal_reward(ad_id, nft_id, did, referrer).map(|for_visitor| for_visitor.into())
+        }
+    }
+
     impl parami_swap_rpc_runtime_api::SwapRuntimeApi<Block, AssetId, Balance> for Runtime {
         fn dryly_add_liquidity(
             token_id: AssetId,

@@ -35,6 +35,7 @@ log = { version = "0.4.14", default-features = false }
 # Local Dependencies
 parami-primitives = { path = '../../primitives', default-features = false }
 parami-ad = { path = '../../pallets/ad', default-features = false }
+parami-ad-runtime-api = { path = '../../pallets/ad/runtime-api', default-features = false }
 parami-advertiser = { path = '../../pallets/advertiser', default-features = false }
 parami-chainbridge = { path = '../../pallets/chainbridge', default-features = false }
 parami-xassets = { path = '../../pallets/xassets', default-features = false }

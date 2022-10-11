@@ -30,11 +30,13 @@ use frame_support::{
     Blake2_256, PalletId, StorageHasher,
 };
 
+use crate::types::RewardInfo;
 use frame_system::pallet_prelude::BlockNumberFor;
 use frame_system::pallet_prelude::*;
 use parami_did::EnsureDid;
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
+use parami_primitives::NftId;
 use parami_traits::Tags;
 use sp_core::crypto::AccountId32;
 use sp_core::crypto::ByteArray;
@@ -792,6 +794,89 @@ impl<T: Config> Pallet<T> {
         ensure!(slot.ad_id == *ad_id, Error::<T>::Underbid);
 
         // 2. scoring visitor
+
+        let RewardInfo {
+            total: amount,
+            for_visitor: reward,
+            for_referrer: award,
+        } = Self::calculate_reward_inner(&ad_id, &visitor, referrer, ad_meta);
+
+        ensure!(
+            Self::slot_current_fraction_balance(&slot) >= amount,
+            Error::<T>::InsufficientFractions
+        );
+
+        let fungibles = if let Some(fungible_id) = slot.fungible_id {
+            let fungibles = amount.clone();
+            let fungibles_balance = T::Assets::balance(fungible_id, &slot.budget_pot);
+            ensure!(
+                fungibles_balance >= fungibles,
+                Error::<T>::InsufficientFungibles
+            );
+            fungibles
+        } else {
+            Zero::zero()
+        };
+
+        // 3. influence visitor
+        for (tag, score) in scores {
+            ensure!(T::Tags::has_tag(&ad_id, &tag), Error::<T>::TagNotExists);
+            ensure!(*score >= -5 && *score <= 5, Error::<T>::ScoreOutOfRange);
+
+            T::Tags::influence(&visitor, &tag, *score as i32)?;
+        }
+
+        // 4. payout assets
+        // 4.1 pay nft fractions to visitor
+        let account = Did::<T>::lookup_did(*visitor).ok_or(parami_did::Error::<T>::DidNotExists)?;
+        T::Assets::transfer(slot.nft_id, &slot.budget_pot, &account, reward, false)?;
+
+        // 4.2 pay nft fractions to referrer
+        if let Some(referrer) = referrer {
+            let referrer_account =
+                Did::<T>::lookup_did(*referrer).ok_or(parami_did::Error::<T>::DidNotExists)?;
+            T::Assets::transfer(
+                slot.nft_id,
+                &slot.budget_pot,
+                &referrer_account,
+                award,
+                false,
+            )?;
+        }
+
+        // 4.3 pay extra_fungible to visitor
+        if let Some(fungible_id) = slot.fungible_id {
+            T::Assets::transfer(fungible_id, &slot.budget_pot, &account, fungibles, false)?;
+        }
+
+        // 5. Update slot metadata
+        <SlotOf<T>>::insert(nft_id, &slot);
+
+        <Payout<T>>::insert(&ad_id, &visitor, height);
+
+        Self::deposit_event(Event::Paid(
+            ad_id.clone(),
+            slot.nft_id,
+            visitor.clone(),
+            reward,
+            referrer.clone(),
+            award,
+        ));
+
+        // 6. drawback if advertiser does not have enough fees
+        if Self::slot_current_fraction_balance(&slot) < T::MinimumFeeBalance::get() {
+            Self::drawback(&slot)?;
+        }
+
+        Ok(())
+    }
+
+    fn calculate_reward_inner(
+        ad_id: &HashOf<T>,
+        visitor: &DidOf<T>,
+        referrer: &Option<DidOf<T>>,
+        ad_meta: MetaOf<T>,
+    ) -> RewardInfo<BalanceOf<T>> {
         let mut scoring = 5i32;
 
         let tags = T::Tags::tags_of(&ad_id);
@@ -822,76 +907,32 @@ impl<T: Config> Pallet<T> {
             amount = ad_meta.payout_max;
         }
 
-        ensure!(
-            Self::slot_current_fraction_balance(&slot) >= amount,
-            Error::<T>::InsufficientFractions
-        );
-
-        let fungibles = if let Some(fungible_id) = slot.fungible_id {
-            let fungibles = amount.clone();
-            let fungibles_balance = T::Assets::balance(fungible_id, &slot.budget_pot);
-            ensure!(
-                fungibles_balance >= fungibles,
-                Error::<T>::InsufficientFungibles
-            );
-            fungibles
-        } else {
-            Zero::zero()
-        };
-
-        // 3. influence visitor
-        for (tag, score) in scores {
-            ensure!(T::Tags::has_tag(&ad_id, &tag), Error::<T>::TagNotExists);
-            ensure!(*score >= -5 && *score <= 5, Error::<T>::ScoreOutOfRange);
-
-            T::Tags::influence(&visitor, &tag, *score as i32)?;
-        }
-
-        // 4. payout assets
-
-        let account = Did::<T>::lookup_did(*visitor).ok_or(parami_did::Error::<T>::DidNotExists)?;
-
-        let award = if let Some(referrer) = referrer {
+        let award = if let Some(_referrer) = referrer {
             let rate = ad_meta.reward_rate.into();
             let award = amount.saturating_mul(rate) / 100u32.into();
-
-            let referrer =
-                Did::<T>::lookup_did(*referrer).ok_or(parami_did::Error::<T>::DidNotExists)?;
-
-            T::Assets::transfer(slot.nft_id, &slot.budget_pot, &referrer, award, false)?;
-
             award
         } else {
             Zero::zero()
         };
 
-        let reward = amount.saturating_sub(award);
-
-        T::Assets::transfer(slot.nft_id, &slot.budget_pot, &account, reward, false)?;
-
-        if let Some(fungible_id) = slot.fungible_id {
-            T::Assets::transfer(fungible_id, &slot.budget_pot, &account, fungibles, false)?;
+        let reward = amount.saturating_sub(award.clone());
+        RewardInfo {
+            total: amount,
+            for_visitor: reward,
+            for_referrer: award,
         }
+    }
 
-        <SlotOf<T>>::insert(nft_id, &slot);
-
-        <Payout<T>>::insert(&ad_id, &visitor, height);
-
-        Self::deposit_event(Event::Paid(
-            ad_id.clone(),
-            slot.nft_id,
-            visitor.clone(),
-            reward,
-            referrer.clone(),
-            award,
-        ));
-
-        // 5. drawback if advertiser does not have enough fees
-
-        if Self::slot_current_fraction_balance(&slot) < T::MinimumFeeBalance::get() {
-            Self::drawback(&slot)?;
-        }
-
-        Ok(())
+    pub fn cal_reward(
+        ad_id: HashOf<T>,
+        _nft_id: NftId,
+        did: DidOf<T>,
+        referrer: Option<DidOf<T>>,
+    ) -> Result<BalanceOf<T>, DispatchError> {
+        let ad_meta = <Metadata<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
+        Ok(Self::calculate_reward_inner(
+            &ad_id, &did, &referrer, ad_meta,
+        ))
+        .map(|three_balance| three_balance.for_visitor)
     }
 }
