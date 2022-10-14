@@ -11,6 +11,7 @@ use parking_lot::RwLock;
 use sp_core::offchain::{testing, OffchainWorkerExt, TransactionPoolExt};
 use sp_runtime::offchain::testing::PoolState;
 use sp_runtime::traits::AccountIdConversion;
+use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use std::sync::Arc;
 
@@ -752,5 +753,26 @@ fn should_fail_if_deposit_is_not_enough() {
             ),
             Error::<Test>::InsufficientBalance
         );
+    });
+}
+
+#[test]
+fn should_back_to() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_eq!(deposit, Some(0));
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 50));
+        assert_ok!(Nft::back_to(Origin::signed(BOB), nft, 100));
+
+        let deposit = <Deposit<Test>>::get(nft);
+        assert_eq!(deposit, Some(100));
+
+        assert_ok!(Nft::back(Origin::signed(BOB), nft, 50));
+        assert_ok!(Nft::back_to(Origin::signed(BOB), nft, 100));
+
+        let deposit = <Deposit<Test>>::get(nft);
+        assert_eq!(deposit, Some(150));
     });
 }

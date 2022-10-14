@@ -399,6 +399,50 @@ pub mod pallet {
             Ok(())
         }
 
+        /// Back (support) the KOL To A Certain Balance
+        #[pallet::weight(<T as Config>::WeightInfo::back())]
+        pub fn back_to(
+            origin: OriginFor<T>,
+            nft: NftOf<T>,
+            #[pallet::compact] expected_balance: BalanceOf<T>,
+        ) -> DispatchResult {
+            let (did, who) = EnsureDid::<T>::ensure_origin(origin)?;
+
+            let meta = <Metadata<T>>::get(nft).ok_or(Error::<T>::NotExists)?;
+
+            ensure!(!meta.minted, Error::<T>::Minted);
+
+            let deposit = Deposit::<T>::get(nft).unwrap_or(0u32.into());
+
+            if deposit >= expected_balance {
+                return Ok(());
+            }
+
+            let value = expected_balance.saturating_sub(deposit);
+
+            T::Currency::transfer(&who, &meta.pot, value, KeepAlive)?;
+
+            <Deposit<T>>::mutate(nft, |maybe| {
+                if let Some(deposit) = maybe {
+                    deposit.saturating_accrue(value);
+                } else {
+                    *maybe = Some(value);
+                }
+            });
+
+            <Deposits<T>>::mutate(nft, &did, |maybe| {
+                if let Some(deposit) = maybe {
+                    deposit.saturating_accrue(value);
+                } else {
+                    *maybe = Some(value);
+                }
+            });
+
+            Self::deposit_event(Event::Backed(did, nft, value));
+
+            Ok(())
+        }
+
         /// Fragment the NFT and mint token.
         /// TODO(ironman_ch): add tests for one creator mint multi nft.
         #[pallet::weight(<T as Config>::WeightInfo::mint(name.len() as u32, symbol.len() as u32))]
@@ -420,7 +464,8 @@ pub mod pallet {
                 Error::<T>::BadMetadata
             );
 
-            let is_valid_char = |c: &u8| c.is_ascii_whitespace() || c.is_ascii_alphanumeric();
+            let is_valid_char =
+                |c: &u8| c.is_ascii_whitespace() || c.is_ascii_alphanumeric() || *c == b'_';
 
             ensure!(name.iter().all(is_valid_char), Error::<T>::BadMetadata);
             ensure!(symbol.iter().all(is_valid_char), Error::<T>::BadMetadata);
@@ -519,6 +564,38 @@ pub mod pallet {
             Self::deposit_event(Event::Claimed(did, nft, claimable_tokens));
 
             Ok(())
+        }
+
+        #[pallet::weight(<T as Config>::WeightInfo::submit_porting())]
+        pub fn force_submit_ported_nft(
+            origin: OriginFor<T>,
+            did: DidOf<T>,
+            network: Network,
+            namespace: Vec<u8>,
+            token: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            ensure_root(origin)?;
+
+            ensure!(
+                <Ported<T>>::get((network, namespace.clone(), token.clone())).is_none(),
+                Error::<T>::Exists
+            );
+
+            let id = Self::create(did)?;
+
+            <Ported<T>>::insert((network, namespace.clone(), token.clone()), id);
+
+            <External<T>>::insert(
+                id,
+                types::External {
+                    network,
+                    namespace: namespace.clone(),
+                    token: token.clone(),
+                    owner: did,
+                },
+            );
+
+            Ok(().into())
         }
 
         #[pallet::weight(<T as Config>::WeightInfo::submit_porting())]
