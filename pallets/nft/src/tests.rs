@@ -761,7 +761,8 @@ fn should_back_to() {
     new_test_ext().execute_with(|| {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
-        assert_eq!(deposit, Some(0));
+        let deposit = <Deposit<Test>>::get(nft);
+        assert_eq!(deposit, None);
 
         assert_ok!(Nft::back(Origin::signed(BOB), nft, 50));
         assert_ok!(Nft::back_to(Origin::signed(BOB), nft, 100));
