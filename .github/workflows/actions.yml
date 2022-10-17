@@ -46,7 +46,7 @@ jobs:
     strategy:
       matrix:
         os: [linux]
-        arch: [x86_64, aarch64]
+        arch: [x86_64]
 
     runs-on: ["self-hosted", "${{ matrix.os }}", "${{ matrix.arch }}"]
 
@@ -67,6 +67,9 @@ jobs:
             target/            
           key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ matrix.arch }}-cargo-
+
+      - name: Dump runner context
+        run: echo '${{ toJSON(runner) }}'
 
       - name: Build Release
         run: cargo build --release --locked
@@ -115,7 +118,7 @@ jobs:
     strategy:
       matrix:
         os: [linux]
-        arch: [x86_64, aarch64]
+        arch: [ x86_64 ]
 
     runs-on: ["self-hosted", "${{ matrix.os }}", "${{ matrix.arch }}"]
 
@@ -123,12 +126,10 @@ jobs:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/prepare
         with:
-          arch: ${{ matrix.arch }}
           os: ${{ matrix.os }}
 
       - name: Install tarpaulin
         run: cargo install --locked --force cargo-tarpaulin
-        if: matrix.arch == 'x86_64' && matrix.os == 'linux'
 
       - name: Set up cargo cache
         uses: actions/cache@v3
@@ -139,15 +140,11 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/            
-          key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.arch }}-cargo-
-
-      - name: Build Tests
-        run: cargo test --no-run --locked
+          key: ${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
 
       - name: Run Test
         run: cargo test -- --nocapture --quiet
-        if: matrix.arch != 'x86_64' || matrix.os != 'linux'
 
       - name: Generate coverage
         continue-on-error: true
@@ -157,11 +154,9 @@ jobs:
           --exclude parami-primitives parami-traits parami-swap-rpc parami-did-rpc parami-nft-rpc \
           parami-dana parami-para parami-dana-runtime parami-para-runtime \
           --exclude-files **/mock.rs **/weights.rs **/weights/* **/migrations.rs **/benchmarking.rs **/rpc/*
-        if: matrix.arch == 'x86_64' && matrix.os == 'linux'
       - uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
-        if: matrix.arch == 'x86_64' && matrix.os == 'linux'
 
   e2e:
     needs:
@@ -191,20 +186,18 @@ jobs:
   bench:
     needs:
       - lint
-      - build
 
     strategy:
       matrix:
         os: [linux]
-        arch: [x86_64, aarch64]
+        arch: [ aarch64 ]
 
-    runs-on: ["self-hosted", "${{ matrix.os }}", "${{ matrix.arch }}"]
+    runs-on: ["self-hosted", "${{ matrix.os }}"]
 
     steps:
       - uses: actions/checkout@v3
       - uses: ./.github/actions/prepare
         with:
-          arch: ${{ matrix.arch }}
           os: ${{ matrix.os }}
 
       - name: Set up cargo cache
@@ -216,8 +209,8 @@ jobs:
             ~/.cargo/registry/cache/
             ~/.cargo/git/db/
             target/            
-          key: ${{ matrix.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ matrix.arch }}-cargo-
+          key: ${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: cargo-
           
       - name: Build Benchmarks
         run: cargo build --release --locked --features=runtime-benchmarks
