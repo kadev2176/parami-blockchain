@@ -165,7 +165,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 356,
+    spec_version: 357,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -744,7 +744,7 @@ impl parami_ad::Config for Runtime {
     type PalletId = AdPalletId;
     type SlotLifetime = SlotLifetime;
     type Tags = Tag;
-    type CallOrigin = parami_advertiser::EnsureAdvertiser<Self>;
+    type CallOrigin = parami_did::EnsureDid<Self>;
     type ForceOrigin = EnsureRootOrHalfCouncil;
     type WeightInfo = ();
 }
@@ -892,7 +892,7 @@ impl parami_tag::Config for Runtime {
     type Currency = Balances;
     type DecentralizedId = <Self as parami_did::Config>::DecentralizedId;
     type SubmissionFee = SubmissionFee;
-    type CallOrigin = parami_advertiser::EnsureAdvertiser<Self>;
+    type CallOrigin = parami_did::EnsureDid<Self>;
     type ForceOrigin = EnsureRootOrHalfCouncil;
     type WeightInfo = parami_tag::weights::SubstrateWeight<Runtime>;
 }
