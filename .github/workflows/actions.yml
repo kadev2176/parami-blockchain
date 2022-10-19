@@ -141,7 +141,7 @@ jobs:
             ~/.cargo/git/db/
             target/            
           key: ${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
+          restore-keys: ${{ runner.arch }}-cargo-
 
       - name: Run Test
         run: cargo test -- --nocapture --quiet
@@ -210,7 +210,7 @@ jobs:
             ~/.cargo/git/db/
             target/            
           key: ${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: cargo-
+          restore-keys: ${{ runner.arch }}-cargo-
           
       - name: Build Benchmarks
         run: cargo build --release --locked --features=runtime-benchmarks
