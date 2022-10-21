@@ -575,6 +575,10 @@ pub mod pallet {
             token: Vec<u8>,
         ) -> DispatchResultWithPostInfo {
             ensure_root(origin)?;
+            ensure!(
+                parami_did::Pallet::<T>::lookup_did(did).is_some(),
+                Error::<T>::NotTokenOwner
+            );
 
             ensure!(
                 <Ported<T>>::get((network, namespace.clone(), token.clone())).is_none(),
@@ -582,6 +586,57 @@ pub mod pallet {
             );
 
             let id = Self::create(did)?;
+
+            <Ported<T>>::insert((network, namespace.clone(), token.clone()), id);
+
+            <External<T>>::insert(
+                id,
+                types::External {
+                    network,
+                    namespace: namespace.clone(),
+                    token: token.clone(),
+                    owner: did,
+                },
+            );
+
+            Ok(().into())
+        }
+
+        #[pallet::weight(<T as Config>::WeightInfo::submit_porting())]
+        pub fn force_update_ported_nft(
+            origin: OriginFor<T>,
+            did: DidOf<T>,
+            network: Network,
+            namespace: Vec<u8>,
+            token: Vec<u8>,
+        ) -> DispatchResultWithPostInfo {
+            ensure_root(origin)?;
+
+            ensure!(
+                parami_did::Pallet::<T>::lookup_did(did).is_some(),
+                Error::<T>::NotTokenOwner
+            );
+
+            let id = <Ported<T>>::get((network, namespace.clone(), token.clone()));
+            ensure!(id.is_some(), Error::<T>::NotExists);
+            let id = id.unwrap();
+
+            let pot = T::PalletId::get().into_sub_account_truncating(&did);
+
+            <Metadata<T>>::insert(
+                id,
+                types::Metadata {
+                    owner: did.clone(),
+                    pot,
+                    class_id: id,
+                    token_asset_id: id,
+                    minted: false,
+                },
+            );
+
+            if !<Preferred<T>>::contains_key(&did) {
+                <Preferred<T>>::insert(&did, id);
+            }
 
             <Ported<T>>::insert((network, namespace.clone(), token.clone()), id);
 
