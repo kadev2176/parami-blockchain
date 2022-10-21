@@ -628,7 +628,7 @@ pub mod pallet {
 
             let pot = T::PalletId::get().into_sub_account_truncating(&did);
             let free_balance = T::Currency::free_balance(&pot);
-            ensure!(free_balance == 0, Error::<T>::InsufficientBalance);
+            ensure!(free_balance == 0u32.into(), Error::<T>::InsufficientBalance);
 
             <Metadata<T>>::insert(
                 id,
