@@ -34,4 +34,5 @@ pub struct RewardInfo<Balance> {
     pub total: Balance,
     pub for_visitor: Balance,
     pub for_referrer: Balance,
+    pub fungibles: Balance,
 }

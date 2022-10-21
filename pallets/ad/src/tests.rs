@@ -872,7 +872,7 @@ fn should_pay_if_delegated() {
 }
 
 #[test]
-fn should_pay_failed() {
+fn should_distribute_fractions_proportionally() {
     use sp_runtime::MultiAddress;
 
     new_test_ext().execute_with(|| {
@@ -911,37 +911,142 @@ fn should_pay_failed() {
         let ad = <Metadata<Test>>::iter_keys().next().unwrap();
 
         // bid
-
         assert_ok!(Ad::bid_with_fraction(
             Origin::signed(BOB),
             ad,
             nft,
-            13,
+            10,
             Some(9),
-            Some(13)
+            Some(2)
         ));
 
-        // 2. pay
-        assert_ok!(Ad::pay(
-            Origin::signed(BOB),
+        // 2. claim
+        let bob_secret_pair: sp_core::sr25519::Pair =
+            sp_core::sr25519::Pair::from_string("/Bob", None).unwrap();
+        let bod_account_id_32 = AccountId32::new(bob_secret_pair.public().as_array_ref().clone());
+
+        let msg = Ad::construct_claim_sig_msg(
+            &ad,
+            nft,
+            &DID_CHARLIE,
+            &vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            &None,
+        );
+        let signature = bob_secret_pair.sign(msg.as_slice());
+
+        let slot = SlotOf::<Test>::get(nft).unwrap();
+        // Charlie's score is 5, and payout base is 1, so the expected received amount is 5 * 1. It's 5 of total 10 fractions.
+        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 10);
+        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 500);
+        assert_eq!(
+            Assets::balance(slot.fungible_id.unwrap(), slot.budget_pot),
+            2
+        );
+        assert_eq!(Assets::balance(slot.fungible_id.unwrap(), CHARLIE), 0);
+        assert_ok!(Ad::claim(
+            Origin::signed(CHARLIE),
             ad,
             nft,
             DID_CHARLIE,
             vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None,
+            sp_runtime::MultiSignature::Sr25519(signature),
+            bod_account_id_32.clone(),
+        ));
+        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 5);
+        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 505);
+
+        // respectively, we should give 1 fungibles of total 2.
+        assert_eq!(
+            Assets::balance(slot.fungible_id.unwrap(), slot.budget_pot),
+            1
+        );
+        assert_eq!(Assets::balance(slot.fungible_id.unwrap(), CHARLIE), 1);
+    });
+}
+
+#[test]
+fn should_claim_all_fractions_if_fractions_less_than_expected() {
+    use sp_runtime::MultiAddress;
+
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        // create ad
+
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            vec![vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]],
+            [0u8; 64].into(),
+            1,
+            1,
+            1u128,
+            0,
+            10u128,
             None
         ));
 
-        assert_noop!(
-            Ad::pay(
-                Origin::signed(BOB),
-                ad,
-                nft,
-                DID_TAGA100_TAGB100,
-                vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
-                None
-            ),
-            Error::<Test>::InsufficientFractions
+        assert_ok!(Assets::force_create(
+            Origin::root(),
+            9,
+            MultiAddress::Id(BOB),
+            true,
+            1
+        ));
+        assert_ok!(Assets::mint(
+            Origin::signed(BOB),
+            9,
+            MultiAddress::Id(BOB),
+            1000
+        ));
+
+        let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        // bid
+        assert_ok!(Ad::bid_with_fraction(
+            Origin::signed(BOB),
+            ad,
+            nft,
+            4,
+            Some(9),
+            Some(13)
+        ));
+
+        // 2. claim
+        let bob_secret_pair: sp_core::sr25519::Pair =
+            sp_core::sr25519::Pair::from_string("/Bob", None).unwrap();
+        let bod_account_id_32 = AccountId32::new(bob_secret_pair.public().as_array_ref().clone());
+
+        let msg = Ad::construct_claim_sig_msg(
+            &ad,
+            nft,
+            &DID_CHARLIE,
+            &vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            &None,
         );
+        let signature = bob_secret_pair.sign(msg.as_slice());
+
+        let slot = SlotOf::<Test>::get(nft).unwrap();
+        // Charlie's score is 5, and payout base is 1, so the expected received amount is 5 * 1. However the budget pot has only 4.
+        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 4);
+        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 500);
+        assert_ok!(Ad::claim(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            DID_CHARLIE,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None,
+            sp_runtime::MultiSignature::Sr25519(signature),
+            bod_account_id_32.clone(),
+        ));
+        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 0);
+        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 504);
+
+        // And our ad is drawback.
+        assert_eq!(SlotOf::<Test>::get(nft), None);
     });
 }
 
