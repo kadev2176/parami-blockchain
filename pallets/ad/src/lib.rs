@@ -228,7 +228,7 @@ pub mod pallet {
 
     #[pallet::call]
     impl<T: Config> Pallet<T> {
-        #[pallet::weight(<T as Config>::WeightInfo::create())]
+        #[pallet::weight((0, Pays::No))]
         pub fn create(
             origin: OriginFor<T>,
             tags: Vec<Vec<u8>>,
@@ -300,7 +300,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(<T as Config>::WeightInfo::update_reward_rate())]
+        #[pallet::weight((0, Pays::No))]
         pub fn update_reward_rate(
             origin: OriginFor<T>,
             id: HashOf<T>,
@@ -324,7 +324,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(<T as Config>::WeightInfo::update_tags())]
+        #[pallet::weight((0, Pays::No))]
         pub fn update_tags(
             origin: OriginFor<T>,
             id: HashOf<T>,
@@ -353,7 +353,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(<T as Config>::WeightInfo::bid_with_fraction())]
+        #[pallet::weight((0, Pays::No))]
         pub fn bid_with_fraction(
             origin: OriginFor<T>,
             ad_id: HashOf<T>,
@@ -450,7 +450,7 @@ pub mod pallet {
             Ok(())
         }
 
-        #[pallet::weight(<T as Config>::WeightInfo::add_budget())]
+        #[pallet::weight((0, Pays::No))]
         pub fn add_budget(
             origin: OriginFor<T>,
             ad_id: HashOf<T>,
