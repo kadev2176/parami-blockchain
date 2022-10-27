@@ -1612,7 +1612,25 @@ impl parami_swap::Config for Runtime {
     type Currency = Balances;
     type FarmingCurve = LinearFarmingCurve<Runtime, InitialFarmingReward, InitialMintingValueBase>;
     type PalletId = SwapPalletId;
+    type Nfts = Nft;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
+}
+
+parameter_types! {
+    pub const StakePalletId: PalletId = PalletId(*names::STAKE);
+    pub const OneMillionNormalizedInitDailyOutputConst: Balance = (500_000u128 * 10u128.pow(18)) / 7u128;
+    pub const SevenDaysInBlockNum: BlockNumber = 7 * 24 * 60 * 5; //7 days
+}
+
+impl parami_stake::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type AssetId = AssetId;
+    type Assets = Assets;
+    type PalletId = StakePalletId;
+    type OneMillionNormalizedInitDailyOutput = OneMillionNormalizedInitDailyOutputConst;
+    type DurationInBlockNum = SevenDaysInBlockNum;
+    type WeightInfo = parami_stake::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1707,7 +1725,8 @@ construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Config<T>, Event<T>} = 107,
         Swap: parami_swap::{Pallet, Call, Storage, Config<T>, Event<T>} = 108,
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,
-        AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110
+        AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110,
+        Stake: parami_stake::{Pallet, Storage, Event<T>} = 111,
     }
 );
 

@@ -47,6 +47,7 @@ parami-nft-rpc-runtime-api = { path = '../../pallets/nft/rpc/runtime-api', defau
 parami-ocw = { path = '../../pallets/ocw', default-features = false }
 parami-swap = { path = '../../pallets/swap', default-features = false }
 parami-swap-rpc-runtime-api = { path = '../../pallets/swap/rpc/runtime-api', default-features = false }
+parami-stake = { path = '../../pallets/stake', default-features = false }
 parami-tag = { path = '../../pallets/tag', default-features = false }
 parami-traits = { path = '../../pallets/traits', default-features = false }
 parami-assetmanager = { path = '../../pallets/assetmanager', default-features = false }
@@ -162,6 +163,7 @@ std = [
     'parami-ocw/std',
     'parami-swap/std',
     'parami-swap-rpc-runtime-api/std',
+    'parami-stake/std',
     'parami-tag/std',
     'parami-traits/std',
     'parami-assetmanager/std',
@@ -252,7 +254,7 @@ runtime-benchmarks = [
     'parami-nft/runtime-benchmarks',
     'parami-swap/runtime-benchmarks',
     'parami-tag/runtime-benchmarks',
-
+    'parami-stake/runtime-benchmarks',
     'sp-runtime/runtime-benchmarks',
 
     'frame-benchmarking',
@@ -300,6 +302,7 @@ try-runtime = [
     'parami-linker/try-runtime',
     'parami-nft/try-runtime',
     'parami-swap/try-runtime',
+    'parami-stake/try-runtime',
     'parami-tag/try-runtime',
 
     'frame-try-runtime',

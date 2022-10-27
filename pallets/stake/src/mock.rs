@@ -1,7 +1,8 @@
-use crate as parami_swap;
+use crate as parami_stake;
 use frame_support::traits::{ConstU128, ConstU32};
 use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
 use frame_system::{self as system, EnsureRoot};
+
 use sp_core::{sr25519, H256};
 use sp_runtime::{
     testing::Header,
@@ -12,6 +13,13 @@ type UncheckedExtrinsic = system::mocking::MockUncheckedExtrinsic<Test>;
 type Block = system::mocking::MockBlock<Test>;
 
 pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
+//public key of secret phrase "/Bob"
+pub const BOB: sr25519::Public = sr25519::Public([
+    202, 53, 5, 56, 6, 22, 158, 222, 140, 155, 250, 77, 126, 205, 109, 249, 77, 192, 15, 146, 38,
+    242, 60, 222, 145, 142, 98, 183, 108, 10, 190, 123,
+]);
+pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
+pub const DAVE: sr25519::Public = sr25519::Public([4; 32]);
 
 frame_support::construct_runtime!(
     pub enum Test where
@@ -23,11 +31,11 @@ frame_support::construct_runtime!(
         Assets: pallet_assets::{Pallet, Call, Storage, Event<T>},
         Balances: pallet_balances::{Pallet, Call, Storage, Config<T>, Event<T>},
 
-        Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
+        Stake: parami_stake::{Pallet, Call, Storage, Event<T>},
     }
 );
 
-type AssetId = u32;
+type AssetId = u64;
 type Balance = u128;
 type BlockNumber = u64;
 
@@ -107,29 +115,19 @@ impl pallet_balances::Config for Test {
 }
 
 parameter_types! {
-    pub const SwapPalletId: PalletId = PalletId(*b"prm/swap");
+    pub const StakePalletId: PalletId = PalletId(*b"prm/stak");
+    pub const OneMillionNormalizedInitDailyOutputConst: Balance = (500_000u128 * 10u128.pow(18)) / 7u128;
+    pub const SevenDaysInBlockNum: BlockNumber = 7 * 24 * 60 * 5; //7 days
 }
 
-pub struct FarmingCurve;
-impl parami_swap::FarmingCurve<Test> for FarmingCurve {
-    fn calculate_farming_reward(
-        _created_height: BlockNumber,
-        _staked_height: BlockNumber,
-        _current_height: BlockNumber,
-        _total_supply: Balance,
-    ) -> Balance {
-        100
-    }
-}
-
-impl parami_swap::Config for Test {
+impl parami_stake::Config for Test {
     type Event = Event;
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
-    type FarmingCurve = FarmingCurve;
-    type PalletId = SwapPalletId;
-    type Nfts = ();
+    type PalletId = StakePalletId;
+    type OneMillionNormalizedInitDailyOutput = OneMillionNormalizedInitDailyOutputConst;
+    type DurationInBlockNum = SevenDaysInBlockNum;
     type WeightInfo = ();
 }
 
@@ -138,16 +136,14 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
         .build_storage::<Test>()
         .unwrap();
 
-    pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(ALICE, 10000)],
-    }
-    .assimilate_storage(&mut t)
-    .unwrap();
+    pallet_balances::GenesisConfig::<Test> { balances: vec![] }
+        .assimilate_storage(&mut t)
+        .unwrap();
 
     pallet_assets::GenesisConfig::<Test> {
-        assets: vec![(1, ALICE, false, 1)],
-        metadata: vec![(1, b"Test Token".to_vec(), b"XTT".to_vec(), 18)],
-        accounts: vec![(1, ALICE, 44)],
+        assets: vec![],
+        metadata: vec![],
+        accounts: vec![],
     }
     .assimilate_storage(&mut t)
     .unwrap();

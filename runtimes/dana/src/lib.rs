@@ -100,7 +100,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (parami_tag::migrations::v6::FixWrongStructure<Runtime>,),
+    (parami_swap::migrations::v3::RemoveAllLiquidityExceptInitialLiquidity<Runtime>),
 >;
 
 /// Era type as expected by this runtime.
@@ -165,7 +165,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 360,
+    spec_version: 361,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -881,6 +881,24 @@ impl parami_swap::Config for Runtime {
     type FarmingCurve = LinearFarmingCurve<Runtime, InitialFarmingReward, InitialMintingValueBase>;
     type PalletId = SwapPalletId;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
+    type Nfts = Nft;
+}
+
+parameter_types! {
+    pub const StakePalletId: PalletId = PalletId(*names::STAKE);
+    pub const OneMillionNormalizedInitDailyOutputConst: Balance = (500_000u128 * 10u128.pow(18)) / 7u128;
+    pub const SevenDaysInBlockNum: BlockNumber = 7 * 24 * 60 * 5; //7 days
+}
+
+impl parami_stake::Config for Runtime {
+    type Event = Event;
+    type Currency = Balances;
+    type AssetId = AssetId;
+    type Assets = Assets;
+    type PalletId = StakePalletId;
+    type OneMillionNormalizedInitDailyOutput = OneMillionNormalizedInitDailyOutputConst;
+    type DurationInBlockNum = SevenDaysInBlockNum;
+    type WeightInfo = parami_stake::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -949,7 +967,8 @@ construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Config<T>, Event<T>, ValidateUnsigned} = 107,
         Swap: parami_swap::{Pallet, Call, Storage, Config<T>, Event<T>} = 108,
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,
-        AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110
+        AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110,
+        Stake: parami_stake::{Pallet, Storage, Event<T>} = 111,
     }
 );
 

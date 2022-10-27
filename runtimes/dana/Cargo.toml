@@ -50,6 +50,7 @@ parami-swap-rpc-runtime-api = { path = '../../pallets/swap/rpc/runtime-api', def
 parami-tag = { path = '../../pallets/tag', default-features = false }
 parami-traits = { path = '../../pallets/traits', default-features = false }
 parami-assetmanager = { path = '../../pallets/assetmanager', default-features = false }
+parami-stake = { path = '../../pallets/stake', default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -132,6 +133,7 @@ std = [
     'parami-tag/std',
     'parami-traits/std',
     'parami-assetmanager/std',
+    'parami-stake/std',
 
     'sp-api/std',
     'sp-block-builder/std',
@@ -186,9 +188,10 @@ runtime-benchmarks = [
     'parami-nft/runtime-benchmarks',
     'parami-swap/runtime-benchmarks',
     'parami-tag/runtime-benchmarks',
+    'parami-stake/runtime-benchmarks',
 
     'sp-runtime/runtime-benchmarks',
-
+    
     'frame-benchmarking',
     'frame-system-benchmarking',
     'frame-support/runtime-benchmarks',
@@ -222,6 +225,7 @@ try-runtime = [
     'parami-nft/try-runtime',
     'parami-swap/try-runtime',
     'parami-tag/try-runtime',
+    'parami-stake/try-runtime',
 
     'frame-try-runtime',
     'frame-support/try-runtime',

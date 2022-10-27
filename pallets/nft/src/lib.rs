@@ -929,14 +929,14 @@ impl<T: Config> Pallet<T> {
     }
 }
 
-impl<T: Config> Nfts<T::AccountId> for Pallet<T> {
+impl<T: Config> Nfts<AccountOf<T>> for Pallet<T> {
     type DecentralizedId = DidOf<T>;
     type Balance = BalanceOf<T>;
     type NftId = <T as pallet::Config>::AssetId;
 
     fn force_transfer_all_fractions(
-        src: &T::AccountId,
-        dest: &T::AccountId,
+        src: &AccountOf<T>,
+        dest: &AccountOf<T>,
     ) -> Result<(), DispatchError> {
         for (_nft_id, nft_meta) in <Metadata<T>>::iter() {
             let balance = T::Assets::balance(nft_meta.token_asset_id, &src);
@@ -959,5 +959,9 @@ impl<T: Config> Nfts<T::AccountId> for Pallet<T> {
             T::InitialMintingLockupPeriod::get(),
             &claimed_tokens,
         )
+    }
+
+    fn get_nft_pot(nft_id: Self::NftId) -> Option<AccountOf<T>> {
+        <Metadata<T>>::get(nft_id).map(|meta| meta.pot)
     }
 }

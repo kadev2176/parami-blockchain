@@ -58,7 +58,7 @@ frame_support::construct_runtime!(
     }
 );
 
-type AssetId = u64;
+type AssetId = u32;
 type Balance = u128;
 type BlockNumber = u64;
 
@@ -188,7 +188,7 @@ parameter_types! {
 }
 
 impl parami_assetmanager::Config for Test {
-    type AssetId = u64;
+    type AssetId = u32;
 }
 
 impl parami_nft::Config for Test {
@@ -223,6 +223,7 @@ impl parami_swap::Config for Test {
     type Currency = Balances;
     type FarmingCurve = ();
     type PalletId = SwapPalletId;
+    type Nfts = ();
     type WeightInfo = ();
 }
 

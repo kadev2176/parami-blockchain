@@ -52,6 +52,7 @@ pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
+    use parami_traits::Nfts;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -85,6 +86,8 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
+
+        type Nfts: Nfts<AccountOf<Self>, NftId = AssetOf<Self>>;
     }
 
     #[pallet::pallet]
@@ -367,16 +370,7 @@ pub mod pallet {
             #[pallet::compact] lp_token_id: AssetOf<T>,
         ) -> DispatchResult {
             let who = ensure_signed(origin)?;
-
-            let (liquidity, reward) = Self::calculate_reward(lp_token_id)?;
-            ensure!(liquidity.owner == who, Error::<T>::NotExists);
-
-            T::Assets::mint_into(liquidity.token_id, &who, reward)?;
-
-            let claimed = <frame_system::Pallet<T>>::block_number();
-            <Account<T>>::insert(&who, lp_token_id, claimed);
-
-            Ok(())
+            Self::acquire_reward_inner(who, lp_token_id)
         }
     }
 
@@ -437,5 +431,20 @@ pub mod pallet {
                 });
             }
         }
+    }
+}
+
+impl<T: Config> Pallet<T> {
+    pub fn acquire_reward_inner(who: AccountOf<T>, lp_token_id: AssetOf<T>) -> DispatchResult {
+        let (liquidity, reward) = Self::calculate_reward(lp_token_id)?;
+
+        ensure!(liquidity.owner == who, Error::<T>::NotExists);
+
+        T::Assets::mint_into(liquidity.token_id, &who, reward)?;
+
+        let claimed = <frame_system::Pallet<T>>::block_number();
+        <Account<T>>::insert(&who, lp_token_id, claimed);
+
+        Ok(())
     }
 }

@@ -6209,6 +6209,7 @@ dependencies = [
  "parami-nft-rpc-runtime-api",
  "parami-ocw",
  "parami-primitives",
+ "parami-stake",
  "parami-swap",
  "parami-swap-rpc-runtime-api",
  "parami-tag",
@@ -6552,6 +6553,7 @@ dependencies = [
  "parami-nft-rpc-runtime-api",
  "parami-ocw",
  "parami-primitives",
+ "parami-stake",
  "parami-swap",
  "parami-swap-rpc-runtime-api",
  "parami-tag",
@@ -6597,6 +6599,26 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-runtime-interface",
+ "sp-std",
+]
+
+[[package]]
+name = "parami-stake"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "pallet-assets",
+ "pallet-balances",
+ "parami-primitives",
+ "parami-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
  "sp-std",
 ]
 
