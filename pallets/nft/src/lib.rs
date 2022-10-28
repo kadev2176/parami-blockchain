@@ -71,7 +71,7 @@ const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
-    use frame_support::{pallet_prelude::*, traits::ExistenceRequirement};
+    use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
 
     #[pallet::config]
@@ -272,10 +272,6 @@ pub mod pallet {
                     tracing::error!("An error occurred in OCW: {:?}", e);
                 }
             }
-        }
-
-        fn on_runtime_upgrade() -> Weight {
-            migrations::migrate::<T>()
         }
     }
 

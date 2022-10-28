@@ -25,7 +25,6 @@ use sp_core::U512;
 use sp_runtime::traits::{
     AccountIdConversion, AtLeast32BitUnsigned, Bounded, Hash, Saturating, Zero,
 };
-use sp_std::prelude::*;
 use weights::WeightInfo;
 
 type AssetIdOf<T> = <T as pallet::Config>::AssetId;
@@ -75,7 +74,6 @@ type StakingActivityOf<T> =
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
-    use frame_system::pallet_prelude::*;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {

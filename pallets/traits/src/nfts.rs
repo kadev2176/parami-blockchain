@@ -1,5 +1,4 @@
 use sp_runtime::DispatchError;
-use sp_std::vec::Vec;
 
 pub trait Nfts<AccountId> {
     type DecentralizedId;

@@ -100,7 +100,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (parami_swap::migrations::v3::RemoveAllLiquidityExceptInitialLiquidity<Runtime>),
+    // (parami_swap::migrations::v3::RemoveAllLiquidityExceptInitialLiquidity<Runtime>),
 >;
 
 /// Era type as expected by this runtime.
@@ -833,11 +833,6 @@ impl parami_linker::Config for Runtime {
     type WeightInfo = parami_linker::weights::SubstrateWeight<Runtime>;
 }
 
-impl parami_magic::Config for Runtime {
-    type AssetId = AssetId;
-    type Assets = Assets;
-}
-
 parameter_types! {
     pub const DefaultInitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 6 * 30 * DAYS;
@@ -962,7 +957,6 @@ construct_runtime!(
         XAssets: parami_xassets::{Pallet, Call, Storage, Event<T>} = 103,
         Did: parami_did::{Pallet, Call, Storage, Config<T>, Event<T>} = 104,
         Linker: parami_linker::{Pallet, Call, Storage, Config<T>, Event<T>, ValidateUnsigned} = 105,
-        Magic: parami_magic::{Pallet,Storage} = 106,
         Nft: parami_nft::{Pallet, Call, Storage, Config<T>, Event<T>, ValidateUnsigned} = 107,
         Swap: parami_swap::{Pallet, Call, Storage, Config<T>, Event<T>} = 108,
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,

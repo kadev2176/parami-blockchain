@@ -33,6 +33,7 @@ use frame_support::{
     },
     PalletId,
 };
+use parami_traits::Swaps;
 use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Saturating, Zero};
 use sp_std::prelude::*;
 

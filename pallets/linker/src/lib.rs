@@ -179,10 +179,6 @@ pub mod pallet {
                 }
             }
         }
-
-        fn on_runtime_upgrade() -> Weight {
-            migrations::migrate::<T>()
-        }
     }
 
     #[pallet::error]

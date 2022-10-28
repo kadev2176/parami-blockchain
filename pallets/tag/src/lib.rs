@@ -305,7 +305,7 @@ impl<T: Config> Pallet<T> {
         hashes
     }
 
-    fn get_metadata_of(tag: &Tag) -> Option<MetaOf<T>> {
+    pub fn get_metadata_of(tag: &Tag) -> Option<MetaOf<T>> {
         <Metadata<T>>::get(Self::key(tag))
     }
 

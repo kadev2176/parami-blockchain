@@ -41,7 +41,6 @@ parami-chainbridge = { path = '../../pallets/chainbridge', default-features = fa
 parami-xassets = { path = '../../pallets/xassets', default-features = false }
 parami-did = { path = '../../pallets/did', default-features = false }
 parami-linker = { path = '../../pallets/linker', default-features = false }
-parami-magic = { path = '../../pallets/magic', default-features = false }
 parami-nft = { path = '../../pallets/nft', default-features = false }
 parami-nft-rpc-runtime-api = { path = '../../pallets/nft/rpc/runtime-api', default-features = false }
 parami-ocw = { path = '../../pallets/ocw', default-features = false }
@@ -125,7 +124,6 @@ std = [
     'parami-xassets/std',
     'parami-did/std',
     'parami-linker/std',
-    'parami-magic/std',
     'parami-nft/std',
     'parami-ocw/std',
     'parami-swap/std',
@@ -221,7 +219,6 @@ try-runtime = [
     'parami-xassets/try-runtime',
     'parami-did/try-runtime',
     'parami-linker/try-runtime',
-    'parami-magic/try-runtime',
     'parami-nft/try-runtime',
     'parami-swap/try-runtime',
     'parami-tag/try-runtime',

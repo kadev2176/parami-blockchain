@@ -6204,7 +6204,6 @@ dependencies = [
  "parami-chainbridge",
  "parami-did",
  "parami-linker",
- "parami-magic",
  "parami-nft",
  "parami-nft-rpc-runtime-api",
  "parami-ocw",
@@ -6300,26 +6299,6 @@ dependencies = [
  "sp-runtime-interface",
  "sp-std",
  "tracing",
-]
-
-[[package]]
-name = "parami-magic"
-version = "3.0.0"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "pallet-balances",
- "parami-did",
- "parami-traits",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sp-core",
- "sp-io",
- "sp-runtime",
- "sp-std",
 ]
 
 [[package]]
@@ -6548,7 +6527,6 @@ dependencies = [
  "parami-chainbridge",
  "parami-did",
  "parami-linker",
- "parami-magic",
  "parami-nft",
  "parami-nft-rpc-runtime-api",
  "parami-ocw",

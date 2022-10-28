@@ -36,7 +36,6 @@ use frame_system::pallet_prelude::*;
 use parami_did::EnsureDid;
 use parami_did::Pallet as Did;
 use parami_nft::Pallet as Nft;
-use parami_primitives::NftId;
 use parami_traits::Tags;
 use sp_core::crypto::AccountId32;
 use sp_core::crypto::ByteArray;
@@ -186,20 +185,6 @@ pub mod pallet {
                 sp_runtime::print(e);
                 0
             })
-        }
-
-        #[cfg(feature = "try-runtime")]
-        fn pre_upgrade() -> Result<(), &'static str> {
-            Ok(())
-        }
-
-        #[cfg(feature = "try-runtime")]
-        fn post_upgrade() -> Result<(), &'static str> {
-            Ok(())
-        }
-
-        fn on_runtime_upgrade() -> Weight {
-            migrations::migrate::<T>()
         }
     }
 
@@ -941,8 +926,8 @@ impl<T: Config> Pallet<T> {
     }
 
     pub fn try_into<TI: TryInto<u128>, TF: TryFrom<u128>>(value: TI) -> Result<TF, DispatchError> {
-        let val: u128 = TryInto::try_into(value).map_err(|e| Error::<T>::Overflow)?;
-        let ret_val: TF = TryFrom::try_from(val).map_err(|e| Error::<T>::Overflow)?;
+        let val: u128 = TryInto::try_into(value).map_err(|_| Error::<T>::Overflow)?;
+        let ret_val: TF = TryFrom::try_from(val).map_err(|_| Error::<T>::Overflow)?;
         return Ok(ret_val);
     }
 }
