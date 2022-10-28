@@ -66,7 +66,7 @@ type MetaOf<T> = types::Metadata<DidOf<T>, AccountOf<T>, NftOf<T>, AssetOf<T>>;
 type NftOf<T> = <T as Config>::AssetId;
 type TaskOf<T> = Task<ImportTask<DidOf<T>>, HeightOf<T>>;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 #[frame_support::pallet]
 pub mod pallet {

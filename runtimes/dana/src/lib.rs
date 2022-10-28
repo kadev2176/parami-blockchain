@@ -165,7 +165,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 361,
+    spec_version: 362,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -881,7 +881,6 @@ impl parami_swap::Config for Runtime {
     type FarmingCurve = LinearFarmingCurve<Runtime, InitialFarmingReward, InitialMintingValueBase>;
     type PalletId = SwapPalletId;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
-    type Nfts = Nft;
 }
 
 parameter_types! {

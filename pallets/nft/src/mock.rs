@@ -205,7 +205,6 @@ impl parami_swap::Config for Test {
     type Currency = Balances;
     type FarmingCurve = ();
     type PalletId = SwapPalletId;
-    type Nfts = ();
     type WeightInfo = ();
 }
 

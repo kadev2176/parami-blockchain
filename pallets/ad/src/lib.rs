@@ -60,7 +60,7 @@ type NftOf<T> = <T as parami_nft::Config>::AssetId;
 type SlotMetaOf<T> = types::Slot<HashOf<T>, HeightOf<T>, NftOf<T>, AssetsOf<T>, AccountOf<T>>;
 type TagOf = <Blake2_256 as StorageHasher>::Output;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
 
 #[frame_support::pallet]
 pub mod pallet {

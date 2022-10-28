@@ -53,7 +53,7 @@ type NegativeImbOf<T> = <CurrencyOf<T> as Currency<AccountOf<T>>>::NegativeImbal
 type TagOf = <Blake2_256 as StorageHasher>::Output;
 type TaskOf<T> = Task<Vec<u8>, HeightOf<T>>;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 #[frame_support::pallet]
 pub mod pallet {

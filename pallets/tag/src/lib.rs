@@ -42,7 +42,7 @@ type TagHash = <Blake2_256 as StorageHasher>::Output;
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type MetaOf<T> = types::Metadata<Tag, <T as Config>::DecentralizedId, HeightOf<T>>;
 
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(4);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(6);
 
 #[frame_support::pallet]
 pub mod pallet {

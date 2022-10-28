@@ -1612,7 +1612,6 @@ impl parami_swap::Config for Runtime {
     type Currency = Balances;
     type FarmingCurve = LinearFarmingCurve<Runtime, InitialFarmingReward, InitialMintingValueBase>;
     type PalletId = SwapPalletId;
-    type Nfts = Nft;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
 }
 

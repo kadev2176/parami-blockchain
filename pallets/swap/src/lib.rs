@@ -33,7 +33,6 @@ use frame_support::{
     },
     PalletId,
 };
-use parami_traits::Swaps;
 use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Saturating, Zero};
 use sp_std::prelude::*;
 
@@ -45,14 +44,13 @@ type BalanceOf<T> = <<T as Config>::Currency as Currency<AccountOf<T>>>::Balance
 type HeightOf<T> = <T as frame_system::Config>::BlockNumber;
 type SwapOf<T> = types::Swap<HeightOf<T>, BalanceOf<T>>;
 type LiquidityOf<T> = types::Liquidity<AccountOf<T>, BalanceOf<T>, HeightOf<T>, AssetOf<T>>;
-const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
+const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
 #[frame_support::pallet]
 pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
-    use parami_traits::Nfts;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -86,8 +84,6 @@ pub mod pallet {
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
-
-        type Nfts: Nfts<AccountOf<Self>, NftId = AssetOf<Self>>;
     }
 
     #[pallet::pallet]
