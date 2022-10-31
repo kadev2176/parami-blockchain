@@ -70,6 +70,7 @@ pub mod pallet {
         frame_system::Config //
         + parami_did::Config
         + parami_nft::Config
+        + parami_advertiser::Config
     {
         /// The overarching event type
         type Event: From<Event<Self>> + IsType<<Self as frame_system::Config>::Event>;
@@ -508,7 +509,7 @@ pub mod pallet {
 
             let signer_account = T::AccountId::decode(&mut signer.as_slice().clone())
                 .map_err(|_e| Error::<T>::NotOwnedOrDelegated)?;
-            let signer_did = Did::<T>::lookup_did_by_account_id(signer_account)
+            let signer_did = Did::<T>::lookup_did_by_account_id(signer_account.clone())
                 .ok_or(Error::<T>::NotOwnedOrDelegated)?;
             Self::pay_inner(
                 &ad_id,
@@ -517,6 +518,7 @@ pub mod pallet {
                 &scores,
                 &referrer,
                 &Option::Some(signer_did),
+                &Option::Some(signer_account),
             )
         }
 
@@ -549,6 +551,7 @@ pub mod pallet {
                 &scores,
                 &referrer,
                 &Option::None,
+                &Option::None,
             )
         }
 
@@ -561,7 +564,7 @@ pub mod pallet {
             scores: Vec<(Vec<u8>, i8)>,
             referrer: Option<DidOf<T>>,
         ) -> DispatchResult {
-            let (did, _who) = T::CallOrigin::ensure_origin(origin)?;
+            let (did, who) = T::CallOrigin::ensure_origin(origin)?;
 
             Self::pay_inner(
                 &ad_id,
@@ -570,6 +573,7 @@ pub mod pallet {
                 &scores,
                 &referrer,
                 &Option::Some(did),
+                &Option::Some(who),
             )
         }
     }
@@ -750,7 +754,8 @@ impl<T: Config> Pallet<T> {
         visitor: &DidOf<T>,
         scores: &Vec<(Vec<u8>, i8)>,
         referrer: &Option<DidOf<T>>,
-        op_did: &Option<DidOf<T>>,
+        signer_did: &Option<DidOf<T>>,
+        signer_account: &Option<AccountOf<T>>,
     ) -> Result<(), DispatchError> {
         ensure!(!scores.is_empty(), Error::<T>::EmptyTags);
 
@@ -761,7 +766,7 @@ impl<T: Config> Pallet<T> {
 
         let ad_meta = <Metadata<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;
 
-        if let Some(did) = op_did {
+        if let Some(did) = signer_did {
             Self::ensure_owned_or_delegated_by_meta(*did, &ad_meta)?;
         }
 
@@ -793,7 +798,14 @@ impl<T: Config> Pallet<T> {
             ensure!(T::Tags::has_tag(&ad_id, &tag), Error::<T>::TagNotExists);
             ensure!(*score >= -5 && *score <= 5, Error::<T>::ScoreOutOfRange);
 
-            T::Tags::influence(&visitor, &tag, *score as i32)?;
+            let signer_is_advertiser = signer_account
+                .clone()
+                .map(|account| parami_advertiser::Pallet::<T>::is_advertiser(&account))
+                .unwrap_or(false);
+
+            if signer_is_advertiser || *score < 0i8 {
+                T::Tags::influence(&visitor, &tag, *score as i32)?;
+            }
         }
 
         // 4. payout assets

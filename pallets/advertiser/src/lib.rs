@@ -159,6 +159,18 @@ pub mod pallet {
             }
         }
     }
+
+    impl<T: Config> Pallet<T> {
+        pub fn is_advertiser(who: &AccountOf<T>) -> bool {
+            let minimum = T::MinimumDeposit::get();
+
+            let id = <T as Config>::PalletId::get();
+
+            let reserved = T::Currency::reserved_balance_named(&id.0, who);
+
+            reserved >= minimum
+        }
+    }
 }
 
 pub struct EnsureAdvertiser<T>(sp_std::marker::PhantomData<T>);
@@ -166,17 +178,11 @@ impl<T: pallet::Config> EnsureOrigin<T::Origin> for EnsureAdvertiser<T> {
     type Success = (DidOf<T>, AccountOf<T>);
 
     fn try_origin(o: T::Origin) -> Result<Self::Success, T::Origin> {
-        use frame_support::traits::{Get, OriginTrait};
+        use frame_support::traits::OriginTrait;
 
         let (did, who) = EnsureDid::<T>::ensure_origin(o).or(Err(T::Origin::none()))?;
 
-        let minimum = T::MinimumDeposit::get();
-
-        let id = <T as Config>::PalletId::get();
-
-        let reserved = T::Currency::reserved_balance_named(&id.0, &who);
-
-        if reserved >= minimum {
+        if Pallet::<T>::is_advertiser(&who) {
             Ok((did, who))
         } else {
             Err(T::Origin::none())

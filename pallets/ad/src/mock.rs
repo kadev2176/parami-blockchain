@@ -54,7 +54,8 @@ frame_support::construct_runtime!(
         Swap: parami_swap::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>},
         Ad: parami_ad::{Pallet, Call, Storage, Event<T>},
-        AssetIdManager: parami_assetmanager::{Pallet}
+        AssetIdManager: parami_assetmanager::{Pallet},
+        Advertiser: parami_advertiser::{Pallet, Call, Storage, Event<T>}
     }
 );
 
@@ -244,6 +245,8 @@ parameter_types! {
     pub const AdPalletId: PalletId = PalletId(*b"prm/ad  ");
     pub const AdvertiserMinimumFee: Balance = 1;
     pub const SlotLifetime: BlockNumber = 43200;
+    pub const MinimumDeposit: Balance = 10_000_000_000_000_000_000;
+    pub const AdvertiserPalletId: PalletId = PalletId(*b"prm/adve");
 }
 
 impl parami_ad::Config for Test {
@@ -257,13 +260,26 @@ impl parami_ad::Config for Test {
     type WeightInfo = ();
 }
 
+impl parami_advertiser::Config for Test {
+    type Event = Event;
+    type MinimumDeposit = MinimumDeposit;
+    type PalletId = AdvertiserPalletId;
+    type Slash = ();
+    type ForceOrigin = EnsureRoot<Self::AccountId>;
+    type WeightInfo = ();
+}
+
 pub fn new_test_ext() -> sp_io::TestExternalities {
     let mut t = system::GenesisConfig::default()
         .build_storage::<Test>()
         .unwrap();
 
     pallet_balances::GenesisConfig::<Test> {
-        balances: vec![(ALICE, 100), (BOB, 3_000_000_000_000), (CHARLIE, 3_000_000)],
+        balances: vec![
+            (ALICE, 100),
+            (BOB, 3_000_000_000_000_000_000_000),
+            (CHARLIE, 3_000_000),
+        ],
     }
     .assimilate_storage(&mut t)
     .unwrap();

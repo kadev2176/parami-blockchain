@@ -1,5 +1,6 @@
 use crate::{mock::*, AdsOf, Config, DeadlineOf, EndtimeOf, Error, Metadata, SlotOf};
 use frame_support::{assert_noop, assert_ok, traits::Hooks};
+use parami_primitives::constants::DOLLARS;
 use parami_traits::Tags;
 use sp_core::crypto::AccountId32;
 use sp_core::{ByteArray, Pair};
@@ -562,7 +563,7 @@ fn should_pay() {
         let (ad, nft) = prepare_pay!();
 
         // 2. pay
-
+        assert_ok!(Advertiser::deposit(Origin::signed(BOB), 10 * DOLLARS));
         assert_ok!(Ad::pay(
             Origin::signed(BOB),
             ad,
@@ -975,6 +976,7 @@ fn should_claim_all_fractions_if_fractions_less_than_expected() {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
         // create ad
+        assert_ok!(Advertiser::deposit(Origin::signed(BOB), 10 * DOLLARS));
 
         assert_ok!(Ad::create(
             Origin::signed(BOB),
@@ -1057,6 +1059,7 @@ fn should_claim_success_when_signature_exists() {
         let (ad, nft) = prepare_pay!();
 
         // 2. generate sig
+        assert_ok!(Advertiser::deposit(Origin::signed(BOB), 10 * DOLLARS));
 
         let bob_secret_pair: sp_core::sr25519::Pair =
             sp_core::sr25519::Pair::from_string("/Bob", None).unwrap();
@@ -1105,6 +1108,7 @@ fn should_claim_success_when_signature_not_exists() {
         let (ad, nft) = prepare_pay!();
 
         // 2. claim
+
         let res = Ad::claim_without_advertiser_signature(
             Origin::signed(CHARLIE),
             ad,
@@ -1126,9 +1130,8 @@ fn should_claim_success_when_signature_not_exists() {
         );
     });
 }
-
 #[test]
-fn should_not_reward_if_score_is_negative() {
+fn should_not_reward_if_score_is_zero() {
     new_test_ext().execute_with(|| {
         // 1. prepare
         let (ad, nft) = prepare_pay!(1u128, 1u128, 10u128, 10u128);
@@ -1173,5 +1176,107 @@ fn should_not_reward_if_score_is_negative() {
         ));
 
         assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), balance);
+    });
+}
+
+#[test]
+pub fn non_advertisers_should_not_affect_ratin_when_score_diff_is_positive() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay!();
+
+        // 2. generate sig
+        let bob_secret_pair: sp_core::sr25519::Pair =
+            sp_core::sr25519::Pair::from_string("/Bob", None).unwrap();
+        let bod_account_id_32 = AccountId32::new(bob_secret_pair.public().as_array_ref().clone());
+        println!(
+            "ss58 address for BOB is {:?}",
+            bob_secret_pair.public().as_slice()
+        );
+        let msg = Ad::construct_claim_sig_msg(
+            &ad,
+            nft,
+            &DID_CHARLIE,
+            &vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            &None,
+        );
+        let signature = bob_secret_pair.sign(msg.as_slice());
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            5
+        );
+        // 3. claim
+        let res = Ad::claim(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            DID_CHARLIE,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None,
+            sp_runtime::MultiSignature::Sr25519(signature),
+            bod_account_id_32,
+        );
+
+        assert_ok!(res);
+
+        let nft_meta = Nft::meta(nft).unwrap();
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 502);
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            5
+        );
+    });
+}
+
+#[test]
+pub fn non_advertisers_should_not_affect_ratin_when_score_diff_is_negative() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay!();
+
+        // 2. generate sig
+        let bob_secret_pair: sp_core::sr25519::Pair =
+            sp_core::sr25519::Pair::from_string("/Bob", None).unwrap();
+        let bod_account_id_32 = AccountId32::new(bob_secret_pair.public().as_array_ref().clone());
+        println!(
+            "ss58 address for BOB is {:?}",
+            bob_secret_pair.public().as_slice()
+        );
+        let msg = Ad::construct_claim_sig_msg(
+            &ad,
+            nft,
+            &DID_CHARLIE,
+            &vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], -5)],
+            &None,
+        );
+        let signature = bob_secret_pair.sign(msg.as_slice());
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            5
+        );
+        // 3. claim
+        let res = Ad::claim(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            DID_CHARLIE,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], -5)],
+            None,
+            sp_runtime::MultiSignature::Sr25519(signature),
+            bod_account_id_32,
+        );
+
+        assert_ok!(res);
+
+        let nft_meta = Nft::meta(nft).unwrap();
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), 502);
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            0
+        );
     });
 }
