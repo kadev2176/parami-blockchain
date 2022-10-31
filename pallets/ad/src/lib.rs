@@ -865,7 +865,12 @@ impl<T: Config> Pallet<T> {
         scoring /= length.saturating_mul(10).saturating_add(1) as i32;
 
         if scoring < 0 {
-            scoring = 0;
+            return Ok(RewardInfo {
+                total: 0u32.into(),
+                for_visitor: 0u32.into(),
+                for_referrer: 0u32.into(),
+                fungibles: 0u32.into(),
+            });
         }
 
         let scoring = scoring as u32;

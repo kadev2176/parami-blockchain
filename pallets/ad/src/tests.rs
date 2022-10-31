@@ -507,18 +507,18 @@ fn should_drawback_when_ad_expired() {
     });
 }
 macro_rules! prepare_pay {
-    ($a:expr,$b:expr,$c: expr) => {
-        _prepare_pay($a, $b, $c)
+    ($a:expr,$b:expr,$c: expr, $d: expr) => {
+        _prepare_pay($a, $b, $c, $d)
     };
 
     () => {
-        _prepare_pay(1u128, 0u128, 10u128)
+        _prepare_pay(1u128, 0u128, 10u128, 400u128)
     };
 }
 
 type HashOf<T> = <<T as frame_system::Config>::Hashing as Hash>::Output;
 type NftOf<T> = <T as parami_nft::Config>::AssetId;
-fn _prepare_pay(base: u128, min: u128, max: u128) -> (HashOf<Test>, NftOf<Test>) {
+fn _prepare_pay(base: u128, min: u128, max: u128, amount: u128) -> (HashOf<Test>, NftOf<Test>) {
     // 1. prepare
 
     let nft = Nft::preferred(DID_ALICE).unwrap();
@@ -532,27 +532,27 @@ fn _prepare_pay(base: u128, min: u128, max: u128) -> (HashOf<Test>, NftOf<Test>)
         ],
         [0u8; 64].into(),
         1,
-        1,
+        10,
         base,
         min,
         max,
         None
     ));
 
-    let ad = <Metadata<Test>>::iter_keys().next().unwrap();
+    let ads = <AdsOf<Test>>::get(DID_BOB).unwrap();
+    let ad = ads.get(ads.len() - 1).unwrap();
 
     // bid
-
     assert_ok!(Ad::bid_with_fraction(
         Origin::signed(BOB),
-        ad,
+        ad.clone(),
         nft,
-        400,
+        amount,
         None,
         None
     ));
 
-    return (ad, nft);
+    return (ad.clone(), nft);
 }
 
 #[test]
@@ -627,7 +627,7 @@ fn should_pay_0_when_all_tags_score_are_zero() {
 fn should_pay_5_when_all_tags_score_are_zero_with_payout_min_is_5() {
     new_test_ext().execute_with(|| {
         // 1. prepare
-        let (ad, nft) = prepare_pay!(1u128, 5u128, 10u128);
+        let (ad, nft) = prepare_pay!(1u128, 5u128, 10u128, 400u128);
         let nft_meta = Nft::meta(nft).unwrap();
         // 2 pay
         assert_ok!(Ad::pay(
@@ -1124,5 +1124,54 @@ fn should_claim_success_when_signature_not_exists() {
             Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
             0 // Curious, right? It's a ridiculous implementation
         );
+    });
+}
+
+#[test]
+fn should_not_reward_if_score_is_negative() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let (ad, nft) = prepare_pay!(1u128, 1u128, 10u128, 10u128);
+
+        // 2. claim
+        assert_ok!(Ad::claim_without_advertiser_signature(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None,
+        ));
+
+        System::set_block_number(1);
+        let (ad, nft) = prepare_pay!(1u128, 1u128, 10u128, 15u128);
+
+        assert_ok!(Ad::claim_without_advertiser_signature(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None,
+        ));
+
+        let nft_meta = Nft::meta(nft).unwrap();
+        let balance = Assets::balance(nft_meta.token_asset_id, &CHARLIE);
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            -5
+        );
+
+        System::set_block_number(2);
+        let (ad, nft) = prepare_pay!(1u128, 1u128, 10u128, 30u128);
+
+        assert_ok!(Ad::claim_without_advertiser_signature(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)],
+            None,
+        ));
+
+        assert_eq!(Assets::balance(nft_meta.token_asset_id, &CHARLIE), balance);
     });
 }
