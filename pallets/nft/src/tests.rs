@@ -6,12 +6,11 @@ use crate::{
 use codec::Decode;
 use frame_support::{assert_noop, assert_ok, traits::fungibles::Mutate};
 use parami_primitives::constants::DOLLARS;
-use parami_traits::{types::Network, Nfts, Swaps};
+use parami_traits::{transferable::Transferable, types::Network, Swaps};
 use parking_lot::RwLock;
 use sp_core::offchain::{testing, OffchainWorkerExt, TransactionPoolExt};
 use sp_runtime::offchain::testing::PoolState;
 use sp_runtime::traits::AccountIdConversion;
-use sp_runtime::DispatchResult;
 use sp_std::prelude::*;
 use std::sync::Arc;
 
@@ -711,7 +710,7 @@ fn should_transfer_all_assets() {
         assert_eq!(Assets::balance(0, &BOB), 0);
         assert_eq!(Assets::balance(1, &BOB), 0);
 
-        assert_ok!(Nft::force_transfer_all_fractions(&ALICE, &BOB));
+        assert_ok!(<(Nft,)>::transfer_all(&ALICE, &BOB));
 
         assert_eq!(Assets::balance(0, &ALICE), 0);
         assert_eq!(Assets::balance(1, &ALICE), 0);

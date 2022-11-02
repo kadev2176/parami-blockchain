@@ -26,7 +26,6 @@ use frame_support::{
     },
 };
 use parami_did_utils::derive_storage_key;
-use parami_traits::Nfts;
 use sp_runtime::{
     traits::{
         Hash, LookupError, MaybeDisplay, MaybeMallocSizeOf, MaybeSerializeDeserialize, Member,
@@ -49,6 +48,7 @@ pub mod pallet {
     use super::*;
     use frame_support::pallet_prelude::*;
     use frame_system::pallet_prelude::*;
+    use parami_traits::transferable::Transferable;
 
     #[pallet::config]
     pub trait Config: frame_system::Config {
@@ -84,7 +84,7 @@ pub mod pallet {
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
 
-        type Nfts: Nfts<AccountOf<Self>>;
+        type Transferables: Transferable<AccountOf<Self>>;
     }
 
     #[pallet::pallet]
@@ -177,7 +177,7 @@ pub mod pallet {
 
             let ad3_balance = T::Currency::total_balance(&source);
             T::Currency::transfer(&source, &dest, ad3_balance, AllowDeath)?;
-            T::Nfts::force_transfer_all_fractions(&source, &dest)?;
+            T::Transferables::transfer_all(&source, &dest)?;
 
             <Metadata<T>>::insert(did, meta);
             <DidOf<T>>::remove(&source);

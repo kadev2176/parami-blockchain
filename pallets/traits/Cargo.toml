@@ -30,6 +30,7 @@ sp-runtime = { git = 'https://github.com/paritytech/substrate', branch = 'polkad
 sp-std = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.24', default-features = false }
 
 frame-support = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.24', default-features = false }
+impl-trait-for-tuples = "0.2.2"
 
 [features]
 default = ['std']

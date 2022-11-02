@@ -930,18 +930,6 @@ impl<T: Config> Nfts<AccountOf<T>> for Pallet<T> {
     type Balance = BalanceOf<T>;
     type NftId = <T as pallet::Config>::AssetId;
 
-    fn force_transfer_all_fractions(
-        src: &AccountOf<T>,
-        dest: &AccountOf<T>,
-    ) -> Result<(), DispatchError> {
-        for (_nft_id, nft_meta) in <Metadata<T>>::iter() {
-            let balance = T::Assets::balance(nft_meta.token_asset_id, &src);
-            T::Assets::transfer(nft_meta.token_asset_id, src, dest, balance, false)?;
-        }
-
-        Ok(())
-    }
-
     fn get_claim_info(
         nft_id: Self::NftId,
         claimer: &Self::DecentralizedId,
@@ -959,5 +947,18 @@ impl<T: Config> Nfts<AccountOf<T>> for Pallet<T> {
 
     fn get_nft_pot(nft_id: Self::NftId) -> Option<AccountOf<T>> {
         <Metadata<T>>::get(nft_id).map(|meta| meta.pot)
+    }
+}
+
+use parami_traits::transferable::Transferable;
+
+impl<T: Config> Transferable<AccountOf<T>> for Pallet<T> {
+    fn transfer_all(src: &AccountOf<T>, dest: &AccountOf<T>) -> Result<(), DispatchError> {
+        for (_nft_id, nft_meta) in <Metadata<T>>::iter() {
+            let balance = T::Assets::balance(nft_meta.token_asset_id, &src);
+            T::Assets::transfer(nft_meta.token_asset_id, src, dest, balance, false)?;
+        }
+
+        Ok(())
     }
 }

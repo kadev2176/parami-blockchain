@@ -3,6 +3,8 @@
 mod links;
 pub use links::Links;
 
+pub mod transferable;
+
 mod swaps;
 pub use swaps::Swaps;
 

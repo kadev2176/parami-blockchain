@@ -88,7 +88,7 @@ impl parami_did::Config for Test {
     type DecentralizedId = sp_core::H160;
     type Hashing = Keccak256;
     type WeightInfo = ();
-    type Nfts = ();
+    type Transferables = ();
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {

@@ -6674,6 +6674,7 @@ name = "parami-traits"
 version = "3.0.0"
 dependencies = [
  "frame-support",
+ "impl-trait-for-tuples",
  "parami-primitives",
  "parity-scale-codec",
  "scale-info",
