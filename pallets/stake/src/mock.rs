@@ -19,7 +19,6 @@ pub const BOB: sr25519::Public = sr25519::Public([
     242, 60, 222, 145, 142, 98, 183, 108, 10, 190, 123,
 ]);
 pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
-pub const DAVE: sr25519::Public = sr25519::Public([4; 32]);
 
 frame_support::construct_runtime!(
     pub enum Test where
@@ -116,8 +115,9 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
     pub const StakePalletId: PalletId = PalletId(*b"prm/stak");
-    pub const OneMillionNormalizedInitDailyOutputConst: Balance = (500_000u128 * 10u128.pow(18)) / 7u128;
-    pub const SevenDaysInBlockNum: BlockNumber = 7 * 24 * 60 * 5; //7 days
+    pub const OneMillionNormalizedInitDailyOutputConst: Balance = (500_000u128 * 10u128.pow(18)) / 45u128;
+    pub const SevenDaysInBlockNum: BlockNumber = 45 * 24 * 60 * 5; //45 days
+    pub const BlocksPerDayParam: BlockNumber = 24 * 60 * 5;
 }
 
 impl parami_stake::Config for Test {
@@ -127,7 +127,8 @@ impl parami_stake::Config for Test {
     type Currency = Balances;
     type PalletId = StakePalletId;
     type OneMillionNormalizedInitDailyOutput = OneMillionNormalizedInitDailyOutputConst;
-    type DurationInBlockNum = SevenDaysInBlockNum;
+    type HalvingDurationInBlockNum = SevenDaysInBlockNum;
+    type BlocksPerDay = BlocksPerDayParam;
     type WeightInfo = ();
 }
 

@@ -4,6 +4,7 @@ use frame_support::{
     parameter_types, traits::AsEnsureOriginWithArg, traits::GenesisBuild, PalletId,
 };
 use frame_system::{self as system, EnsureRoot, EnsureSigned};
+use parami_primitives::constants::DOLLARS;
 use sp_core::{sr25519, H160, H256};
 use sp_runtime::{
     testing::{Header, TestXt},
@@ -215,6 +216,7 @@ impl parami_ocw::Config for Test {}
 
 parameter_types! {
     pub const SwapPalletId: PalletId = PalletId(*b"prm/swap");
+    pub const StakingRewardAmountParam: u128 = 7_000_000 * DOLLARS;
 }
 
 impl parami_swap::Config for Test {
@@ -222,9 +224,10 @@ impl parami_swap::Config for Test {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
-    type FarmingCurve = ();
     type PalletId = SwapPalletId;
     type WeightInfo = ();
+    type StakingRewardAmount = StakingRewardAmountParam;
+    type Stakes = ();
 }
 
 parameter_types! {

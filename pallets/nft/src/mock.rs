@@ -67,7 +67,7 @@ frame_support::construct_runtime!(
         Nft: parami_nft::{Pallet, Call, Storage, Event<T>},
         Linker: parami_linker::{Pallet, Call, Storage, Event<T>},
         Tag: parami_tag::{Pallet, Call, Storage, Event<T>},
-        AssetManager: parami_assetmanager::{Pallet}
+        AssetManager: parami_assetmanager::{Pallet},
     }
 );
 
@@ -196,6 +196,7 @@ impl parami_ocw::Config for Test {}
 
 parameter_types! {
     pub const SwapPalletId: PalletId = PalletId(*b"prm/swap");
+    pub const StakingRewardAmountParam: u128 = 7_000_000 * DOLLARS;
 }
 
 impl parami_swap::Config for Test {
@@ -203,8 +204,9 @@ impl parami_swap::Config for Test {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
-    type FarmingCurve = ();
     type PalletId = SwapPalletId;
+    type StakingRewardAmount = StakingRewardAmountParam;
+    type Stakes = ();
     type WeightInfo = ();
 }
 

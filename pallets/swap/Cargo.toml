@@ -42,6 +42,8 @@ sp-io = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0
 pallet-assets = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.24' }
 pallet-balances = { git = 'https://github.com/paritytech/substrate', branch = 'polkadot-v0.9.24' }
 
+parami-primitives = { path = '../../primitives', default-features = false }
+
 [features]
 default = ['std']
 

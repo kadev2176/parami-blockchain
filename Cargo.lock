@@ -6609,6 +6609,7 @@ dependencies = [
  "frame-system",
  "pallet-assets",
  "pallet-balances",
+ "parami-primitives",
  "parami-traits",
  "parity-scale-codec",
  "scale-info",

@@ -120,7 +120,7 @@ pub trait Swaps<AccountId> {
     /// * `tokens` - The amount of tokens involved
     /// * `liquidity` - The amount of liquidity minted
     fn mint(
-        who: AccountId,
+        who: &AccountId,
         token_id: Self::AssetId,
         currency: Self::QuoteBalance,
         min_liquidity: Self::TokenBalance,
@@ -170,7 +170,7 @@ pub trait Swaps<AccountId> {
     /// * `tokens` - The amount of tokens returned
     /// * `currency` - The currency returned
     fn burn(
-        who: AccountId,
+        who: &AccountId,
         lp_token_id: Self::AssetId,
         min_currency: Self::QuoteBalance,
         min_tokens: Self::TokenBalance,

@@ -21,6 +21,7 @@ use frame_support::{
     },
     PalletId,
 };
+use parami_traits::Stakes;
 use sp_core::U512;
 use sp_runtime::traits::{
     AccountIdConversion, AtLeast32BitUnsigned, Bounded, Hash, Saturating, Zero,
@@ -106,7 +107,10 @@ pub mod pallet {
         type OneMillionNormalizedInitDailyOutput: Get<BalanceOf<Self>>;
 
         #[pallet::constant]
-        type DurationInBlockNum: Get<Self::BlockNumber>;
+        type HalvingDurationInBlockNum: Get<Self::BlockNumber>;
+
+        #[pallet::constant]
+        type BlocksPerDay: Get<Self::BlockNumber>;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -151,7 +155,10 @@ pub mod pallet {
 
     #[pallet::event]
     #[pallet::generate_deposit(pub fn deposit_event)]
-    pub enum Event<T> {}
+    pub enum Event<T: Config> {
+        Staked(AssetIdOf<T>, AccountOf<T>, BalanceOf<T>),
+        RewardPaid(AssetIdOf<T>, AccountOf<T>, BalanceOf<T>),
+    }
 
     #[pallet::error]
     pub enum Error<T> {
@@ -167,66 +174,6 @@ pub mod pallet {
 
     impl<T: Config> Pallet<T> {
         /*
-        uint256 public constant DURATION = 7 days;
-        uint256 public earnings_per_share; //每股分红
-        uint256 public lastblock; //上次修改每股分红的时间
-        uint256 public starttime = 111; //
-        uint256 public DailyOutput = 1428 * 1e18; //10000/7
-        uint256 public Halvetime; //减半的时间
-
-        constructor ()public{
-            Halvetime = block.timestamp + DURATION;
-        }
-        */
-
-        pub fn start(
-            asset_id: AssetIdOf<T>,
-            reward_total_amount: BalanceOf<T>,
-        ) -> Result<(), DispatchError> {
-            let already_exists = <StakingActivityStore<T>>::contains_key(asset_id);
-            ensure!(!already_exists, Error::<T>::ActivityAlreadyExists);
-
-            let cur_blocknum = <frame_system::Pallet<T>>::block_number();
-            let duration = T::DurationInBlockNum::get();
-
-            let normalized_daily_output_u128: u128 = T::OneMillionNormalizedInitDailyOutput::get()
-                .try_into()
-                .map_err(|_| Error::<T>::TypeCastError)?;
-
-            let normalized_daily_output = U512::try_from(normalized_daily_output_u128)
-                .map_err(|_| Error::<T>::TypeCastError)?;
-            let one_million_in_balance = U512::try_from(1_000_000u128 * 10u128.pow(18))
-                .map_err(|_| Error::<T>::TypeCastError)?;
-            let reward_total_amount_u128: u128 = TryInto::<u128>::try_into(reward_total_amount)
-                .map_err(|_| Error::<T>::TypeCastError)?;
-            let reward_total_amount_u512: U512 =
-                U512::try_from(reward_total_amount_u128).map_err(|_| Error::<T>::TypeCastError)?;
-
-            let daily_output_u512: U512 =
-                normalized_daily_output * reward_total_amount_u512 / one_million_in_balance;
-            let daily_output_u128: u128 = TryInto::<u128>::try_into(daily_output_u512)
-                .map_err(|_| Error::<T>::TypeCastError)?;
-            let daily_output_balance = TryInto::<BalanceOf<T>>::try_into(daily_output_u128)
-                .map_err(|_| Error::<T>::TypeCastError)?;
-            <StakingActivityStore<T>>::insert(
-                asset_id,
-                types::StakingActivity {
-                    asset_id,
-                    reward_total_amount,
-                    reward_total_remains: reward_total_amount,
-                    reward_pot: Self::to_staking_reward_pot(&asset_id),
-                    start_block_num: cur_blocknum,
-                    halve_time: cur_blocknum.saturating_add(duration),
-                    lastblock: cur_blocknum,
-                    total_supply: BalanceOf::<T>::zero(),
-                    earnings_per_share: BalanceOf::<T>::zero(),
-                    daily_output: daily_output_balance,
-                },
-            );
-            Ok(())
-        }
-
-        /*
          function getPerBlockOutput() public view returns (uint256) {
                return DailyOutput.div(6646);// 13秒1个区块,每天大概是6646个区块 //https://etherscan.io/chart/blocktime
          }
@@ -235,8 +182,10 @@ pub mod pallet {
             let activity =
                 <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
             //one block per 12 seconds, so 1 day has 7200 blocks
-            //TODO(ironman_ch): use const in parami_primitive
-            Ok(activity.daily_output / 7200u32.into())
+            let blocks_per_day_u32: u32 = T::BlocksPerDay::get()
+                .try_into()
+                .map_err(|_| Error::<T>::TypeCastError)?;
+            Ok(activity.daily_output / blocks_per_day_u32.into())
         }
 
         /*
@@ -261,7 +210,7 @@ pub mod pallet {
                 <StakingActivityStore<T>>::mutate(activity.asset_id, |activity| {
                     if let Some(activity) = activity {
                         activity.daily_output = activity.daily_output / 2u32.into();
-                        activity.halve_time = cur_block_num + T::DurationInBlockNum::get();
+                        activity.halve_time = cur_block_num + T::HalvingDurationInBlockNum::get();
                     }
                 });
             }
@@ -283,217 +232,6 @@ pub mod pallet {
             let per_block_output = Self::get_per_block_output(activity.asset_id)?;
             let profit = per_block_output.saturating_mul(diff.into());
             Ok(profit)
-        }
-
-        /*
-            modifier make_profit() {
-               uint256 amount = getprofit();
-               if (amount > 0) {
-                   yfi.mint(address(this), amount);
-                   if (totalSupply() == 0){
-                       earnings_per_share = 0;
-                   }else{
-                       earnings_per_share = earnings_per_share.add(
-                       amount.div(totalSupply())
-                   );
-                   }
-
-               }
-               _;
-           }
-        */
-        pub fn make_profit(asset_id: AssetIdOf<T>) -> Result<(), DispatchError> {
-            let activity =
-                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
-            let amount = Self::get_profit(&activity)?;
-            // take the min of diff_profit and reward_total_remains
-            let amount = amount.min(activity.reward_total_remains);
-
-            if amount > Zero::zero() {
-                let pot = Self::to_staking_reward_pot(&asset_id);
-                T::Assets::mint_into(asset_id, &pot, amount)?;
-                <StakingActivityStore<T>>::mutate(asset_id, |activity| {
-                    if let Some(activity) = activity {
-                        activity.reward_total_remains -= amount;
-                    }
-                });
-
-                if activity.total_supply == Zero::zero() {
-                    <StakingActivityStore<T>>::mutate(asset_id, |activity| {
-                        if let Some(activity) = activity {
-                            activity.earnings_per_share = Zero::zero();
-                        }
-                    });
-                } else {
-                    <StakingActivityStore<T>>::mutate(asset_id, |activity| {
-                        if let Some(activity) = activity {
-                            activity.earnings_per_share += amount / activity.total_supply;
-                        }
-                    });
-                }
-            }
-            Ok(())
-        }
-
-        /*
-        refer to YearnRewards's stake implementation:
-
-        require(block.timestamp >starttime,"not start");
-        require(amount > 0, "Cannot stake 0");
-        if (earnings_per_share == 0){
-            rewards[msg.sender] = 0;
-        }else{
-            rewards[msg.sender] = rewards[msg.sender].add(
-                earnings_per_share.mul(amount)
-            );
-        }
-        super.stake(amount);
-        emit Staked(msg.sender, amount);
-        */
-        pub fn stake(
-            amount: BalanceOf<T>,
-            asset_id: AssetIdOf<T>,
-            account: &AccountOf<T>,
-        ) -> Result<(), sp_runtime::DispatchError> {
-            // 1. call make_profit first
-            Self::make_profit(asset_id)?;
-
-            // Others
-            let reward_activity =
-                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
-
-            let cur_block = <frame_system::Pallet<T>>::block_number();
-            ensure!(
-                cur_block >= reward_activity.start_block_num,
-                Error::<T>::ActivityNotStarted
-            );
-            ensure!(amount > Zero::zero(), Error::<T>::InvalidAmount);
-
-            if reward_activity.earnings_per_share == Zero::zero() {
-                <UserStakingRewardStore<T>>::mutate(asset_id, &account, |rewards| {
-                    rewards.set_zero();
-                });
-            } else {
-                <UserStakingRewardStore<T>>::mutate(asset_id, &account, |rewards| {
-                    rewards.saturating_accrue(reward_activity.earnings_per_share * amount)
-                });
-            }
-
-            Self::stake_inner(asset_id, &account, amount);
-
-            Ok(())
-            // TODO(ironman_ch): emit Staked(msg.sender, amount);
-        }
-
-        /*
-         function withdraw(uint256 amount) public make_profit
-           {
-               require(amount > 0, "Cannot withdraw 0");
-               getReward();
-
-               rewards[msg.sender] = rewards[msg.sender].sub(
-                   earnings_per_share.mul(amount)
-               );
-               super.withdraw(amount);
-               emit Withdrawn(msg.sender, amount);
-           }
-        */
-        pub fn withdraw(
-            asset_id: AssetIdOf<T>,
-            account: &AccountOf<T>,
-            amount: BalanceOf<T>,
-        ) -> Result<(), sp_runtime::DispatchError> {
-            // 1. call make_profit();
-            Self::make_profit(asset_id)?;
-
-            ensure!(amount > Zero::zero(), Error::<T>::InvalidAmount);
-            //
-
-            let activity =
-                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
-
-            Self::get_reward(asset_id, &account)?;
-
-            <UserStakingRewardStore<T>>::mutate(asset_id, &account, |user_staking_reward| {
-                user_staking_reward.saturating_accrue(activity.earnings_per_share * amount)
-            });
-
-            Self::withdraw_inner(asset_id, &account, amount);
-            Ok(())
-        }
-
-        /*
-         function exit() external {
-               withdraw(balanceOf(msg.sender));
-           }
-        */
-        pub fn exit(asset_id: AssetIdOf<T>, account: &AccountOf<T>) -> Result<(), DispatchError> {
-            let amount = <UserStakingBalanceStore<T>>::get(asset_id, account);
-            Self::withdraw(asset_id, account, amount)?;
-            Ok(())
-        }
-
-        /*
-         function getReward() public make_profit  {
-               uint256 reward = earned(msg.sender);
-               if (reward > 0) {
-                   rewards[msg.sender] = earnings_per_share.mul(balanceOf(msg.sender));
-                   yfi.safeTransfer(msg.sender, reward);
-                   emit RewardPaid(msg.sender, reward);
-               }
-           }
-        */
-        pub fn get_reward(
-            asset_id: AssetIdOf<T>,
-            account: &AccountOf<T>,
-        ) -> Result<BalanceOf<T>, DispatchError> {
-            //1. make_profit first
-            Self::make_profit(asset_id)?;
-
-            //Others
-            let reward = Self::earned(asset_id, account)?;
-            let activity =
-                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
-            if reward > Zero::zero() {
-                <UserStakingRewardStore<T>>::insert(
-                    activity.asset_id,
-                    account,
-                    activity.earnings_per_share
-                        * Self::staking_balance_of_inner(activity.asset_id, account),
-                );
-                Self::transfer_to(activity.asset_id, account, reward)?;
-                //TODO(ironman_ch): emit RewardPaid(msg.sender, reward);
-            }
-
-            Ok(reward)
-        }
-
-        /*
-         function earned(address account) public view returns (uint256) {
-               uint256 _cal = earnings_per_share.mul(balanceOf(account));
-               if (_cal < rewards[msg.sender]) {
-                   return 0;
-               } else {
-                   return _cal.sub(rewards[msg.sender]);
-               }
-           }
-        */
-        pub fn earned(
-            asset_id: AssetIdOf<T>,
-            account: &AccountOf<T>,
-        ) -> Result<BalanceOf<T>, DispatchError> {
-            let activity =
-                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
-            let cal = activity.earnings_per_share
-                * Self::staking_balance_of_inner(activity.asset_id, account);
-
-            let cur_reward_of_user = <UserStakingRewardStore<T>>::get(activity.asset_id, account);
-
-            if cal < cur_reward_of_user {
-                return Ok(Zero::zero());
-            } else {
-                return Ok(cal.saturating_sub(cur_reward_of_user));
-            }
         }
 
         /*
@@ -547,6 +285,287 @@ pub mod pallet {
         ) -> Result<(), DispatchError> {
             let activity_reward_pot = Self::to_staking_reward_pot(&asset_id);
             T::Assets::transfer(asset_id, &activity_reward_pot, account, amount, false)?;
+            Ok(())
+        }
+    }
+
+    impl<T: Config> Stakes<AccountOf<T>> for Pallet<T> {
+        type AssetId = AssetIdOf<T>;
+        type Balance = BalanceOf<T>;
+
+        /*
+        uint256 public constant DURATION = 7 days;
+        uint256 public earnings_per_share; //每股分红
+        uint256 public lastblock; //上次修改每股分红的时间
+        uint256 public starttime = 111; //
+        uint256 public DailyOutput = 1428 * 1e18; //10000/7
+        uint256 public Halvetime; //减半的时间
+
+        constructor ()public{
+            Halvetime = block.timestamp + DURATION;
+        }
+        */
+
+        fn start(
+            asset_id: AssetIdOf<T>,
+            reward_total_amount: BalanceOf<T>,
+        ) -> Result<(), DispatchError> {
+            let already_exists = <StakingActivityStore<T>>::contains_key(asset_id);
+            ensure!(!already_exists, Error::<T>::ActivityAlreadyExists);
+
+            ensure!(
+                reward_total_amount > Zero::zero(),
+                Error::<T>::InvalidAmount
+            );
+
+            let cur_blocknum = <frame_system::Pallet<T>>::block_number();
+            let duration = T::HalvingDurationInBlockNum::get();
+
+            let normalized_daily_output_u128: u128 = T::OneMillionNormalizedInitDailyOutput::get()
+                .try_into()
+                .map_err(|_| Error::<T>::TypeCastError)?;
+
+            let normalized_daily_output = U512::try_from(normalized_daily_output_u128)
+                .map_err(|_| Error::<T>::TypeCastError)?;
+            let one_million_in_balance = U512::try_from(1_000_000u128 * 10u128.pow(18))
+                .map_err(|_| Error::<T>::TypeCastError)?;
+            let reward_total_amount_u128: u128 = TryInto::<u128>::try_into(reward_total_amount)
+                .map_err(|_| Error::<T>::TypeCastError)?;
+            let reward_total_amount_u512: U512 =
+                U512::try_from(reward_total_amount_u128).map_err(|_| Error::<T>::TypeCastError)?;
+
+            let daily_output_u512: U512 =
+                normalized_daily_output * reward_total_amount_u512 / one_million_in_balance;
+            let daily_output_u128: u128 = TryInto::<u128>::try_into(daily_output_u512)
+                .map_err(|_| Error::<T>::TypeCastError)?;
+            let daily_output_balance = TryInto::<BalanceOf<T>>::try_into(daily_output_u128)
+                .map_err(|_| Error::<T>::TypeCastError)?;
+            <StakingActivityStore<T>>::insert(
+                asset_id,
+                types::StakingActivity {
+                    asset_id,
+                    reward_total_amount,
+                    reward_total_remains: reward_total_amount,
+                    reward_pot: Self::to_staking_reward_pot(&asset_id),
+                    start_block_num: cur_blocknum,
+                    halve_time: cur_blocknum.saturating_add(duration),
+                    lastblock: cur_blocknum,
+                    total_supply: BalanceOf::<T>::zero(),
+                    earnings_per_share: BalanceOf::<T>::zero(),
+                    daily_output: daily_output_balance,
+                },
+            );
+            Ok(())
+        }
+
+        /*
+            modifier make_profit() {
+               uint256 amount = getprofit();
+               if (amount > 0) {
+                   yfi.mint(address(this), amount);
+                   if (totalSupply() == 0){
+                       earnings_per_share = 0;
+                   }else{
+                       earnings_per_share = earnings_per_share.add(
+                       amount.div(totalSupply())
+                   );
+                   }
+
+               }
+               _;
+           }
+        */
+        fn make_profit(asset_id: Self::AssetId) -> Result<(), DispatchError> {
+            let activity =
+                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
+            let amount = Self::get_profit(&activity)?;
+            // take the min of diff_profit and reward_total_remains
+            let amount = amount.min(activity.reward_total_remains);
+
+            if amount > Zero::zero() {
+                let pot = Self::to_staking_reward_pot(&asset_id);
+                T::Assets::mint_into(asset_id, &pot, amount)?;
+                <StakingActivityStore<T>>::mutate(asset_id, |activity| {
+                    if let Some(activity) = activity {
+                        activity.reward_total_remains -= amount;
+                    }
+                });
+
+                if activity.total_supply == Zero::zero() {
+                    <StakingActivityStore<T>>::mutate(asset_id, |activity| {
+                        if let Some(activity) = activity {
+                            activity.earnings_per_share = Zero::zero();
+                        }
+                    });
+                } else {
+                    <StakingActivityStore<T>>::mutate(asset_id, |activity| {
+                        if let Some(activity) = activity {
+                            activity.earnings_per_share += amount / activity.total_supply;
+                        }
+                    });
+                }
+            }
+            Ok(())
+        }
+
+        /*
+        refer to YearnRewards's stake implementation:
+
+        require(block.timestamp >starttime,"not start");
+        require(amount > 0, "Cannot stake 0");
+        if (earnings_per_share == 0){
+            rewards[msg.sender] = 0;
+        }else{
+            rewards[msg.sender] = rewards[msg.sender].add(
+                earnings_per_share.mul(amount)
+            );
+        }
+        super.stake(amount);
+        emit Staked(msg.sender, amount);
+        */
+        fn stake(
+            asset_id: Self::AssetId,
+            account: &AccountOf<T>,
+            amount: Self::Balance,
+        ) -> Result<(), sp_runtime::DispatchError> {
+            // 1. call make_profit first
+            Self::make_profit(asset_id)?;
+
+            // Others
+            let reward_activity =
+                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
+
+            let cur_block = <frame_system::Pallet<T>>::block_number();
+            ensure!(
+                cur_block >= reward_activity.start_block_num,
+                Error::<T>::ActivityNotStarted
+            );
+            ensure!(amount > Zero::zero(), Error::<T>::InvalidAmount);
+
+            if reward_activity.earnings_per_share == Zero::zero() {
+                <UserStakingRewardStore<T>>::mutate(asset_id, &account, |rewards| {
+                    rewards.set_zero();
+                });
+            } else {
+                <UserStakingRewardStore<T>>::mutate(asset_id, &account, |rewards| {
+                    rewards.saturating_accrue(reward_activity.earnings_per_share * amount)
+                });
+            }
+
+            Self::stake_inner(asset_id, &account, amount);
+
+            Self::deposit_event(Event::Staked(asset_id, account.clone(), amount));
+            Ok(())
+        }
+
+        /*
+         function earned(address account) public view returns (uint256) {
+               uint256 _cal = earnings_per_share.mul(balanceOf(account));
+               if (_cal < rewards[msg.sender]) {
+                   return 0;
+               } else {
+                   return _cal.sub(rewards[msg.sender]);
+               }
+           }
+        */
+        fn earned(
+            asset_id: AssetIdOf<T>,
+            account: &AccountOf<T>,
+        ) -> Result<BalanceOf<T>, DispatchError> {
+            let activity =
+                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
+            let cal = activity.earnings_per_share
+                * Self::staking_balance_of_inner(activity.asset_id, account);
+
+            let cur_reward_of_user = <UserStakingRewardStore<T>>::get(activity.asset_id, account);
+
+            if cal < cur_reward_of_user {
+                return Ok(Zero::zero());
+            } else {
+                return Ok(cal.saturating_sub(cur_reward_of_user));
+            }
+        }
+
+        /*
+         function getReward() public make_profit  {
+               uint256 reward = earned(msg.sender);
+               if (reward > 0) {
+                   rewards[msg.sender] = earnings_per_share.mul(balanceOf(msg.sender));
+                   yfi.safeTransfer(msg.sender, reward);
+                   emit RewardPaid(msg.sender, reward);
+               }
+           }
+        */
+        fn get_reward(
+            asset_id: Self::AssetId,
+            account: &AccountOf<T>,
+        ) -> Result<Self::Balance, DispatchError> {
+            //1. make_profit first
+            Self::make_profit(asset_id)?;
+
+            //Others
+            let reward = Self::earned(asset_id, account)?;
+            let activity =
+                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
+            if reward > Zero::zero() {
+                <UserStakingRewardStore<T>>::insert(
+                    activity.asset_id,
+                    account,
+                    activity.earnings_per_share
+                        * Self::staking_balance_of_inner(activity.asset_id, account),
+                );
+                Self::transfer_to(activity.asset_id, account, reward)?;
+                Self::deposit_event(Event::RewardPaid(asset_id, account.clone(), reward));
+            }
+
+            Ok(reward)
+        }
+
+        /*
+         function withdraw(uint256 amount) public make_profit
+           {
+               require(amount > 0, "Cannot withdraw 0");
+               getReward();
+
+               rewards[msg.sender] = rewards[msg.sender].sub(
+                   earnings_per_share.mul(amount)
+               );
+               super.withdraw(amount);
+               emit Withdrawn(msg.sender, amount);
+           }
+        */
+        fn withdraw(
+            asset_id: Self::AssetId,
+            account: &AccountOf<T>,
+            amount: Self::Balance,
+        ) -> Result<(), sp_runtime::DispatchError> {
+            // 1. call make_profit();
+            Self::make_profit(asset_id)?;
+
+            ensure!(amount > Zero::zero(), Error::<T>::InvalidAmount);
+            //
+
+            let activity =
+                <StakingActivityStore<T>>::get(asset_id).ok_or(Error::<T>::ActivityNotExists)?;
+
+            Self::get_reward(asset_id, &account)?;
+
+            <UserStakingRewardStore<T>>::mutate(asset_id, &account, |user_staking_reward| {
+                user_staking_reward.saturating_accrue(activity.earnings_per_share * amount)
+            });
+
+            Self::withdraw_inner(asset_id, &account, amount);
+            Ok(())
+        }
+
+        /*
+         function exit() external {
+               withdraw(balanceOf(msg.sender));
+           }
+        */
+        fn exit(asset_id: Self::AssetId, account: &AccountOf<T>) -> Result<(), DispatchError> {
+            let amount = <UserStakingBalanceStore<T>>::get(asset_id, account);
+            Self::withdraw(asset_id, account, amount)?;
             Ok(())
         }
     }

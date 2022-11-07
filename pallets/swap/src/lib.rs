@@ -1,6 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
-pub use farming::{FarmingCurve, LinearFarmingCurve};
 pub use pallet::*;
 
 #[rustfmt::skip]
@@ -15,7 +14,6 @@ mod tests;
 #[cfg(feature = "runtime-benchmarks")]
 mod benchmarking;
 
-mod farming;
 mod functions;
 mod impl_swaps;
 pub mod migrations;
@@ -27,14 +25,17 @@ use frame_support::{
     ensure,
     traits::{
         tokens::fungibles::{
-            InspectMetadata as FungMeta, Mutate as FungMutate, Transfer as FungTransfer,
+            Inspect as FungInspect, InspectMetadata as FungMeta, Mutate as FungMutate,
+            Transfer as FungTransfer,
         },
         Currency, Get,
     },
     PalletId,
 };
+use parami_traits::Stakes;
 use parami_traits::Swaps;
 use sp_runtime::traits::{AtLeast32BitUnsigned, Bounded, Saturating, Zero};
+use sp_runtime::DispatchError;
 use sp_std::prelude::*;
 
 use weights::WeightInfo;
@@ -71,17 +72,20 @@ pub mod pallet {
         /// The assets trait to create, mint, and transfer fungible tokens
         type Assets: FungMeta<AccountOf<Self>, AssetId = AssetOf<Self>>
             + FungMutate<AccountOf<Self>, AssetId = Self::AssetId, Balance = BalanceOf<Self>>
-            + FungTransfer<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>;
+            + FungTransfer<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>
+            + FungInspect<AccountOf<Self>>;
 
         /// The currency trait
         type Currency: Currency<AccountOf<Self>>;
 
-        /// The curve for seasoned orffering
-        type FarmingCurve: FarmingCurve<Self>;
-
         /// The pallet id, used for deriving liquid accounts
         #[pallet::constant]
         type PalletId: Get<PalletId>;
+
+        #[pallet::constant]
+        type StakingRewardAmount: Get<BalanceOf<Self>>;
+
+        type Stakes: Stakes<AccountOf<Self>, AssetId = AssetOf<Self>, Balance = BalanceOf<Self>>;
 
         /// Weight information for extrinsics in this pallet.
         type WeightInfo: WeightInfo;
@@ -118,6 +122,7 @@ pub mod pallet {
         LiquidityOf<T>,
     >;
 
+    //TODO(ironman_ch): remove this storage
     /// Liquid Provider Token Account
     #[pallet::storage]
     pub(super) type Account<T: Config> = StorageDoubleMap<
@@ -226,7 +231,7 @@ pub mod pallet {
             let who = ensure_signed(origin)?;
 
             let _ = Self::mint(
-                who,
+                &who,
                 token_id,
                 currency,
                 min_liquidity,
@@ -257,7 +262,7 @@ pub mod pallet {
 
             let who = ensure_signed(origin)?;
 
-            let _ = Self::burn(who, lp_token_id, min_currency, min_tokens)?;
+            let _ = Self::burn(&who, lp_token_id, min_currency, min_tokens)?;
 
             Ok(())
         }
@@ -433,15 +438,15 @@ pub mod pallet {
 
 impl<T: Config> Pallet<T> {
     pub fn acquire_reward_inner(who: AccountOf<T>, lp_token_id: AssetOf<T>) -> DispatchResult {
-        let (liquidity, reward) = Self::calculate_reward(lp_token_id)?;
-
+        let liquidity = <Liquidity<T>>::get(lp_token_id).ok_or(Error::<T>::NotExists)?;
         ensure!(liquidity.owner == who, Error::<T>::NotExists);
-
-        T::Assets::mint_into(liquidity.token_id, &who, reward)?;
-
-        let claimed = <frame_system::Pallet<T>>::block_number();
-        <Account<T>>::insert(&who, lp_token_id, claimed);
-
+        T::Stakes::get_reward(liquidity.token_id, &who)?;
         Ok(())
+    }
+
+    pub fn calculate_reward(lp_token_id: AssetOf<T>) -> Result<BalanceOf<T>, DispatchError> {
+        let liquidity = <Liquidity<T>>::get(lp_token_id).ok_or(Error::<T>::NotExists)?;
+        let should_earn_amount = T::Stakes::earned(liquidity.token_id, &liquidity.owner)?;
+        Ok(should_earn_amount)
     }
 }

@@ -142,14 +142,10 @@ jobs:
             target/            
           key: ${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: ${{ runner.arch }}-cargo-
-
-      - name: Run Test
-        run: cargo test -- --nocapture --quiet
-
-      - name: Generate coverage
-        continue-on-error: true
+            
+      - name: Test & Generate coverage
         run: |
-          cargo tarpaulin --forward --release --locked -t 120 -o Xml \
+          cargo tarpaulin --forward --release --locked -t 1200 -o Xml \
           --ignore-tests --workspace \
           --exclude parami-primitives parami-traits parami-swap-rpc parami-did-rpc parami-nft-rpc \
           parami-dana parami-para parami-dana-runtime parami-para-runtime \

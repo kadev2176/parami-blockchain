@@ -499,7 +499,7 @@ pub mod pallet {
             // 4. transfer third of initial minting to swap
 
             T::Swaps::new(tid)?;
-            T::Swaps::mint(meta.pot.clone(), tid, deposit, deposit, initial, false)?;
+            T::Swaps::mint(&meta.pot, tid, deposit, deposit, initial, false)?;
 
             // 5. update local variable
             meta.minted = true;

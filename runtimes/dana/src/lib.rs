@@ -61,7 +61,6 @@ pub use parami_primitives::{
     deposit, names, AccountId, Address, AssetId, Balance, BalanceWrapper, BlockNumber,
     DecentralizedId, Hash, Header, Index, Moment, NftId, Signature,
 };
-use parami_swap::LinearFarmingCurve;
 use parami_traits::Nfts;
 use parami_traits::Swaps;
 
@@ -100,7 +99,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    // (parami_swap::migrations::v3::RemoveAllLiquidityExceptInitialLiquidity<Runtime>),
+    parami_swap::migrations::v4::ReInitStakingRewardOfOldNfts<Runtime>,
 >;
 
 /// Era type as expected by this runtime.
@@ -165,7 +164,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 363,
+    spec_version: 364,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -837,6 +836,7 @@ parameter_types! {
     pub const DefaultInitialMintingDeposit: Balance = 1_000 * DOLLARS;
     pub const InitialMintingLockupPeriod: BlockNumber = 6 * 30 * DAYS;
     pub const InitialMintingValueBase: Balance = 1_000_000 * DOLLARS;
+    pub const StakingRewardAmountParam: Balance = 7_000_000 * DOLLARS;
     pub const NftPendingLifetime: BlockNumber = 5;
     pub const NftPalletId: PalletId = PalletId(*names::NFT);
     pub const XAssetPalletId: PalletId = PalletId(*names::ASSET);
@@ -864,7 +864,6 @@ impl parami_nft::Config for Runtime {
 impl parami_ocw::Config for Runtime {}
 
 parameter_types! {
-    pub const InitialFarmingReward: Balance = 100 * DOLLARS;
     pub const SwapPalletId: PalletId = PalletId(*names::SWAP);
 }
 
@@ -873,15 +872,17 @@ impl parami_swap::Config for Runtime {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
-    type FarmingCurve = LinearFarmingCurve<Runtime, InitialFarmingReward, InitialMintingValueBase>;
     type PalletId = SwapPalletId;
+    type Stakes = Stake;
+    type StakingRewardAmount = StakingRewardAmountParam;
     type WeightInfo = parami_swap::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
     pub const StakePalletId: PalletId = PalletId(*names::STAKE);
-    pub const OneMillionNormalizedInitDailyOutputConst: Balance = (500_000u128 * 10u128.pow(18)) / 7u128;
-    pub const SevenDaysInBlockNum: BlockNumber = 7 * 24 * 60 * 5; //7 days
+    pub const OneMillionNormalizedInitDailyOutputConst: Balance = (500_000u128 * DOLLARS) / 45u128;
+    pub const HalvingDurationInBlockNumParam: BlockNumber = 45 * DAYS;
+    pub const BlocksPerDayParam: BlockNumber = DAYS;
 }
 
 impl parami_stake::Config for Runtime {
@@ -891,7 +892,8 @@ impl parami_stake::Config for Runtime {
     type Assets = Assets;
     type PalletId = StakePalletId;
     type OneMillionNormalizedInitDailyOutput = OneMillionNormalizedInitDailyOutputConst;
-    type DurationInBlockNum = SevenDaysInBlockNum;
+    type HalvingDurationInBlockNum = HalvingDurationInBlockNumParam;
+    type BlocksPerDay = BlocksPerDayParam;
     type WeightInfo = parami_stake::weights::SubstrateWeight<Runtime>;
 }
 
@@ -1230,7 +1232,7 @@ impl_runtime_apis! {
             lp_token_id: AssetId,
         ) -> Result<BalanceWrapper<Balance>, DispatchError> {
             Swap::calculate_reward(lp_token_id)
-                .map(|(_, reward)| reward.into())
+                .map(|reward| reward.into())
         }
     }
 

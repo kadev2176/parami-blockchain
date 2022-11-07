@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "Parami blockchain utilities",
   "scripts": {
-    "test": "node --loader ts-node/esm utils/e2e.ts",
+    "test": "node --loader ts-node/esm utils/swap_e2e.ts && node --loader ts-node/esm utils/ad_claim_e2e.ts",
     "upgrade": "node --loader ts-node/esm utils/upgrade.ts"
   },
   "author": "Parami Devs <info@parami.io>",

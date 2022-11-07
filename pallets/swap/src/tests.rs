@@ -439,3 +439,23 @@ fn should_not_overflow_when_calculating_price() {
         );
     });
 }
+
+#[test]
+fn new_swap_should_not_enable_staking() {
+    new_test_ext().execute_with(|| {
+        let token = 0;
+        assert_ok!(Assets::create(Origin::signed(ALICE), token, ALICE, 1));
+
+        Balances::make_free_balance_be(&ALICE, 3_000_000_000_000_000_000_000_000_000u128);
+        assert_ok!(Assets::mint_into(
+            token,
+            &ALICE,
+            3_000_000_000_000_000_000_000_000_000u128
+        ));
+
+        assert_ok!(Swap::create(Origin::signed(ALICE), token));
+
+        let meta = <Metadata<Test>>::get(token).unwrap();
+        assert_eq!(meta.enable_staking, false);
+    });
+}

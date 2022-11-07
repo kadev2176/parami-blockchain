@@ -2,6 +2,7 @@ use crate as parami_swap;
 use frame_support::traits::{ConstU128, ConstU32};
 use frame_support::{parameter_types, traits::GenesisBuild, PalletId};
 use frame_system::{self as system, EnsureRoot};
+use parami_primitives::constants::DOLLARS;
 use sp_core::{sr25519, H256};
 use sp_runtime::{
     testing::Header,
@@ -108,18 +109,7 @@ impl pallet_balances::Config for Test {
 
 parameter_types! {
     pub const SwapPalletId: PalletId = PalletId(*b"prm/swap");
-}
-
-pub struct FarmingCurve;
-impl parami_swap::FarmingCurve<Test> for FarmingCurve {
-    fn calculate_farming_reward(
-        _created_height: BlockNumber,
-        _staked_height: BlockNumber,
-        _current_height: BlockNumber,
-        _total_supply: Balance,
-    ) -> Balance {
-        100
-    }
+    pub const StakingRewardAmountParam: u128 = 7_000_000 * DOLLARS;
 }
 
 impl parami_swap::Config for Test {
@@ -127,9 +117,10 @@ impl parami_swap::Config for Test {
     type AssetId = AssetId;
     type Assets = Assets;
     type Currency = Balances;
-    type FarmingCurve = FarmingCurve;
     type PalletId = SwapPalletId;
+    type Stakes = ();
     type WeightInfo = ();
+    type StakingRewardAmount = StakingRewardAmountParam;
 }
 
 pub fn new_test_ext() -> sp_io::TestExternalities {
