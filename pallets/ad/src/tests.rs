@@ -1280,3 +1280,74 @@ pub fn non_advertisers_should_not_affect_ratin_when_score_diff_is_negative() {
         );
     });
 }
+
+#[test]
+fn should_rate_after_claim_without_score() {
+    new_test_ext().execute_with(|| {
+        let (ad, nft) = prepare_pay!();
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            5
+        );
+
+        let res = Ad::claim_without_advertiser_signature(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], -5)],
+            None,
+        );
+        assert_ok!(res);
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            0
+        );
+
+        assert_ok!(Ad::rate(
+            Origin::signed(BOB),
+            ad,
+            DID_CHARLIE,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)]
+        ));
+
+        assert_eq!(
+            Tag::get_score(&DID_CHARLIE, vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8]),
+            10
+        );
+    });
+}
+
+#[test]
+fn should_fail_if_rated_again() {
+    new_test_ext().execute_with(|| {
+        let (ad, nft) = prepare_pay!();
+
+        let res = Ad::claim_without_advertiser_signature(
+            Origin::signed(CHARLIE),
+            ad,
+            nft,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], -5)],
+            None,
+        );
+        assert_ok!(res);
+
+        assert_ok!(Ad::rate(
+            Origin::signed(BOB),
+            ad,
+            DID_CHARLIE,
+            vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)]
+        ));
+
+        assert_noop!(
+            Ad::rate(
+                Origin::signed(BOB),
+                ad,
+                DID_CHARLIE,
+                vec![(vec![0u8, 1u8, 2u8, 3u8, 4u8, 5u8], 5)]
+            ),
+            Error::<Test>::Rated
+        );
+    });
+}

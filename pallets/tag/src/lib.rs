@@ -366,7 +366,6 @@ impl<T: Config> Tags<TagHash, AdOf<T>, T::DecentralizedId> for Pallet<T> {
         tag: K,
         rating: i32,
     ) -> DispatchResult {
-        ensure!(rating >= -5 && rating <= 5, Error::<T>::RatingOutOfRange);
         <PersonasOf<T>>::mutate(&did, tag.as_ref(), |score| {
             *score = score.accure_extrinsic(rating);
         });
@@ -407,5 +406,16 @@ impl<T: Config> Tags<TagHash, AdOf<T>, T::DecentralizedId> for Pallet<T> {
         });
 
         Ok(())
+    }
+
+    fn tag_names(tags: Vec<TagHash>) -> BTreeMap<TagHash, Tag> {
+        let mut map = BTreeMap::new();
+        for hashes in tags {
+            if let Some(meta) = Metadata::<T>::get(hashes) {
+                map.insert(hashes, meta.tag);
+            }
+        }
+
+        return map;
     }
 }

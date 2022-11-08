@@ -43,8 +43,6 @@ impl Score {
     }
 
     pub fn accure_extrinsic(&self, rating: i32) -> Score {
-        assert!(rating >= -5 && rating <= 5);
-
         let extrinsic = (self.extrinsic + rating)
             .min(Score::MAX_EXTRINSIC)
             .max(Score::MIN_EXTRINSIC);

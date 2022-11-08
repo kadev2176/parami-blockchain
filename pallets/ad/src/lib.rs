@@ -153,6 +153,10 @@ pub mod pallet {
         HeightOf<T>,
     >;
 
+    #[pallet::storage]
+    pub(super) type CanRate<T: Config> =
+        StorageDoubleMap<_, Identity, HashOf<T>, Identity, DidOf<T>, bool, ValueQuery>;
+
     #[pallet::event]
     #[pallet::generate_deposit(pub(super) fn deposit_event)]
     pub enum Event<T: Config> {
@@ -210,6 +214,7 @@ pub mod pallet {
         FungibleNotForSlot,
         InvalidSignature,
         Overflow,
+        Rated,
     }
 
     #[pallet::call]
@@ -527,24 +532,18 @@ pub mod pallet {
             origin: OriginFor<T>,
             ad_id: HashOf<T>,
             nft_id: NftOf<T>,
-            scores: Vec<(Vec<u8>, i8)>,
+            _scores: Vec<(Vec<u8>, i8)>,
             referrer: Option<DidOf<T>>,
         ) -> DispatchResult {
             let (origin_did, _) = EnsureDid::<T>::ensure_origin(origin)?;
 
-            ensure!(
-                scores
-                    .iter()
-                    .all(|(tag, _score)| { T::Tags::has_tag(&ad_id, tag) }),
-                Error::<T>::TagNotExists
-            );
+            let tag_hashes: Vec<TagOf> = T::Tags::tags_of(&ad_id).into_keys().collect();
 
-            let scores: Vec<(Vec<u8>, i8)> = scores
-                .iter()
-                .map(|(tag, _score)| (tag.to_vec(), -5i8))
-                .collect();
+            let tag_names = T::Tags::tag_names(tag_hashes).into_values();
 
-            Self::pay_inner(
+            let scores = tag_names.map(|t| (t, -5i8)).collect();
+
+            let result = Self::pay_inner(
                 &ad_id,
                 nft_id,
                 &origin_did,
@@ -552,7 +551,36 @@ pub mod pallet {
                 &referrer,
                 &Option::None,
                 &Option::None,
-            )
+            );
+
+            CanRate::<T>::insert(ad_id, origin_did, true);
+
+            result
+        }
+
+        #[pallet::weight((0, Pays::No))]
+        pub fn rate(
+            origin: OriginFor<T>,
+            ad_id: HashOf<T>,
+            visitor_did: DidOf<T>,
+            scores: Vec<(Vec<u8>, i8)>,
+        ) -> DispatchResult {
+            let (origin_did, _) = EnsureDid::<T>::ensure_origin(origin)?;
+
+            Self::ensure_owned_or_delegated_by_ad_id(origin_did, ad_id)?;
+            ensure!(CanRate::<T>::get(ad_id, visitor_did), Error::<T>::Rated);
+
+            CanRate::<T>::insert(ad_id, visitor_did, false);
+
+            for (tag, score) in scores {
+                ensure!(T::Tags::has_tag(&ad_id, &tag), Error::<T>::TagNotExists);
+                ensure!(score >= -5 && score <= 5, Error::<T>::ScoreOutOfRange);
+
+                // recover scores
+                T::Tags::influence(&visitor_did, &tag, (score + 5) as i32)?;
+            }
+
+            return Ok(());
         }
 
         #[pallet::weight(<T as Config>::WeightInfo::pay())]
@@ -757,8 +785,6 @@ impl<T: Config> Pallet<T> {
         signer_did: &Option<DidOf<T>>,
         signer_account: &Option<AccountOf<T>>,
     ) -> Result<(), DispatchError> {
-        ensure!(!scores.is_empty(), Error::<T>::EmptyTags);
-
         let height = <frame_system::Pallet<T>>::block_number();
 
         let endtime = <EndtimeOf<T>>::get(&ad_id).ok_or(Error::<T>::NotExists)?;

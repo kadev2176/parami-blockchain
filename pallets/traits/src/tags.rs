@@ -171,4 +171,6 @@ pub trait Tags<Hash, AdvertisementId, DecentralizedId> {
         tag: K,
         intrinsic: i32,
     ) -> DispatchResult;
+
+    fn tag_names(tags: Vec<Hash>) -> BTreeMap<Hash, Tag>;
 }

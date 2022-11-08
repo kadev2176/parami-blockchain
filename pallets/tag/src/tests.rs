@@ -107,11 +107,6 @@ fn scoring_curve_boundary_cases() {
         assert_ok!(Tag::influence(&did, &tag, 1));
         assert_eq!(Tag::get_score(&did, &tag), 1);
 
-        assert_noop!(
-            Tag::influence(&did, &tag, 6365),
-            Error::<Test>::RatingOutOfRange
-        );
-
         assert_ok!(Tag::influence(&did, &tag, 1));
         assert_eq!(Tag::get_score(&did, &tag), 2);
 
