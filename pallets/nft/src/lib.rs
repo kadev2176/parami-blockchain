@@ -622,7 +622,7 @@ pub mod pallet {
                 Error::<T>::Minted
             );
 
-            let pot = T::PalletId::get().into_sub_account_truncating(&did);
+            let pot = T::PalletId::get().into_sub_account_truncating(&id);
             let free_balance = T::Currency::free_balance(&pot);
             ensure!(free_balance == 0u32.into(), Error::<T>::InsufficientBalance);
 
@@ -762,7 +762,7 @@ pub mod pallet {
                     panic!("NFT ID must be less than next_instance_id");
                 }
 
-                let pot: AccountOf<T> = T::PalletId::get().into_sub_account_truncating(owner);
+                let pot: AccountOf<T> = T::PalletId::get().into_sub_account_truncating(id);
 
                 <Metadata<T>>::insert(
                     id,
@@ -842,7 +842,7 @@ impl<T: Config> Pallet<T> {
     fn create(owner: DidOf<T>) -> Result<NftOf<T>, DispatchError> {
         let id =
             <T as crate::Config>::AssetIdManager::next_id().map_err(|_e| Error::<T>::Overflow)?;
-        let pot = T::PalletId::get().into_sub_account_truncating(&owner);
+        let pot = T::PalletId::get().into_sub_account_truncating(&id);
 
         ensure!(!<Metadata<T>>::contains_key(id), Error::<T>::Exists);
 

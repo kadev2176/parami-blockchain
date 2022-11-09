@@ -17,7 +17,7 @@ pub mod migrations;
 // mod benchmarking;
 use codec::MaxEncodedLen;
 use frame_support::{
-    dispatch::DispatchResultWithPostInfo,
+    dispatch::{DispatchResult, DispatchResultWithPostInfo},
     ensure,
     traits::{
         tokens::fungibles::metadata::Mutate as MetadataMutate,
@@ -376,5 +376,15 @@ pub mod pallet {
 impl<T: Config> Pallet<T> {
     fn generate_fee_pot() -> AccountOf<T> {
         <T as Config>::PalletId::get().into_account_truncating()
+    }
+}
+
+impl<T: Config> parami_traits::transferable::Transferable<AccountOf<T>> for pallet::Pallet<T> {
+    fn transfer_all(src: &AccountOf<T>, dest: &AccountOf<T>) -> DispatchResult {
+        for (_, asset_id) in <ResourceId2Asset<T>>::iter() {
+            let balance = T::Assets::balance(asset_id, &src);
+            T::Assets::transfer(asset_id, src, dest, balance, false)?;
+        }
+        Ok(())
     }
 }

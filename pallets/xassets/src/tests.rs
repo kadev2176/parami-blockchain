@@ -3,6 +3,8 @@ use crate::{self as parami_xassets, mock::*, *};
 use codec::Encode;
 use sp_io::hashing::blake2_128;
 
+use parami_traits::transferable::Transferable;
+
 use frame_support::traits::tokens::fungibles::InspectMetadata;
 use frame_support::traits::Currency as TheCurrency;
 use frame_support::{assert_noop, assert_ok, dispatch::DispatchError};
@@ -730,5 +732,41 @@ fn should_create_xassets() {
                 ChainBridge::get_resources(asset_resource_id).unwrap(),
                 Into::<Vec<u8>>::into("XAssets.handle_transfer_fungibles")
             );
+        });
+}
+
+#[test]
+fn should_transfer_all_assets() {
+    let asset_resource_id = parami_chainbridge::derive_resource_id(233, &blake2_128(b"test"));
+
+    TestExternalitiesBuilder::default()
+        .build()
+        .execute_with(|| {
+            let asset_id: u32 = 0;
+
+            let symbol = "TC";
+            let name = "TestCoin";
+            assert_ok!(XAssets::create_xasset(
+                Origin::root(),
+                name.into(),
+                symbol.into(),
+                18,
+                asset_resource_id,
+            ));
+
+            assert_eq!(
+                ResourceId2Asset::<MockRuntime>::get(asset_resource_id).unwrap(),
+                asset_id
+            );
+            let from_account = 1;
+            let dest_account = 2;
+            assert_ok!(mock::Assets::mint_into(asset_id, &from_account, 100));
+            assert_eq!(mock::Assets::balance(asset_id, &from_account), 100);
+            assert_eq!(mock::Assets::balance(asset_id, &dest_account), 0);
+
+            assert_ok!(mock::XAssets::transfer_all(&from_account, &dest_account));
+
+            assert_eq!(mock::Assets::balance(asset_id, &from_account), 0);
+            assert_eq!(mock::Assets::balance(asset_id, &dest_account), 100);
         });
 }

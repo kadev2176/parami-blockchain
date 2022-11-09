@@ -667,7 +667,7 @@ fn should_sumbit_porting() {
         assert_eq!(external.token, token.clone());
 
         let subaccount_id =
-            <Test as crate::Config>::PalletId::get().into_sub_account_truncating(DID_BOB);
+            <Test as crate::Config>::PalletId::get().into_sub_account_truncating(NEXT_INSTANCE_ID);
 
         let metadata = <Metadata<Test>>::get(NEXT_INSTANCE_ID).expect("meta should have data");
         assert_eq!(metadata.owner, did);
