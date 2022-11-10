@@ -1351,3 +1351,38 @@ fn should_fail_if_rated_again() {
         );
     });
 }
+
+#[test]
+fn should_fail_if_payout_base_too_low() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Ad::create(
+                Origin::signed(BOB),
+                vec![],
+                [0u8; 64].into(),
+                1,
+                43200 * 2,
+                0u128,
+                0,
+                10u128,
+                None
+            ),
+            Error::<Test>::PayoutBaseTooLow
+        );
+
+        assert_noop!(
+            Ad::create(
+                Origin::signed(BOB),
+                vec![],
+                [0u8; 64].into(),
+                1,
+                43200 * 2,
+                10u128,
+                0,
+                5u128,
+                None
+            ),
+            Error::<Test>::WrongPayoutSetting
+        );
+    });
+}

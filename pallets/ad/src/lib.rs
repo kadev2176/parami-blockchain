@@ -79,6 +79,10 @@ pub mod pallet {
         #[pallet::constant]
         type MinimumFeeBalance: Get<BalanceOf<Self>>;
 
+        /// The minimum fee balance required to keep alive an ad in fractions
+        #[pallet::constant]
+        type MinimumPayoutBase: Get<BalanceOf<Self>>;
+
         /// The pallet id, used for deriving "pot" accounts of budgets
         #[pallet::constant]
         type PalletId: Get<PalletId>;
@@ -215,6 +219,7 @@ pub mod pallet {
         InvalidSignature,
         Overflow,
         Rated,
+        PayoutBaseTooLow,
     }
 
     #[pallet::call]
@@ -234,8 +239,13 @@ pub mod pallet {
             let created = <frame_system::Pallet<T>>::block_number();
 
             ensure!(deadline > created, Error::<T>::Deadline);
-            //TODO: ensure!(payout_base > xxx)
+            ensure!(
+                payout_base >= T::MinimumPayoutBase::get(),
+                Error::<T>::PayoutBaseTooLow
+            );
+            ensure!(payout_max >= payout_base, Error::<T>::WrongPayoutSetting);
             ensure!(payout_min < payout_max, Error::<T>::WrongPayoutSetting);
+
             let (creator, who) = T::CallOrigin::ensure_origin(origin)?;
 
             for tag in &tags {

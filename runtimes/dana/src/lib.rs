@@ -164,7 +164,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 365,
+    spec_version: 366,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -734,12 +734,14 @@ impl pallet_utility::Config for Runtime {
 parameter_types! {
     pub const AdPalletId: PalletId = PalletId(*names::AD);
     pub const AdvertiserMinimumFee: Balance = 50 * MILLICENTS;
+    pub const AdMinimumPayoutBase: Balance = 1 * DOLLARS;
     pub const SlotLifetime: BlockNumber = 3 * DAYS;
 }
 
 impl parami_ad::Config for Runtime {
     type Event = Event;
     type MinimumFeeBalance = AdvertiserMinimumFee;
+    type MinimumPayoutBase = AdMinimumPayoutBase;
     type PalletId = AdPalletId;
     type SlotLifetime = SlotLifetime;
     type Tags = Tag;
