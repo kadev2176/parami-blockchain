@@ -72,18 +72,15 @@ jobs:
         run: echo '${{ toJSON(runner) }}'
 
       - name: Build Release
-        run: cargo build --release --locked
+        run: cargo build --bin parami --release --locked
 
       - name: Post-build
         run: |
           mkdir -p ./out/
           cp ./target/release/parami ./out/parami-${{ matrix.os }}-${{ matrix.arch }}
           cp ./target/release/wbuild/parami-dana-runtime/parami_dana_runtime.compact.compressed.wasm ./out/
-          cp ./target/release/parami-collator ./out/parami-collator-${{ matrix.os }}-${{ matrix.arch }}
-          cp ./target/release/wbuild/parami-para-runtime/parami_para_runtime.compact.compressed.wasm ./out/
 
           strip ./out/parami-${{ matrix.os }}-${{ matrix.arch }}
-          strip ./out/parami-collator-${{ matrix.os }}-${{ matrix.arch }}
 
       - uses: actions/upload-artifact@v3
         with:
@@ -98,51 +95,9 @@ jobs:
           if-no-files-found: error
         if: matrix.arch == 'x86_64' && matrix.os == 'linux'
 
-      - uses: actions/upload-artifact@v3
-        with:
-          name: parami-collator-${{ matrix.os }}-${{ matrix.arch }}
-          path: ./out/parami-collator-${{ matrix.os }}-${{ matrix.arch }}
-          if-no-files-found: error
-
-      - uses: actions/upload-artifact@v3
-        with:
-          name: parami-para-runtime
-          path: ./out/parami_para_runtime.compact.compressed.wasm
-          if-no-files-found: error
-        if: matrix.arch == 'x86_64' && matrix.os == 'linux'
-
-  test:
-    needs:
-      - build
-
-    strategy:
-      matrix:
-        os: [linux]
-        arch: [ x86_64 ]
-
-    runs-on: ["self-hosted", "${{ matrix.os }}", "${{ matrix.arch }}"]
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/prepare
-        with:
-          os: ${{ matrix.os }}
-
       - name: Install tarpaulin
         run: cargo install --locked --force cargo-tarpaulin
-
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/            
-          key: ${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.arch }}-cargo-
-            
+      
       - name: Test & Generate coverage
         run: |
           cargo tarpaulin --forward --release --locked -t 1200 -o Xml \
@@ -150,10 +105,10 @@ jobs:
           --exclude parami-primitives parami-traits parami-swap-rpc parami-did-rpc parami-nft-rpc \
           parami-dana parami-para parami-dana-runtime parami-para-runtime \
           --exclude-files **/mock.rs **/weights.rs **/weights/* **/migrations.rs **/benchmarking.rs **/rpc/*
+          
       - uses: codecov/codecov-action@v3
         with:
           fail_ci_if_error: true
-
   e2e:
     needs:
       - build
@@ -225,7 +180,6 @@ jobs:
     needs:
       - lint
       - build
-      - test
       - e2e
 
     if: startsWith(github.ref, 'refs/tags/r')
