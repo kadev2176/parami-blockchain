@@ -1,6 +1,6 @@
 use crate::{
-    mock::*, ClaimedFragmentAmount, Deposit, Deposits, Error, External, Metadata, Ported, Porting,
-    Preferred,
+    mock::*, ClaimedFragmentAmount, Date, Deposit, Deposits, Error, External, IcoMeta, IcoMetaOf,
+    Metadata, Ported, Porting, Preferred,
 };
 
 use codec::Decode;
@@ -774,5 +774,347 @@ fn should_back_to() {
 
         let deposit = <Deposit<Test>>::get(nft);
         assert_eq!(deposit, Some(150));
+    });
+}
+
+#[test]
+fn should_mint_asset() {
+    use frame_support::traits::tokens::fungibles::Inspect;
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_eq!(Assets::balance(nft, &ALICE), 0);
+        let result = Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"TT".to_vec(),
+            200,
+        );
+        assert_ok!(result);
+        assert_eq!(Assets::total_issuance(nft), 200);
+        assert_eq!(Assets::balance(nft, ALICE), 200);
+    });
+}
+
+#[test]
+fn should_start_ico() {
+    use frame_support::traits::tokens::fungibles::Inspect;
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"TT".to_vec(),
+            200,
+        ));
+        assert_eq!(Assets::balance(nft, ALICE), 200);
+        assert_ok!(Nft::start_ico(Origin::signed(ALICE), nft, 100, 50));
+        assert_eq!(Assets::balance(nft, ALICE), 150);
+
+        let ico_meta = IcoMetaOf::<Test>::get(nft).unwrap();
+        assert_eq!(ico_meta.done, false);
+        assert_eq!(ico_meta.expected_currency, 100);
+        assert_eq!(ico_meta.offered_tokens, 50);
+        assert_eq!(Assets::balance(nft, ico_meta.pot), 50);
+    });
+}
+
+#[test]
+fn should_participate_ico() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        let result = Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"TT".to_vec(),
+            200,
+        );
+        assert_ok!(result);
+        assert_ok!(Nft::start_ico(Origin::signed(ALICE), nft, 100, 50));
+
+        let meta = IcoMetaOf::<Test>::get(nft).unwrap();
+
+        assert_eq!(Assets::balance(nft, meta.pot), 50);
+
+        assert_eq!(Balances::free_balance(ALICE), 3000000 * DOLLARS);
+        assert_eq!(Balances::free_balance(BOB), 3000000 * DOLLARS);
+        assert_ok!(Nft::participate_ico(Origin::signed(BOB), nft, 50));
+        assert_eq!(Balances::free_balance(BOB), 3000000 * DOLLARS - 100);
+        assert_eq!(Balances::free_balance(ALICE), 3000000 * DOLLARS + 100);
+
+        assert_eq!(Assets::balance(nft, meta.pot), 50);
+    });
+}
+
+#[test]
+fn should_end_ico() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        let result = Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"Test Token".to_vec(),
+            b"TT".to_vec(),
+            200,
+        );
+        assert_ok!(result);
+        assert_ok!(Nft::start_ico(Origin::signed(ALICE), nft, 50, 100));
+        assert_ok!(Nft::participate_ico(Origin::signed(BOB), nft, 50));
+        assert_ok!(Nft::end_ico(Origin::signed(ALICE), nft));
+
+        let ico_meta = IcoMetaOf::<Test>::get(nft).unwrap();
+        let meta = Metadata::<Test>::get(nft).unwrap();
+        let block_num = Date::<Test>::get(nft).unwrap();
+        assert_eq!(ico_meta.done, true);
+        assert_eq!(Assets::balance(nft, meta.pot), 50);
+        assert_eq!(block_num, 0);
+    });
+}
+
+#[test]
+fn should_generate_unique_pot_for_ico_meta() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+        let meta_pot = Nft::generate_claim_pot(&nft);
+        let ico_pot_1 = Nft::generate_ico_pot(&nft);
+        let ico_pot_2 = Nft::generate_ico_pot(&(nft + 1));
+
+        assert_ne!(meta_pot, ico_pot_1);
+        assert_ne!(ico_pot_1, ico_pot_2);
+    });
+}
+
+#[test]
+fn should_calculate_price_correct() {
+    new_test_ext().execute_with(|| {
+        let required_currency = Nft::calculate_required_currency(
+            50,
+            &IcoMeta::<Test> {
+                expected_currency: 100,
+                offered_tokens: 50,
+                done: true,
+                pot: ALICE,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(required_currency, 100);
+
+        let required_currency = Nft::calculate_required_currency(
+            50,
+            &IcoMeta::<Test> {
+                expected_currency: 99,
+                offered_tokens: 50,
+                done: true,
+                pot: ALICE,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(required_currency, 99);
+
+        let required_currency = Nft::calculate_required_currency(
+            49,
+            &IcoMeta::<Test> {
+                expected_currency: 99,
+                offered_tokens: 50,
+                done: true,
+                pot: ALICE,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(required_currency, 97);
+
+        let required_currency = Nft::calculate_required_currency(
+            1,
+            &IcoMeta::<Test> {
+                expected_currency: 99,
+                offered_tokens: 50,
+                done: true,
+                pot: ALICE,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(required_currency, 1);
+
+        let required_token = Nft::calculate_required_token(
+            1,
+            &IcoMeta::<Test> {
+                expected_currency: 99,
+                offered_tokens: 50,
+                done: true,
+                pot: ALICE,
+            },
+        )
+        .unwrap();
+
+        assert_eq!(required_token, 0);
+    });
+}
+
+#[test]
+fn should_failed_if_ico_with_wrong_params() {
+    new_test_ext().execute_with(|| {
+        assert_noop!(
+            Nft::mint_nft_power(
+                Origin::signed(ALICE),
+                10086,
+                b"TT".to_vec(),
+                b"TT".to_vec(),
+                100,
+            ),
+            Error::<Test>::NotExists,
+        );
+
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+        assert_noop!(
+            Nft::mint_nft_power(
+                Origin::signed(BOB),
+                nft,
+                b"TT".to_vec(),
+                b"TT".to_vec(),
+                100,
+            ),
+            Error::<Test>::NotTokenOwner,
+        );
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100,
+        ));
+
+        assert_noop!(
+            Nft::mint_nft_power(
+                Origin::signed(ALICE),
+                nft,
+                b"TT".to_vec(),
+                b"TT".to_vec(),
+                100,
+            ),
+            Error::<Test>::Minted,
+        );
+    });
+}
+
+#[test]
+fn should_failed_to_participate_ico_if_with_wrong_params() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+        assert_noop!(
+            Nft::participate_ico(Origin::signed(ALICE), nft, 50),
+            Error::<Test>::NotExists,
+        );
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100,
+        ));
+
+        assert_ok!(Nft::start_ico(Origin::signed(ALICE), nft, 50, 50));
+        assert_noop!(
+            Nft::participate_ico(Origin::signed(ALICE), nft, 150),
+            Error::<Test>::InsufficientToken
+        );
+        assert_ok!(Nft::end_ico(Origin::signed(ALICE), nft));
+
+        assert_noop!(
+            Nft::participate_ico(Origin::signed(ALICE), nft, 50),
+            Error::<Test>::Deadline,
+        );
+    });
+}
+
+#[test]
+fn should_failed_to_end_ico_if_with_wrong_params() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+        assert_noop!(
+            Nft::end_ico(Origin::signed(ALICE), nft),
+            Error::<Test>::NotExists
+        );
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100,
+        ));
+
+        assert_noop!(
+            Nft::end_ico(Origin::signed(BOB), nft),
+            Error::<Test>::NotTokenOwner
+        );
+    });
+}
+
+#[test]
+fn should_claim_for_ico_meta() {
+    use crate::Nfts;
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100 * DOLLARS,
+        ));
+        assert_ok!(Nft::start_ico(
+            Origin::signed(ALICE),
+            nft,
+            20 * DOLLARS,
+            20 * DOLLARS
+        ));
+        assert_ok!(Nft::participate_ico(Origin::signed(BOB), nft, 10 * DOLLARS));
+
+        assert_ok!(Nft::end_ico(Origin::signed(ALICE), nft));
+
+        let (total, unlocked, claimable) = Nft::get_claim_info(nft, &DID_BOB).unwrap();
+        assert_eq!(total, 10 * DOLLARS);
+        assert_eq!(unlocked, 0);
+        assert_eq!(claimable, 0);
+
+        // InitialMintingLockupPeriod is 5
+        System::set_block_number(1);
+        let (total, unlocked, claimable) = Nft::get_claim_info(nft, &DID_BOB).unwrap();
+        assert_eq!(total, 10 * DOLLARS);
+        assert_eq!(unlocked, 2 * DOLLARS);
+        assert_eq!(claimable, 2 * DOLLARS);
+
+        assert_ok!(Nft::claim(Origin::signed(BOB), nft));
+
+        System::set_block_number(2);
+        let (total, unlocked, claimable) = Nft::get_claim_info(nft, &DID_BOB).unwrap();
+        assert_eq!(total, 10 * DOLLARS);
+        assert_eq!(unlocked, 4 * DOLLARS);
+        assert_eq!(claimable, 2 * DOLLARS);
+
+        System::set_block_number(5);
+        let (total, unlocked, claimable) = Nft::get_claim_info(nft, &DID_BOB).unwrap();
+        assert_eq!(total, 10 * DOLLARS);
+        assert_eq!(unlocked, 10 * DOLLARS);
+        assert_eq!(claimable, 8 * DOLLARS);
+
+        System::set_block_number(6);
+        let (total, unlocked, claimable) = Nft::get_claim_info(nft, &DID_BOB).unwrap();
+        assert_eq!(total, 10 * DOLLARS);
+        assert_eq!(unlocked, 10 * DOLLARS);
+        assert_eq!(claimable, 8 * DOLLARS);
     });
 }
