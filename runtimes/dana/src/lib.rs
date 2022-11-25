@@ -99,7 +99,10 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    parami_swap::migrations::v4::ReInitStakingRewardOfOldNfts<Runtime>,
+    (
+        parami_nft::migrations::v4::FixDeposit<Runtime>,
+        parami_nft::migrations::v4::MigrateIcoMeta<Runtime>,
+    ),
 >;
 
 /// Era type as expected by this runtime.
@@ -164,7 +167,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 367,
+    spec_version: 368,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,

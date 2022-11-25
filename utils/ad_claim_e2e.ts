@@ -85,14 +85,11 @@ import { submit } from './utils';
   spinnies.update('nft', { text: `          NFT: ${nft}` });
 
   spinnies.update('preparing', {
-    text: 'Backing KOL...',
-  });
-  await submit(chain, chain.tx.nft.back(nft, 1_000n * 10n ** 18n), m);
-
-  spinnies.update('preparing', {
     text: 'Minting...',
   });
-  await submit(chain, chain.tx.nft.mint(nft, 'Test Token', 'XTT', 1000), k);
+    await submit(chain, chain.tx.nft.mintNftPower(nft, 'Test Token', 'XTT', 1000000n * (10n ** 18n)), k);
+    await submit(chain, chain.tx.swap.create(nft), k);
+    await submit(chain, chain.tx.swap.addLiquidity(nft, 1000n * (10n ** 18n), 1000, 1000000n * (10n **18n), 10000), k);
   spinnies.remove('preparing');
   spinnies.succeed('nft');
   spinnies.succeed('kol');

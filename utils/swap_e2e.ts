@@ -7,39 +7,39 @@ import { submit } from "./utils";
 
 (async () => {
     const spinnies = new Spinnies();
-  
+
     const provider = new WsProvider('ws://127.0.0.1:9944');
     const keyring = new Keyring({ type: 'sr25519' });
-  
+
     const chain = await ApiPromise.create({ provider });
-  
+
     const alice = keyring.addFromUri('//Alice');
-  
+
     const m = keyring.addFromUri(await mnemonicGenerate(12));
-  
+
     spinnies.add('root', {
       text: ` User Account: ${m.address}`,
       status: 'succeed',
     });
-  
+
     spinnies.add('did', {
       text: ' User DID: pending...',
     });
-  
+
     spinnies.add('kol', {
       text: '          KOL: pending...',
     });
-  
+
     spinnies.add('nft', {
       text: '          NFT: pending...',
     });
 
     spinnies.add('swap', {
-      text: '          SWAP: pending...', 
+      text: '          SWAP: pending...',
     })
-  
+
     // 1. New User
-  
+
     spinnies.add('preparing', {
       text: 'Registering DID...',
     });
@@ -53,11 +53,11 @@ import { submit } from "./utils";
     const didOf = await chain.query.did.didOf(m.address);
     const did = didOf.toString();
     spinnies.succeed('did', { text: ` User DID: ${did}` });
-  
+
     // 2. Prepare Token
-  
+
     const k = keyring.addFromUri(await mnemonicGenerate(12));
-  
+
     spinnies.add('preparing', {
       text: 'Creating KOL...',
     });
@@ -70,7 +70,7 @@ import { submit } from "./utils";
     const kolOf = await chain.query.did.didOf(k.address);
     const kol = kolOf.toString();
     spinnies.update('kol', { text: `          KOL: ${kol}` });
-  
+
     spinnies.update('preparing', {
       text: 'Creating NFT...',
     });
@@ -78,20 +78,17 @@ import { submit } from "./utils";
     const nftOf = await chain.query.nft.preferred(kol);
     const nft = nftOf.toString();
     spinnies.update('nft', { text: `          NFT: ${nft}` });
-  
-    spinnies.update('preparing', {
-      text: 'Backing KOL...',
-    });
-    await submit(chain, chain.tx.nft.back(nft, 1_000n * 10n ** 18n), m);
-  
+
     spinnies.update('preparing', {
       text: 'Minting...',
     });
-    await submit(chain, chain.tx.nft.mint(nft, 'Test Token', 'XTT', 1000), k);
+    await submit(chain, chain.tx.nft.mintNftPower(nft, 'Test Token', 'XTT', 1000000n * (10n ** 18n)), k);
+    await submit(chain, chain.tx.swap.create(nft), k);
+    await submit(chain, chain.tx.swap.addLiquidity(nft, 1000n * (10n ** 18n), 1000, 1000000n * (10n **18n), 10000), k);
     spinnies.remove('preparing');
     spinnies.succeed('nft');
     spinnies.succeed('kol');
-  
+
     // 3. buy tokens
     spinnies.add('preparing', {
         text: 'Buy tokens...',
@@ -121,7 +118,7 @@ import { submit } from "./utils";
     spinnies.update('preparing', {
         text: 'remove liquiditiy...',
     });
-    
+
     await submit(chain, chain.tx.swap.removeLiquidity(lp_token_ids[0], 9n * 10n ** 17n, 8n * 10n ** 17n, 40_000), m);
 
     console.log(`remove liquidity success!`);
