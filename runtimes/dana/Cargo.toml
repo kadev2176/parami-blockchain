@@ -50,6 +50,8 @@ parami-tag = { path = '../../pallets/tag', default-features = false }
 parami-traits = { path = '../../pallets/traits', default-features = false }
 parami-assetmanager = { path = '../../pallets/assetmanager', default-features = false }
 parami-stake = { path = '../../pallets/stake', default-features = false }
+parami-clockin = { path = '../../pallets/clockin', default-features = false }
+parami-clockin-runtime-api = { path = '../../pallets/clockin/runtime-api', default-features = false }
 
 # Substrate Dependencies
 ## Substrate Primitive Dependencies
@@ -132,6 +134,8 @@ std = [
     'parami-traits/std',
     'parami-assetmanager/std',
     'parami-stake/std',
+    'parami-clockin/std',
+    'parami-clockin-runtime-api/std',
 
     'sp-api/std',
     'sp-block-builder/std',
@@ -187,9 +191,10 @@ runtime-benchmarks = [
     'parami-swap/runtime-benchmarks',
     'parami-tag/runtime-benchmarks',
     'parami-stake/runtime-benchmarks',
+    'parami-clockin/runtime-benchmarks',
 
     'sp-runtime/runtime-benchmarks',
-    
+
     'frame-benchmarking',
     'frame-system-benchmarking',
     'frame-support/runtime-benchmarks',
@@ -223,6 +228,7 @@ try-runtime = [
     'parami-swap/try-runtime',
     'parami-tag/try-runtime',
     'parami-stake/try-runtime',
+    'parami-clockin/try-runtime',
 
     'frame-try-runtime',
     'frame-support/try-runtime',

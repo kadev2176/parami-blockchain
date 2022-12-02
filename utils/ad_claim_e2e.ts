@@ -4,7 +4,8 @@ import Spinnies from 'spinnies';
 import { u8aToHex, hexToU8a, stringToU8a } from '@polkadot/util';
 import { keccak256AsU8a, keccakAsHex } from '@polkadot/util-crypto';
 import * as $ from "parity-scale-codec";
-import { submit } from './utils';
+import { submit, submitUntilFinalized } from './utils';
+import assert from "node:assert"
 
 (async () => {
   const spinnies = new Spinnies();
@@ -12,7 +13,29 @@ import { submit } from './utils';
   const provider = new WsProvider('ws://127.0.0.1:9944');
   const keyring = new Keyring({ type: 'sr25519' });
 
-  const chain = await ApiPromise.create({ provider });
+    const chain = await ApiPromise.create({ provider,
+        runtime: {
+            ClockInRuntimeApi: [{
+                methods: {
+                    get_clock_in_info: {
+                        description: "(enabled, claimable, token)",
+                        params: [
+                            {
+                                "name": "nft_id",
+                                "type": "u32"
+                            },
+                            {
+                                "name": "did",
+                                "type": "H160"
+                            }
+                        ],
+                        type: "(u8, bool, bool, u128)"
+                    }
+                },
+                version: 1
+            }]
+          },
+    });
 
   const alice = keyring.addFromUri('//Alice');
 
@@ -87,12 +110,23 @@ import { submit } from './utils';
   spinnies.update('preparing', {
     text: 'Minting...',
   });
-    await submit(chain, chain.tx.nft.mintNftPower(nft, 'Test Token', 'XTT', 1000000n * (10n ** 18n)), k);
+    await submit(chain, chain.tx.nft.mintNftPower(nft, 'Test Token', 'XTT', 2000000n * (10n ** 18n)), k);
     await submit(chain, chain.tx.swap.create(nft), k);
     await submit(chain, chain.tx.swap.addLiquidity(nft, 1000n * (10n ** 18n), 1000, 1000000n * (10n **18n), 10000), k);
   spinnies.remove('preparing');
   spinnies.succeed('nft');
   spinnies.succeed('kol');
+
+    let clockInInfo = (await chain.call.clockInRuntimeApi.getClockInInfo(nft, did)).toJSON() as any[];
+    assert.ok(clockInInfo[1] == 0 && clockInInfo[2] == 0 && BigInt(clockInInfo[3]) == 0n);
+
+    await submitUntilFinalized(chain, chain.tx.clockIn.enableClockIn(nft, 10, 5, 40, "test", [], 100), k);
+    clockInInfo = (await chain.call.clockInRuntimeApi.getClockInInfo(nft, did)).toJSON() as any[];
+    assert.ok(clockInInfo[1] > 0 && clockInInfo[2] > 0 && BigInt(clockInInfo[3]) == 40n);
+
+    await submitUntilFinalized(chain, chain.tx.clockIn.clockIn(nft), m);
+    clockInInfo = (await chain.call.clockInRuntimeApi.getClockInInfo(nft, did)).toJSON() as any[];
+    assert.ok(clockInInfo[1] > 0 && clockInInfo[2] == 0 && BigInt(clockInInfo[3]) == 40n);
 
   // 3. Prepare Advertiser
 

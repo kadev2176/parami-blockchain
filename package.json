@@ -9,11 +9,8 @@
   "author": "Parami Devs <info@parami.io>",
   "license": "MIT",
   "dependencies": {
-    "@polkadot/api": "^8.8.1",
-    "@polkadot/keyring": "^9.4.1",
-    "@polkadot/types": "^8.8.1",
-    "@polkadot/util-crypto": "^9.4.1",
-    "parity-scale-codec": "^0.4.2",
+    "@polkadot/api": "9.9.4",
+    "parity-scale-codec":"^0.4.2",
     "as-scale-codec": "^0.2.3",
     "listr": "^0.14.3",
     "spinnies": "^0.5.1"

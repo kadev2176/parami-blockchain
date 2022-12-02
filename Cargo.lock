@@ -6102,6 +6102,47 @@ dependencies = [
 ]
 
 [[package]]
+name = "parami-clockin"
+version = "3.0.0"
+dependencies = [
+ "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "pallet-assets",
+ "pallet-balances",
+ "pallet-uniques",
+ "parami-assetmanager",
+ "parami-did",
+ "parami-nft",
+ "parami-ocw",
+ "parami-primitives",
+ "parami-swap",
+ "parami-tag",
+ "parami-traits",
+ "parity-scale-codec",
+ "scale-info",
+ "serde",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+ "sp-runtime-interface",
+ "sp-std",
+]
+
+[[package]]
+name = "parami-clockin-runtime-api"
+version = "3.0.0"
+dependencies = [
+ "parami-primitives",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-api",
+ "sp-runtime",
+ "sp-std",
+]
+
+[[package]]
 name = "parami-dana"
 version = "3.0.0"
 dependencies = [
@@ -6203,6 +6244,8 @@ dependencies = [
  "parami-advertiser",
  "parami-assetmanager",
  "parami-chainbridge",
+ "parami-clockin",
+ "parami-clockin-runtime-api",
  "parami-did",
  "parami-linker",
  "parami-nft",

@@ -36,3 +36,30 @@ export const submit = (
     }
   });
 };
+
+export const submitUntilFinalized = (
+  chain: ApiPromise,
+  extrinsic: SubmittableExtrinsic<'promise'>,
+  keypair: KeyringPair
+): Promise<{ tx: string; block: string }> => {
+  return new Promise((resolve, reject) => {
+    try {
+      extrinsic.signAndSend(
+        keypair,
+        { nonce: -1 },
+        ({ events, status, dispatchError }) => {
+          if (dispatchError) {
+            reject(new Error(parseError(chain, dispatchError)));
+          } else if (status.isFinalized) {
+            resolve({
+              tx: extrinsic.hash.toHex(),
+              block: status.asFinalized.toHex(),
+            });
+          }
+        }
+      );
+    } catch (e) {
+      reject(e);
+    }
+  });
+};

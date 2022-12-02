@@ -167,7 +167,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 368,
+    spec_version: 369,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -920,6 +920,18 @@ impl parami_assetmanager::Config for Runtime {
     type AssetId = AssetId;
 }
 
+parameter_types! {
+    pub const ClockInPalletId: PalletId = PalletId(*names::CLOCKIN);
+    pub const ClockInBucketSize: BlockNumber = 1 * DAYS;
+}
+
+impl parami_clockin::Config for Runtime {
+    type Event = Event;
+    type Tags = Tag;
+    type PalletId = ClockInPalletId;
+    type ClockInBucketSize = ClockInBucketSize;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub enum Runtime where
@@ -969,6 +981,7 @@ construct_runtime!(
         Tag: parami_tag::{Pallet, Call, Storage, Config<T>, Event<T>} = 109,
         AssetManager: parami_assetmanager::{Pallet, Storage, Config<T>} = 110,
         Stake: parami_stake::{Pallet, Storage, Event<T>} = 111,
+        ClockIn: parami_clockin::{Pallet, Call, Storage, Event<T>, Config<T>} = 112
     }
 );
 
@@ -1174,6 +1187,13 @@ impl_runtime_apis! {
     impl parami_ad_runtime_api::AdRuntimeApi<Block, <BlakeTwo256 as sp_runtime::traits::Hash>::Output, NftId, DecentralizedId, Balance> for Runtime {
        fn cal_reward(ad_id: <BlakeTwo256 as sp_runtime::traits::Hash>::Output, nft_id: NftId, did: DecentralizedId, referrer: Option<DecentralizedId>) -> Result<BalanceWrapper<Balance>, DispatchError> {
             Ad::cal_reward(ad_id, nft_id, did, referrer).map(|for_visitor| for_visitor.into())
+        }
+    }
+
+    impl parami_clockin_runtime_api::ClockInRuntimeApi<Block, NftId, DecentralizedId> for Runtime {
+       fn get_clock_in_info(nft_id: NftId, did: DecentralizedId) -> Result<(bool, bool, BalanceWrapper<Balance>), DispatchError> {
+           let (enabled, claimable, token_reward) = ClockIn::get_clock_in_info(nft_id, &did)?;
+           return Ok((enabled, claimable, token_reward.into()));
         }
     }
 

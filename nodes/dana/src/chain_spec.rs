@@ -201,5 +201,6 @@ fn testnet_genesis(
         nft: Default::default(),
         swap: Default::default(),
         tag: Default::default(),
+        clock_in: Default::default(),
     }
 }
