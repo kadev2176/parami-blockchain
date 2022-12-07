@@ -542,7 +542,7 @@ pub mod pallet {
             )
         }
 
-        #[pallet::weight(<T as Config>::WeightInfo::pay())]
+        #[pallet::weight(0)]
         pub fn force_bid_ad(
             origin: OriginFor<T>,
             // we can't get account from a root origin.
