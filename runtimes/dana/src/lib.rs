@@ -99,10 +99,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (
-        parami_nft::migrations::v4::FixDeposit<Runtime>,
-        parami_nft::migrations::v4::MigrateIcoMeta<Runtime>,
-    ),
+    (parami_clockin::migrations::v0::RemoveRedundantStorage<Runtime>,),
 >;
 
 /// Era type as expected by this runtime.
@@ -167,7 +164,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
     spec_name: create_runtime_str!("parami"),
     impl_name: create_runtime_str!("parami-node"),
     authoring_version: 20,
-    spec_version: 370,
+    spec_version: 371,
     impl_version: 0,
     apis: RUNTIME_API_VERSIONS,
     transaction_version: 2,
@@ -927,7 +924,6 @@ parameter_types! {
 
 impl parami_clockin::Config for Runtime {
     type Event = Event;
-    type Tags = Tag;
     type PalletId = ClockInPalletId;
     type ClockInBucketSize = ClockInBucketSize;
 }

@@ -119,14 +119,20 @@ import assert from "node:assert"
 
     let clockInInfo = (await chain.call.clockInRuntimeApi.getClockInInfo(nft, did)).toJSON() as any[];
     assert.ok(clockInInfo[1] == 0 && clockInInfo[2] == 0 && BigInt(clockInInfo[3]) == 0n);
+    assert.ok(clockInInfo[1] == 0);
+    assert.ok(clockInInfo[2] == 0);
 
-    await submitUntilFinalized(chain, chain.tx.clockIn.enableClockIn(nft, 10, 5, 40, "test", [], 100), k);
+    await submitUntilFinalized(chain, chain.tx.clockIn.enableClockIn(nft, [10, 20, 30, 40, 50], [1_000, 10_000, 100_000, 1_000_000, 10_000_000], 5, 100, 1000), k);
     clockInInfo = (await chain.call.clockInRuntimeApi.getClockInInfo(nft, did)).toJSON() as any[];
-    assert.ok(clockInInfo[1] > 0 && clockInInfo[2] > 0 && BigInt(clockInInfo[3]) == 40n);
+    assert.ok(clockInInfo[1] > 0);
+    assert.ok(clockInInfo[2] > 0);
+    assert.ok(BigInt(clockInInfo[3]) == 0n);
 
     await submitUntilFinalized(chain, chain.tx.clockIn.clockIn(nft), m);
     clockInInfo = (await chain.call.clockInRuntimeApi.getClockInInfo(nft, did)).toJSON() as any[];
-    assert.ok(clockInInfo[1] > 0 && clockInInfo[2] == 0 && BigInt(clockInInfo[3]) == 40n);
+    assert.ok(clockInInfo[1] > 0);
+    assert.ok(clockInInfo[2] == 0);
+    assert.ok(BigInt(clockInInfo[3]) == 0n);
 
   // 3. Prepare Advertiser
 

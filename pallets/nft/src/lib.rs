@@ -31,7 +31,7 @@ use frame_support::{
             nonfungibles::{Create as NftCreate, Mutate as NftMutate},
         },
         Currency, EnsureOrigin,
-        ExistenceRequirement::{self, KeepAlive},
+        ExistenceRequirement::{self},
         Get, StorageVersion,
     },
     PalletId,
@@ -41,7 +41,7 @@ use parami_assetmanager::AssetIdManager;
 use parami_did::EnsureDid;
 use parami_traits::{
     types::{Network, Task},
-    Links, Nfts, Stakes, Swaps,
+    Links, Nfts, Swaps,
 };
 use sp_core::U512;
 use sp_runtime::{
@@ -496,7 +496,7 @@ pub mod pallet {
             minting_tokens: BalanceOf<T>,
         ) -> DispatchResultWithPostInfo {
             let (did, account) = EnsureDid::<T>::ensure_origin(origin)?;
-            let mut meta = Metadata::<T>::get(nft_id).ok_or(Error::<T>::NotExists)?;
+            let meta = Metadata::<T>::get(nft_id).ok_or(Error::<T>::NotExists)?;
 
             ensure!(did == meta.owner, Error::<T>::NotTokenOwner);
             ensure!(!meta.minted, Error::<T>::Minted);
@@ -863,7 +863,7 @@ impl<T: Config> Pallet<T> {
     fn get_claim_info_inner(
         nft: NftOf<T>,
         did: &DidOf<T>,
-        initial_tokens: BalanceOf<T>,
+        _initial_tokens: BalanceOf<T>,
         initial_minting_lockup_period: HeightOf<T>,
         claimed_tokens: &BalanceOf<T>,
     ) -> Result<(BalanceOf<T>, BalanceOf<T>, BalanceOf<T>), DispatchError> {
@@ -1094,7 +1094,7 @@ impl<T: Config> Pallet<T> {
     fn end_ico_inner(
         nft_id: NftOf<T>,
         mut ico_meta: IcoMeta<T>,
-        mut meta: MetaOf<T>,
+        meta: MetaOf<T>,
         pot_tokens: BalanceOf<T>,
         account: AccountOf<T>,
     ) -> Result<(), DispatchError> {

@@ -11,7 +11,7 @@ pub mod v4 {
     use crate::Deposit;
     use crate::Pallet;
     use crate::StorageVersion;
-    use crate::{BalanceOf, ClaimStartAt, Deposits, HeightOf, IcoMeta, IcoMetaOf, Metadata, NftOf};
+    use crate::{BalanceOf, Deposits, IcoMeta, IcoMetaOf, Metadata};
     use parami_primitives::constants::DOLLARS;
 
     #[derive(Debug)]

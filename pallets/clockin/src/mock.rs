@@ -21,6 +21,9 @@ pub type Extrinsic = TestXt<Call, ()>;
 pub const ALICE: sr25519::Public = sr25519::Public([1; 32]);
 pub const BOB: sr25519::Public = sr25519::Public([2; 32]);
 pub const CHARLIE: sr25519::Public = sr25519::Public([3; 32]);
+pub const DAVE: sr25519::Public = sr25519::Public([4; 32]);
+pub const EVA: sr25519::Public = sr25519::Public([5; 32]);
+pub const FREDIE: sr25519::Public = sr25519::Public([6; 32]);
 
 pub const DID_ALICE: H160 = H160([0xff; 20]);
 
@@ -235,7 +238,6 @@ parameter_types! {
 impl parami_clockin::Config for Test {
     type Event = Event;
     type PalletId = ClockInPalletId;
-    type Tags = Tag;
     type ClockInBucketSize = ClockInBucketSize;
 }
 
