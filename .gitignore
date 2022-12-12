@@ -276,4 +276,4 @@ Cargo.lock
 
 *.child
 *.top
-.parami2/
+.db/

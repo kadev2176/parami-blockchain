@@ -237,6 +237,7 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         token_id: Self::AssetId,
         tokens: Self::TokenBalance,
     ) -> DispatchResult<Self::QuoteBalance> {
+        let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);
@@ -257,6 +258,7 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         ensure!(tokens > Zero::zero(), Error::<T>::ZeroTokens);
         ensure!(max_currency > Zero::zero(), Error::<T>::ZeroCurrency);
 
+        let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);
@@ -286,6 +288,8 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         token_id: Self::AssetId,
         tokens: Self::TokenBalance,
     ) -> DispatchResult<Self::QuoteBalance> {
+        let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
+
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);
@@ -306,6 +310,7 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         ensure!(tokens > Zero::zero(), Error::<T>::ZeroTokens);
         ensure!(min_currency > Zero::zero(), Error::<T>::ZeroCurrency);
 
+        let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);
@@ -327,6 +332,7 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         token_id: Self::AssetId,
         currency: Self::QuoteBalance,
     ) -> DispatchResult<Self::TokenBalance> {
+        // let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);
@@ -347,6 +353,7 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         ensure!(currency > Zero::zero(), Error::<T>::ZeroCurrency);
         ensure!(min_tokens > Zero::zero(), Error::<T>::ZeroTokens);
 
+        let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);
@@ -373,6 +380,7 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         token_id: Self::AssetId,
         currency: Self::QuoteBalance,
     ) -> DispatchResult<Self::TokenBalance> {
+        let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);
@@ -393,6 +401,7 @@ impl<T: Config> Swaps<AccountOf<T>> for Pallet<T> {
         ensure!(max_tokens > Zero::zero(), Error::<T>::ZeroTokens);
         ensure!(currency > Zero::zero(), Error::<T>::ZeroCurrency);
 
+        let _meta = <Metadata<T>>::get(token_id).ok_or(Error::<T>::NotExists)?;
         let pot = Self::get_pool_account(token_id);
 
         let total_quote = T::Currency::free_balance(&pot);

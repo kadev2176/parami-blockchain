@@ -115,24 +115,40 @@ impl<T: Config> Pallet<T> {
         input_amount: U512,
         input_reserve: U512,
         output_reserve: U512,
-    ) -> U512 {
+    ) -> Option<U512> {
+        if input_reserve == 0u32.into() {
+            return None;
+        }
+
         let ten_percent = input_reserve / 10;
 
         if input_amount > ten_percent {
             let d = Self::calculate_price_sell(ten_percent, input_reserve, output_reserve);
 
-            d + Self::calculate_price_sell(
+            if d.is_none() {
+                return None;
+            }
+
+            let d = d.unwrap();
+
+            let ten_percent_res = Self::calculate_price_sell(
                 input_amount - ten_percent,
                 input_reserve + ten_percent,
                 output_reserve - d,
-            )
+            );
+
+            if ten_percent_res.is_none() {
+                return None;
+            }
+
+            Some(d + ten_percent_res.unwrap())
         } else {
             let input_amount_with_fee = input_amount * U512::from(997);
             let numerator = input_amount_with_fee * output_reserve;
             let denominator = (input_reserve * U512::from(1000)) + input_amount_with_fee;
             let result = numerator / denominator;
 
-            result
+            Some(result)
         }
     }
 
@@ -169,7 +185,8 @@ impl<T: Config> Pallet<T> {
         let output_reserve = Self::try_into(output_reserve)?;
 
         let result = Self::calculate_price_sell(input_amount, input_reserve, output_reserve);
-
+        ensure!(result.is_some(), Error::<T>::ZeroLiquidity);
+        let result = result.unwrap();
         ensure!(output_reserve > result, Error::<T>::InsufficientLiquidity);
 
         let result = Self::try_into(result)?;

@@ -520,7 +520,7 @@ pub mod pallet {
             return Ok(());
         }
 
-        #[pallet::weight(<T as Config>::WeightInfo::pay())]
+        #[pallet::weight((0, Pays::No))]
         pub fn pay(
             origin: OriginFor<T>,
             ad_id: HashOf<T>,

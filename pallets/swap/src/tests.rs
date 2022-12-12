@@ -20,7 +20,7 @@ fn should_create() {
 }
 
 #[test]
-fn should_fail_when_exists() {
+fn should_not_create_when_exists() {
     new_test_ext().execute_with(|| {
         let token = 1;
 
@@ -193,6 +193,17 @@ fn should_buy_tokens() {
 }
 
 #[test]
+fn should_not_buy_tokens_when_swap_not_exists() {
+    new_test_ext().execute_with(|| {
+        let token = 1;
+        assert_noop!(
+            Swap::buy_tokens(Origin::signed(ALICE), token, 17, 300, 100),
+            Error::<Test>::NotExists
+        );
+    });
+}
+
+#[test]
 fn should_sell_tokens() {
     new_test_ext().execute_with(|| {
         let token = 1;
@@ -226,6 +237,17 @@ fn should_sell_tokens() {
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 420 + 133);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 42 + 42 - 20);
+    });
+}
+
+#[test]
+fn should_not_sell_tokens_when_swap_not_exists() {
+    new_test_ext().execute_with(|| {
+        let token = 1;
+        assert_noop!(
+            Swap::sell_tokens(Origin::signed(ALICE), token, 20, 1, 100),
+            Error::<Test>::NotExists
+        );
     });
 }
 
@@ -271,6 +293,25 @@ fn should_sell_currency() {
 }
 
 #[test]
+fn should_not_sell_currency_when_swap_not_exists() {
+    new_test_ext().execute_with(|| {
+        let token = 1;
+        assert_noop!(
+            Swap::sell_currency(Origin::signed(ALICE), token, 300, 1, 100),
+            Error::<Test>::NotExists
+        );
+    });
+}
+
+#[test]
+fn should_not_quote_in_dry() {
+    new_test_ext().execute_with(|| {
+        let token = 1;
+        assert_noop!(Swap::quote_in_dry(token, 100), Error::<Test>::ZeroLiquidity);
+    });
+}
+
+#[test]
 fn should_buy_currency() {
     new_test_ext().execute_with(|| {
         let token = 1;
@@ -310,6 +351,17 @@ fn should_buy_currency() {
 
         assert_eq!(Balances::free_balance(&ALICE), 10000 - 420 + 135);
         assert_eq!(Assets::balance(token, &ALICE), 44 - 42 + 42 - 22);
+    });
+}
+
+#[test]
+fn should_not_buy_currency_when_swap_not_exists() {
+    new_test_ext().execute_with(|| {
+        let token = 1;
+        assert_noop!(
+            Swap::buy_currency(Origin::signed(ALICE), token, 135, 1000, 100),
+            Error::<Test>::NotExists
+        );
     });
 }
 
