@@ -189,7 +189,7 @@ pub mod pallet {
             origin: OriginFor<T>,
             nft_id: NftOf<T>,
             level_probability: Vec<u32>,
-            level_endpoints: Vec<BalanceOf<T>>,
+            level_upper_bounds: Vec<BalanceOf<T>>,
             shares_per_bucket: u32,
             award_per_share: BalanceOf<T>,
         ) -> DispatchResult {
@@ -197,6 +197,10 @@ pub mod pallet {
             let nft_meta = parami_nft::Pallet::<T>::meta(nft_id).ok_or(Error::<T>::NftNotExists)?;
             ensure!(nft_meta.owner == did, Error::<T>::NotNftOwner);
             ensure!(nft_meta.minted, Error::<T>::NftNotMinted);
+            ensure!(
+                level_upper_bounds.len() == level_probability.len(),
+                Error::<T>::MetaParamInvalid
+            );
             let meta =
                 <LotteryMetadataStore<T>>::get(nft_id).ok_or(Error::<T>::ClockInNotExists)?;
 
@@ -204,7 +208,7 @@ pub mod pallet {
                 nft_id,
                 LotteryMetaOf::<T> {
                     level_probability,
-                    level_upper_bounds: level_endpoints,
+                    level_upper_bounds,
                     shares_per_bucket,
                     award_per_share,
                     ..meta
@@ -249,7 +253,7 @@ pub mod pallet {
             let reward: BalanceOf<T> =
                 Self::calculate_reward(nft_id, &did, &who, &meta, clocked_in_bucket);
             if reward > 0u32.into() {
-                BucketClaimedSharesStore::<T>::mutate(nft_id, clocked_in_bucket, |v| *v += 1);
+                <BucketClaimedSharesStore<T>>::mutate(nft_id, clocked_in_bucket, |v| *v += 1);
             }
 
             let reward = reward.min(free_balance);
@@ -274,7 +278,6 @@ pub mod pallet {
             meta: &LotteryMetaOf<T>,
         ) -> HeightOf<T> {
             let last_clock_in_bucket: HeightOf<T> = LastClockIn::<T>::get(nft_id, did).into();
-
             meta.start_at + last_clock_in_bucket * meta.bucket_size
         }
 
@@ -300,8 +303,6 @@ pub mod pallet {
             let parent_hash: &[u8] = parent_hash.as_ref();
             let random_number = parent_hash[parent_hash.len() - 1];
 
-            let user_balance = T::Assets::balance(nft_id, account);
-
             // guard shares_per_bucket invariant.
             let claimed_shares_in_cur_bucket =
                 <BucketClaimedSharesStore<T>>::get(nft_id, current_bucket);
@@ -309,23 +310,16 @@ pub mod pallet {
                 return 0u32.into();
             }
 
-            let user_level: usize = {
-                let mut res = meta.level_upper_bounds.len() - 1;
-                for i in 0..meta.level_upper_bounds.len() {
-                    if meta.level_upper_bounds.get(i).unwrap() >= &user_balance {
-                        res = i
-                    }
-                }
-                res
-            };
+            let user_level = Self::get_user_level_in_lottery(nft_id, &meta, account);
 
             let hit = u32::from(random_number % 100)
                 < meta.level_probability.get(user_level).unwrap().clone();
-            if hit {
-                return meta.award_per_share;
+
+            return if hit {
+                meta.award_per_share
             } else {
-                return Zero::zero();
-            }
+                Zero::zero()
+            };
         }
 
         pub fn get_clock_in_info(
@@ -346,6 +340,25 @@ pub mod pallet {
             } else {
                 return Ok((false, false, 0u32.into()));
             };
+        }
+
+        pub fn get_user_level_in_lottery(
+            nft_id: NftOf<T>,
+            meta: &LotteryMetaOf<T>,
+            account: &AccountOf<T>,
+        ) -> usize {
+            let user_balance = T::Assets::balance(nft_id, account);
+            let user_level: usize = {
+                let mut res = meta.level_upper_bounds.len() - 1;
+                for i in 0..meta.level_upper_bounds.len() {
+                    if meta.level_upper_bounds.get(i).unwrap() >= &user_balance {
+                        res = i;
+                        break;
+                    }
+                }
+                res
+            };
+            user_level.into()
         }
     }
 

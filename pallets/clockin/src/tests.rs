@@ -1,12 +1,13 @@
 use crate::mock::*;
-use crate::BucketClaimedSharesStore;
 use crate::LastClockIn;
+use crate::{BucketClaimedSharesStore, Config, LotteryMetaOf};
 use crate::{Error, LotteryMetadataStore};
 use frame_support::traits::fungibles::{Create, Mutate};
 use frame_support::{assert_noop, assert_ok};
 use parami_primitives::constants::DOLLARS;
 use sp_core::sr25519;
 use sp_runtime::traits::One;
+use sp_std::prelude::*;
 
 #[test]
 fn should_enable_clockin() {
@@ -193,7 +194,8 @@ fn should_update_clockin() {
                 1_000 * DOLLARS,
                 10_000 * DOLLARS,
                 100_000 * DOLLARS,
-                2_000_000 * DOLLARS
+                2_000_000 * DOLLARS,
+                3_000_000 * DOLLARS,
             ],
             5,
             100 * DOLLARS,
@@ -207,6 +209,57 @@ fn should_update_clockin() {
         );
         //TODO(ironman_ch): where set this bucket_size
         assert_eq!(meta.bucket_size, 10);
+    });
+}
+
+#[test]
+fn should_not_update_clockin() {
+    new_test_ext().execute_with(|| {
+        let nft_id = 1;
+        System::set_block_number(10);
+        <Assets as Create<<Test as frame_system::Config>::AccountId>>::create(
+            nft_id,
+            ALICE,
+            true,
+            One::one(),
+        )
+        .unwrap();
+        <Test as parami_nft::Config>::Assets::mint_into(nft_id, &ALICE, 10_000 * DOLLARS).unwrap();
+
+        assert_ok!(ClockIn::enable_clock_in(
+            Origin::signed(ALICE),
+            nft_id,
+            vec![10, 20, 30, 40, 50],
+            vec![
+                1_000 * DOLLARS,
+                10_000 * DOLLARS,
+                100_000 * DOLLARS,
+                1_000_000 * DOLLARS,
+                10_000_000 * DOLLARS,
+            ],
+            5,
+            100 * DOLLARS,
+            5_000 * DOLLARS,
+        ));
+
+        assert_noop!(
+            ClockIn::update_clock_in(
+                Origin::signed(ALICE),
+                nft_id,
+                vec![10, 20, 30, 40, 60],
+                vec![
+                    1_000 * DOLLARS,
+                    10_000 * DOLLARS,
+                    100_000 * DOLLARS,
+                    2_000_000 * DOLLARS,
+                    3_000_000 * DOLLARS,
+                    3_000_000 * DOLLARS,
+                ],
+                5,
+                100 * DOLLARS,
+            ),
+            Error::<Test>::MetaParamInvalid
+        );
     });
 }
 
@@ -353,9 +406,9 @@ fn should_clock_in_when_shares_per_bucket_arrives() {
         let claimed_shares = <BucketClaimedSharesStore<Test>>::get(nft_id, last_clock_in_bucket);
         assert_eq!(claimed_shares, u32::try_from(shares_per_bucket).unwrap());
 
-        let balance_before = <Test as parami_nft::Config>::Assets::balance(nft_id, FREDIE);
+        let balance_before = <Test as parami_nft::Config>::Assets::balance(nft_id, CHARLIE);
         assert_ok!(ClockIn::clock_in(Origin::signed(CHARLIE), nft_id));
-        let balance_after = <Test as parami_nft::Config>::Assets::balance(nft_id, FREDIE);
+        let balance_after = <Test as parami_nft::Config>::Assets::balance(nft_id, CHARLIE);
         assert_eq!(balance_before, balance_after);
         let claimed_shares = <BucketClaimedSharesStore<Test>>::get(nft_id, last_clock_in_bucket);
         assert_eq!(claimed_shares, u32::try_from(shares_per_bucket).unwrap());
@@ -363,7 +416,52 @@ fn should_clock_in_when_shares_per_bucket_arrives() {
 }
 
 #[test]
-fn failed_to_clock_in_if_clocked_in_this_bucket() {
+fn should_clock_with_different_possibility_when_different_balance() {
+    new_test_ext().execute_with(|| {
+        let nft_id = 1;
+        let shares_per_bucket: usize = 2;
+        System::set_block_number(10);
+        <Assets as Create<<Test as frame_system::Config>::AccountId>>::create(
+            nft_id,
+            ALICE,
+            true,
+            One::one(),
+        )
+        .unwrap();
+        <Test as parami_nft::Config>::Assets::mint_into(nft_id, &ALICE, 9_000 * DOLLARS).unwrap();
+
+        assert_ok!(ClockIn::enable_clock_in(
+            Origin::signed(ALICE),
+            nft_id,
+            vec![10, 20, 30, 40, 50],
+            vec![
+                1_000 * DOLLARS,
+                10_000 * DOLLARS,
+                100_000 * DOLLARS,
+                1_000_000 * DOLLARS,
+                10_000_000 * DOLLARS
+            ],
+            shares_per_bucket.try_into().unwrap(),
+            100 * DOLLARS,
+            5_000 * DOLLARS,
+        ));
+
+        let meta = <LotteryMetadataStore<Test>>::get(nft_id).unwrap();
+
+        <Test as parami_nft::Config>::Assets::mint_into(nft_id, &BOB, 99_000 * DOLLARS).unwrap();
+        System::set_parent_hash(create_parent_hash_with(31).into());
+
+        let balance_before = <Test as parami_nft::Config>::Assets::balance(nft_id, BOB);
+        assert_ok!(ClockIn::clock_in(Origin::signed(BOB), nft_id));
+        let balance_after = <Test as parami_nft::Config>::Assets::balance(nft_id, BOB);
+        let user_level = ClockIn::get_user_level_in_lottery(nft_id, &meta, &BOB);
+        assert_eq!(2, user_level);
+        assert_eq!(balance_before, balance_after);
+    });
+}
+
+#[test]
+fn should_not_clock_in_if_clocked_in_this_bucket() {
     new_test_ext().execute_with(|| {
         let nft_id = 1;
         System::set_block_number(10);
@@ -399,7 +497,7 @@ fn failed_to_clock_in_if_clocked_in_this_bucket() {
 }
 
 #[test]
-fn failed_to_clock_in_if_balance_not_enough() {
+fn should_not_clock_in_if_balance_not_enough() {
     new_test_ext().execute_with(|| {
         let nft_id = 1;
         System::set_block_number(10);
