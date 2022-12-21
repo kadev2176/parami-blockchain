@@ -134,48 +134,6 @@ jobs:
 
       - run: killall parami-linux-x86_64 || true
 
-  bench:
-    needs:
-      - lint
-
-    strategy:
-      matrix:
-        os: [linux]
-        arch: [ aarch64 ]
-
-    runs-on: ["self-hosted", "${{ matrix.os }}"]
-
-    steps:
-      - uses: actions/checkout@v3
-      - uses: ./.github/actions/prepare
-        with:
-          os: ${{ matrix.os }}
-
-      - name: Set up cargo cache
-        uses: actions/cache@v3
-        continue-on-error: false
-        with:
-          path: |
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/            
-          key: ${{ runner.arch }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.arch }}-cargo-
-          
-      - name: Build Benchmarks
-        run: cargo build --release --locked --features=runtime-benchmarks
-
-      - name: Run Benchmark
-        run: |
-          ./.maintain/benchmark.sh swap
-          ./.maintain/benchmark.sh did 2 50
-          ./.maintain/benchmark.sh advertiser
-          ./.maintain/benchmark.sh tag
-          ./.maintain/benchmark.sh linker 2 50
-          ./.maintain/benchmark.sh nft 2 50
-          ./.maintain/benchmark.sh ad 2 100
-
   release:
     needs:
       - lint
