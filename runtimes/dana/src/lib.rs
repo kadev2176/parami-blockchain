@@ -99,7 +99,7 @@ pub type Executive = frame_executive::Executive<
     frame_system::ChainContext<Runtime>,
     Runtime,
     AllPalletsWithSystem,
-    (parami_clockin::migrations::v0::RemoveRedundantStorage<Runtime>,),
+    (parami_ad::migrations::v5::BidWithCurrencyOrAsset<Runtime>),
 >;
 
 /// Era type as expected by this runtime.

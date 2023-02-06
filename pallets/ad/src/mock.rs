@@ -28,7 +28,7 @@ pub const TAGA0_TAGB0: sr25519::Public = sr25519::Public([5; 32]);
 pub const TAGA100_TAGB100: sr25519::Public = sr25519::Public([8; 32]);
 pub const TAGA120_TAGB0: sr25519::Public = sr25519::Public([9; 32]);
 
-pub const BOB_BALANCE: u128 = 500;
+pub const BOB_BALANCE: u128 = 501;
 pub const CHARLIE_BALANCE: u128 = 500;
 
 pub const DID_ALICE: H160 = H160([0xff; 20]);
@@ -348,8 +348,8 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     parami_nft::GenesisConfig::<Test> {
         deposit: vec![],
         deposits: vec![],
-        next_instance_id: 1,
-        nfts: vec![(0, DID_ALICE, true)],
+        next_instance_id: 2,
+        nfts: vec![(0, DID_ALICE, false), (1, DID_ALICE, true)],
         externals: Default::default(),
         validate_endpoints: Default::default(),
     }
@@ -357,11 +357,11 @@ pub fn new_test_ext() -> sp_io::TestExternalities {
     .unwrap();
 
     pallet_assets::GenesisConfig::<Test> {
-        assets: vec![(0, ALICE, true, 1)],
+        assets: vec![(1, ALICE, true, 1)],
         accounts: vec![
-            (0, ALICE, 10000),
-            (0, BOB, BOB_BALANCE),
-            (0, CHARLIE, CHARLIE_BALANCE),
+            (1, ALICE, 10000),
+            (1, BOB, BOB_BALANCE),
+            (1, CHARLIE, CHARLIE_BALANCE),
         ],
         metadata: vec![],
     }

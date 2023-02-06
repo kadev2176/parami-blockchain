@@ -1,4 +1,7 @@
-use crate::{mock::*, AdsOf, Config, DeadlineOf, EndtimeOf, Error, Metadata, SlotOf};
+use crate::{
+    mock::*, AdAsset, AdsOf, Config, CurrencyOrAsset, DeadlineOf, EndtimeOf, Error, Metadata,
+    SlotOf,
+};
 use frame_support::{assert_noop, assert_ok, traits::Hooks};
 use parami_primitives::constants::DOLLARS;
 use parami_traits::Tags;
@@ -209,7 +212,7 @@ fn should_generate_unique_slot_pot() {
 }
 
 #[test]
-fn should_bid() {
+fn should_bid_with_fraction() {
     new_test_ext().execute_with(|| {
         // 1. prepare
 
@@ -362,7 +365,7 @@ fn should_fail_to_add_budget_when_fungible_not_same_with_bid() {
             None
         ));
         let slot = <SlotOf<Test>>::get(nft).unwrap();
-        assert_eq!(Ad::slot_current_fraction_balance(&slot), bob_bid_fraction);
+        assert_eq!(Ad::slot_current_budget(&slot), bob_bid_fraction);
 
         let new_budget = 250;
         let new_fungibles = 123;
@@ -424,7 +427,7 @@ fn should_add_budget() {
             Some(bob_bid_fungible)
         ));
         let slot = <SlotOf<Test>>::get(nft).unwrap();
-        assert_eq!(Ad::slot_current_fraction_balance(&slot), bob_bid_fraction);
+        assert_eq!(Ad::slot_current_budget(&slot), bob_bid_fraction);
 
         let new_budget = 250;
         let new_fungibles = 123;
@@ -441,12 +444,12 @@ fn should_add_budget() {
             bob_bid_fungible + new_fungibles
         );
         assert_eq!(
-            Assets::balance(slot.fraction_id, BOB),
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &BOB),
             BOB_BALANCE - bob_bid_fraction - new_budget
         );
 
         assert_eq!(
-            Ad::slot_current_fraction_balance(&slot),
+            Ad::slot_current_budget(&slot),
             bob_bid_fraction + new_budget
         );
     });
@@ -486,7 +489,7 @@ fn should_drawback_when_ad_expired() {
             None,
             None
         ));
-        assert_eq!(Assets::balance(meta.token_asset_id, BOB), 100);
+        assert_eq!(Assets::balance(meta.token_asset_id, BOB), 101);
 
         // 2. step in
 
@@ -504,7 +507,7 @@ fn should_drawback_when_ad_expired() {
         Ad::on_initialize(System::block_number());
 
         // ensure remain
-        assert_eq!(Assets::balance(meta.token_asset_id, BOB), 500);
+        assert_eq!(Assets::balance(meta.token_asset_id, BOB), 501);
     });
 }
 macro_rules! prepare_pay {
@@ -937,8 +940,15 @@ fn should_distribute_fractions_proportionally() {
 
         let slot = SlotOf::<Test>::get(nft).unwrap();
         // Charlie's score is 5, and payout base is 1, so the expected received amount is 5 * 1. It's 5 of total 10 fractions.
-        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 10);
-        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 500);
+
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &slot.budget_pot),
+            10
+        );
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &CHARLIE),
+            500
+        );
         assert_eq!(
             Assets::balance(slot.fungible_id.unwrap(), slot.budget_pot),
             2
@@ -954,8 +964,15 @@ fn should_distribute_fractions_proportionally() {
             sp_runtime::MultiSignature::Sr25519(signature),
             bod_account_id_32.clone(),
         ));
-        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 5);
-        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 505);
+
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &slot.budget_pot),
+            5
+        );
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &CHARLIE),
+            505
+        );
 
         // respectively, we should give 1 fungibles of total 2.
         assert_eq!(
@@ -1032,8 +1049,15 @@ fn should_claim_all_fractions_if_fractions_less_than_expected() {
 
         let slot = SlotOf::<Test>::get(nft).unwrap();
         // Charlie's score is 5, and payout base is 1, so the expected received amount is 5 * 1. However the budget pot has only 4.
-        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 4);
-        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 500);
+
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &slot.budget_pot),
+            4
+        );
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &CHARLIE),
+            500
+        );
         assert_ok!(Ad::claim(
             Origin::signed(CHARLIE),
             ad,
@@ -1044,8 +1068,15 @@ fn should_claim_all_fractions_if_fractions_less_than_expected() {
             sp_runtime::MultiSignature::Sr25519(signature),
             bod_account_id_32.clone(),
         ));
-        assert_eq!(Assets::balance(slot.fraction_id, slot.budget_pot), 0);
-        assert_eq!(Assets::balance(slot.fraction_id, CHARLIE), 504);
+
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &slot.budget_pot),
+            0
+        );
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(&slot.ad_asset, &CHARLIE),
+            504
+        );
 
         // And our ad is drawback.
         assert_eq!(SlotOf::<Test>::get(nft), None);
@@ -1383,6 +1414,187 @@ fn should_fail_if_payout_base_too_low() {
                 None
             ),
             Error::<Test>::WrongPayoutSetting
+        );
+    });
+}
+
+#[test]
+fn should_bid_with_currency() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+
+        let nft = 0;
+        let meta = Nft::meta(nft).unwrap();
+        let endtime = 43200;
+        let charlie_balance = Balances::free_balance(&CHARLIE);
+
+        // ad1
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            vec![],
+            [0u8; 64].into(),
+            1,
+            endtime,
+            1u128,
+            0,
+            10u128,
+            None
+        ));
+
+        let ad1 = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        // 2. bob bid for ad1
+
+        let slot = <SlotOf<Test>>::get(nft);
+        assert_eq!(slot, None);
+
+        let bob_bid_currency = 400;
+
+        assert_ok!(Ad::bid_with_currency(
+            Origin::signed(BOB),
+            ad1,
+            nft,
+            bob_bid_currency,
+        ));
+
+        // ensure: deadline, slot, remain
+        assert_eq!(<EndtimeOf<Test>>::get(&ad1), Some(endtime));
+        assert_eq!(<DeadlineOf<Test>>::get(nft, &ad1), Some(endtime));
+
+        let slot = <SlotOf<Test>>::get(nft).unwrap();
+        assert_eq!(slot.ad_id, ad1);
+        let ad_asset = &slot.ad_asset;
+        assert_eq!(*ad_asset, CurrencyOrAsset::<u32>::Currency);
+
+        // 3. charlie bid for ad2
+        // ad2
+
+        assert_ok!(Ad::create(
+            Origin::signed(CHARLIE),
+            vec![],
+            [0u8; 64].into(),
+            1,
+            1,
+            1u128,
+            0,
+            10u128,
+            None
+        ));
+
+        let ad2 = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        assert_noop!(
+            Ad::bid_with_currency(
+                Origin::signed(CHARLIE),
+                ad2,
+                nft,
+                bob_bid_currency.saturating_mul(120).saturating_div(100),
+            ),
+            Error::<Test>::Underbid
+        );
+
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(ad_asset, &CHARLIE),
+            charlie_balance
+        );
+        let charlie_bid_currency = bob_bid_currency
+            .saturating_mul(120)
+            .saturating_div(100)
+            .saturating_add(1);
+
+        assert_ok!(Ad::bid_with_currency(
+            Origin::signed(CHARLIE),
+            ad2,
+            nft,
+            charlie_bid_currency,
+        ));
+        assert_eq!(
+            AdAsset::<Test>::reduciable_balance(ad_asset, &CHARLIE),
+            charlie_balance - charlie_bid_currency
+        );
+
+        let slot = <SlotOf<Test>>::get(nft).unwrap();
+        assert_eq!(slot.ad_id, ad2);
+
+        let locked_budget = AdAsset::<Test>::reduciable_balance(ad_asset, &slot.budget_pot);
+        assert_eq!(locked_budget, charlie_bid_currency);
+
+        // ensure: deadline, slot, remain
+
+        assert_eq!(<EndtimeOf<Test>>::get(&ad2), Some(1));
+        assert_eq!(<DeadlineOf<Test>>::get(nft, &ad1), None);
+        assert_eq!(<DeadlineOf<Test>>::get(nft, &ad2), Some(1));
+    });
+}
+
+#[test]
+fn should_fail_bid_with_currency_if_minted() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let nft = 1;
+        let endtime = 43200;
+
+        // ad1
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            vec![],
+            [0u8; 64].into(),
+            1,
+            endtime,
+            1u128,
+            0,
+            10u128,
+            None
+        ));
+
+        let ad1 = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        // 2. bob bid for ad1
+
+        let slot = <SlotOf<Test>>::get(nft);
+        assert_eq!(slot, None);
+
+        let bob_bid_currency = 400;
+
+        assert_noop!(
+            Ad::bid_with_currency(Origin::signed(CHARLIE), ad1, nft, bob_bid_currency),
+            Error::<Test>::Minted
+        );
+    });
+}
+
+#[test]
+fn should_fail_bid_with_fraction_if_not_minted() {
+    new_test_ext().execute_with(|| {
+        // 1. prepare
+        let nft = 0;
+        let endtime = 43200;
+
+        // ad1
+        assert_ok!(Ad::create(
+            Origin::signed(BOB),
+            vec![],
+            [0u8; 64].into(),
+            1,
+            endtime,
+            1u128,
+            0,
+            10u128,
+            None
+        ));
+
+        let ad1 = <Metadata<Test>>::iter_keys().next().unwrap();
+
+        // 2. bob bid for ad1
+
+        let slot = <SlotOf<Test>>::get(nft);
+        assert_eq!(slot, None);
+
+        let bob_bid_fraction = 400;
+
+        assert_noop!(
+            Ad::bid_with_fraction(Origin::signed(BOB), ad1, nft, bob_bid_fraction, None, None),
+            Error::<Test>::NotMinted
         );
     });
 }
