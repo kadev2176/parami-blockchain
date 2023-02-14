@@ -1,10 +1,10 @@
 use crate::{
-    mock::*, ClaimStartAt, ClaimedFragmentAmount, Deposit, Deposits, Error, External, IcoMeta,
-    IcoMetaOf, Metadata, Ported, Porting, Preferred,
+    mock::*, AccountOf, ClaimStartAt, Deposits, Error, External, IcoMeta, IcoMetaOf,
+    InflueceMiningMetaStore, InfluenceMiningMetaOf, Metadata, Ported, Porting, Preferred,
 };
 
 use codec::Decode;
-use frame_support::{assert_noop, assert_ok, traits::fungibles::Mutate};
+use frame_support::{assert_err, assert_noop, assert_ok};
 use parami_primitives::constants::DOLLARS;
 use parami_traits::{transferable::Transferable, types::Network, Swaps};
 use parking_lot::RwLock;
@@ -539,7 +539,6 @@ fn should_mint_asset() {
 
 #[test]
 fn should_start_ico() {
-    use frame_support::traits::tokens::fungibles::Inspect;
     new_test_ext().execute_with(|| {
         let nft = Nft::preferred(DID_ALICE).unwrap();
 
@@ -856,5 +855,135 @@ fn should_claim_for_ico_meta() {
         assert_eq!(total, 10 * DOLLARS);
         assert_eq!(unlocked, 10 * DOLLARS);
         assert_eq!(claimable, 8 * DOLLARS);
+    });
+}
+
+#[test]
+fn should_start_influence_mining_activity() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100_000_000 * DOLLARS,
+        ));
+
+        let nft_meta = <Metadata<Test>>::get(nft).unwrap();
+
+        //before stats
+        let asset_balance_of_owner_before = Assets::balance(nft_meta.token_asset_id, ALICE);
+
+        let pot_account: AccountOf<Test> = Nft::generate_influence_mining_pot(&nft);
+
+        let asset_balance_of_pot_before = Assets::balance(nft_meta.token_asset_id, &pot_account);
+
+        //action
+        assert_ok!(Nft::start_dao_influenceming_activity(
+            Origin::signed(ALICE),
+            nft,
+            100_000 * DOLLARS
+        ));
+
+        //after stats
+        let asset_balance_after = Assets::balance(nft_meta.token_asset_id, ALICE);
+        let asset_balance_of_pot_after = Assets::balance(nft_meta.token_asset_id, &pot_account);
+
+        let meta: InfluenceMiningMetaOf<Test> = <InflueceMiningMetaStore<Test>>::get(nft).unwrap();
+        assert_eq!(meta.budget_in_tokens, 100_000 * DOLLARS);
+        assert_eq!(
+            asset_balance_after,
+            asset_balance_of_owner_before - meta.budget_in_tokens
+        );
+        assert_eq!(meta.pot, pot_account);
+        assert_eq!(
+            asset_balance_of_pot_after,
+            asset_balance_of_pot_before + meta.budget_in_tokens
+        );
+        assert_eq!(meta.pot, pot_account);
+    });
+}
+
+#[test]
+fn should_not_start_influence_mining_activity_when_already_started() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100_000_000 * DOLLARS,
+        ));
+
+        //action
+        assert_ok!(Nft::start_dao_influenceming_activity(
+            Origin::signed(ALICE),
+            nft,
+            100_000 * DOLLARS
+        ));
+
+        assert_err!(
+            Nft::start_dao_influenceming_activity(Origin::signed(ALICE), nft, 100_000 * DOLLARS),
+            Error::<Test>::Exists
+        );
+    });
+}
+
+#[test]
+fn should_not_start_influence_mining_activity_when_origin_from_non_owner() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100_000_000 * DOLLARS,
+        ));
+
+        //action
+        assert_noop!(
+            Nft::start_dao_influenceming_activity(Origin::signed(BOB), nft, 100_000 * DOLLARS),
+            Error::<Test>::NotTokenOwner
+        );
+    });
+}
+
+#[test]
+fn should_not_start_influence_mining_activity_when_balance_not_enough() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        assert_ok!(Nft::mint_nft_power(
+            Origin::signed(ALICE),
+            nft,
+            b"TT".to_vec(),
+            b"TT".to_vec(),
+            100 * DOLLARS,
+        ));
+
+        //action
+        assert_noop!(
+            Nft::start_dao_influenceming_activity(Origin::signed(BOB), nft, 100_000 * DOLLARS),
+            Error::<Test>::NotTokenOwner
+        );
+    });
+}
+
+#[test]
+fn should_not_start_influence_mining_activity_when_nft_not_minted() {
+    new_test_ext().execute_with(|| {
+        let nft = Nft::preferred(DID_ALICE).unwrap();
+
+        //action
+        assert_noop!(
+            Nft::start_dao_influenceming_activity(Origin::signed(ALICE), nft, 100_000 * DOLLARS),
+            Error::<Test>::NotExists
+        );
     });
 }

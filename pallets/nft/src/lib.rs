@@ -66,6 +66,7 @@ type MetaOf<T> = types::Metadata<DidOf<T>, AccountOf<T>, NftOf<T>, AssetOf<T>>;
 type NftOf<T> = <T as Config>::AssetId;
 type TaskOf<T> = Task<ImportTask<DidOf<T>>, HeightOf<T>>;
 type IcoMeta<T> = types::IcoMeta<BalanceOf<T>, AccountOf<T>>;
+type InfluenceMiningMetaOf<T> = types::InfluenceMiningMeta<BalanceOf<T>, AccountOf<T>>;
 
 const STORAGE_VERSION: StorageVersion = StorageVersion::new(3);
 
@@ -232,6 +233,10 @@ pub mod pallet {
     #[pallet::storage]
     pub(super) type IcoMetaOf<T: Config> = StorageMap<_, Twox64Concat, NftOf<T>, IcoMeta<T>>;
 
+    #[pallet::storage]
+    pub(super) type InflueceMiningMetaStore<T: Config> =
+        StorageMap<_, Twox64Concat, NftOf<T>, InfluenceMiningMetaOf<T>>;
+
     #[pallet::type_value]
     pub(crate) fn DefaultId<T: Config>() -> NftOf<T> {
         One::one()
@@ -265,6 +270,9 @@ pub mod pallet {
         ),
         /// Import NFT Failed \[did, network, namespace, token_id\]
         ImportFailed(T::DecentralizedId, Network, Vec<u8>, Vec<u8>),
+
+        // NFT Influencemining Activity Started \[nftId, budget_in_tokens\]
+        InfluenceMiningActivityStarted(NftOf<T>, BalanceOf<T>),
     }
 
     #[pallet::hooks]
@@ -585,6 +593,32 @@ pub mod pallet {
             ensure!(!ico_meta.done, Error::<T>::Deadline);
 
             Self::buy_tokens_in_ico(nft_id, &did, token_amount, &account, &meta, &ico_meta)?;
+
+            Ok(().into())
+        }
+
+        // FIXME: weight
+        #[pallet::weight(<T as Config>::WeightInfo::submit_porting())]
+        pub fn start_dao_influenceming_activity(
+            origin: OriginFor<T>,
+            nft_id: NftOf<T>,
+            budget_in_tokens: BalanceOf<T>,
+        ) -> DispatchResult {
+            let (did, account) = EnsureDid::<T>::ensure_origin(origin)?;
+            let meta = Metadata::<T>::get(nft_id).ok_or(Error::<T>::NotExists)?;
+            ensure!(did == meta.owner, Error::<T>::NotTokenOwner);
+            ensure!(meta.minted, Error::<T>::NotExists);
+
+            let balance = T::Assets::balance(meta.token_asset_id, &account);
+
+            ensure!(budget_in_tokens <= balance, Error::<T>::InsufficientToken);
+
+            Self::start_dao_influencemining_acitivy_inner(
+                nft_id,
+                budget_in_tokens,
+                meta.token_asset_id,
+                &account,
+            )?;
 
             Ok(().into())
         }
@@ -1133,6 +1167,33 @@ impl<T: Config> Pallet<T> {
         Ok(())
     }
 
+    fn start_dao_influencemining_acitivy_inner(
+        nft_id: NftOf<T>,
+        budget_in_tokens: BalanceOf<T>,
+        asset_id: AssetOf<T>,
+        owner_account: &AccountOf<T>,
+    ) -> Result<(), DispatchError> {
+        let pot = Self::generate_influence_mining_pot(&nft_id);
+        T::Assets::transfer(asset_id, owner_account, &pot, budget_in_tokens, false)?;
+
+        let old_meta = <InflueceMiningMetaStore<T>>::get(nft_id);
+        ensure!(old_meta.is_none(), Error::<T>::Exists);
+        let im_meta = InfluenceMiningMetaOf::<T> {
+            budget_in_tokens,
+            done: false,
+            pot,
+        };
+
+        <InflueceMiningMetaStore<T>>::insert(nft_id, im_meta);
+
+        Self::deposit_event(Event::<T>::InfluenceMiningActivityStarted(
+            nft_id,
+            budget_in_tokens,
+        ));
+
+        Ok(())
+    }
+
     fn generate_claim_pot(nft_id: &NftOf<T>) -> AccountOf<T> {
         return T::PalletId::get().into_sub_account_truncating(&nft_id);
     }
@@ -1140,6 +1201,13 @@ impl<T: Config> Pallet<T> {
     fn generate_ico_pot(nft_id: &NftOf<T>) -> AccountOf<T> {
         use sp_core::Encode;
         let mut pot_seed = b"ico".to_vec();
+        pot_seed.append(&mut nft_id.encode());
+        return T::PalletId::get().into_sub_account_truncating(&pot_seed);
+    }
+
+    pub fn generate_influence_mining_pot(nft_id: &NftOf<T>) -> AccountOf<T> {
+        use sp_core::Encode;
+        let mut pot_seed = b"ifm".to_vec();
         pot_seed.append(&mut nft_id.encode());
         return T::PalletId::get().into_sub_account_truncating(&pot_seed);
     }

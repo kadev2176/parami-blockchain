@@ -37,3 +37,10 @@ pub struct IcoMeta<Balance, Account> {
     pub done: bool,
     pub pot: Account,
 }
+
+#[derive(Clone, Encode, Decode, Eq, PartialEq, RuntimeDebug, Default, TypeInfo)]
+pub struct InfluenceMiningMeta<Balance, Account> {
+    pub budget_in_tokens: Balance,
+    pub pot: Account,
+    pub done: bool,
+}

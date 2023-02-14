@@ -177,8 +177,8 @@ pub mod pallet {
         Deposited(NftOf<T>, DidOf<T>, BalanceOf<T>),
         /// Advertisement updated \[id\]
         Updated(HashOf<T>),
-        /// Advertiser bid for slot \[kol, id, value\]
-        Bid(NftOf<T>, HashOf<T>, BalanceOf<T>),
+        /// Advertiser bid for slot \[nftId, adId, value\]
+        Bid(NftOf<T>, HashOf<T>, BalanceOf<T>, DidOf<T>),
         /// Advertisement (in slot) deadline reached \[kol, id, value\]
         End(NftOf<T>, HashOf<T>, BalanceOf<T>),
         /// Advertisement payout \[id, nft, visitor, value, referrer, value\]
@@ -1084,7 +1084,7 @@ impl<T: Config> Pallet<T> {
         <DeadlineOf<T>>::insert(nft_id, &ad_id, deadline);
         <Metadata<T>>::insert(&ad_id, &ad_meta);
 
-        Self::deposit_event(Event::Bid(nft_id, ad_id, bid_amount));
+        Self::deposit_event(Event::Bid(nft_id, ad_id, bid_amount, ad_meta.creator));
 
         Ok(())
     }
